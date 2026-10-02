@@ -15,6 +15,7 @@ public:
 private:
     void timerCallback() override;
     void refreshPlayhead();
+    void refreshHostTempo();
 
     TEW03AudioProcessor& proc;
 
@@ -80,6 +81,7 @@ private:
     juce::OwnedArray<ParamCell> seqCells;
     juce::OwnedArray<ParamCell> filterCells;
     juce::OwnedArray<ParamCell> masterCells;
+    ParamCell* tempoCell = nullptr;
     juce::Rectangle<int> seqArea, filterArea, masterArea;
     int lastPlayhead = -1;
 

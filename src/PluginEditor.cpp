@@ -1,5 +1,7 @@
 #include "PluginEditor.h"
 
+#include <cmath>
+
 namespace
 {
 constexpr int kEditorW = 900;
@@ -238,17 +240,17 @@ void TEW03AudioProcessorEditor::PanelLnF::drawToggleButton (juce::Graphics& g, j
     {
         g.setColour (kKnob);
         g.fillRoundedRectangle (bounds, 4.f);
-        const float half = bounds.getWidth() * 0.5f;
-        auto knob = bounds.withWidth (half);
+        const float half = bounds.getHeight() * 0.5f;
+        auto knob = bounds.withHeight (half);
         if (b.getToggleState())
-            knob = knob.translated (half, 0.f);
+            knob = knob.translated (0.f, half);
         g.setColour (kCream);
         g.fillRoundedRectangle (knob.reduced (2.f), 3.f);
         g.setFont (boldFont (11.f));
         g.setColour (b.getToggleState() ? kCream : kInk);
-        g.drawText ("SAW", bounds.removeFromLeft (half).toNearestInt(), juce::Justification::centred, false);
+        g.drawText ("Saw", bounds.removeFromTop (half).toNearestInt(), juce::Justification::centred, false);
         g.setColour (b.getToggleState() ? kInk : kCream);
-        g.drawText ("SQR", bounds.toNearestInt(), juce::Justification::centred, false);
+        g.drawText ("Sqr", bounds.toNearestInt(), juce::Justification::centred, false);
         return;
     }
 
@@ -326,7 +328,7 @@ void TEW03AudioProcessorEditor::ParamCell::resized()
     auto r = getLocalBounds().reduced (2);
     label.setBounds (r.removeFromTop (kLabelH));
     if (isBool)
-        button.setBounds (r.removeFromTop (isFlip ? 28 : 24).reduced (2, 2));
+        button.setBounds ((isFlip ? r : r.removeFromTop (24)).reduced (2, 2));
     else
         slider.setBounds (r);
 }
@@ -352,7 +354,10 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         auto* p = dynamic_cast<juce::RangedAudioParameter*> (proc.apvts.getParameter (id));
         if (p == nullptr)
             return;
-        addAndMakeVisible (dest.add (new ParamCell (proc.apvts, *p)));
+        auto* cell = dest.add (new ParamCell (proc.apvts, *p));
+        addAndMakeVisible (cell);
+        if (id == ParamID::seqTempo)
+            tempoCell = cell;
     };
 
     for (auto* id : kSeq)
@@ -456,6 +461,29 @@ void TEW03AudioProcessorEditor::resized()
 void TEW03AudioProcessorEditor::timerCallback()
 {
     refreshPlayhead();
+    refreshHostTempo();
+}
+
+void TEW03AudioProcessorEditor::refreshHostTempo()
+{
+    if (tempoCell == nullptr)
+        return;
+
+    const bool host = proc.usesHostTempo();
+    tempoCell->slider.setEnabled (! host);
+    if (! host)
+        return;
+
+    auto* param = dynamic_cast<juce::RangedAudioParameter*> (proc.apvts.getParameter (ParamID::seqTempo));
+    if (param == nullptr)
+        return;
+
+    const float bpm = proc.tempoBpm();
+    const float shown = param->convertFrom0to1 (param->getValue());
+    if (std::abs (shown - bpm) <= 0.05f)
+        return;
+
+    param->setValueNotifyingHost (param->convertTo0to1 (bpm));
 }
 
 void TEW03AudioProcessorEditor::refreshPlayhead()

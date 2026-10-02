@@ -38,10 +38,12 @@ public:
 
     tew::Sequencer& getSequencer() { return sequencer; }
     void setPatternStep (int index, tew::Sequencer::Step step);
+    float tempoBpm() const;
+    bool usesHostTempo() const;
 
 private:
     float raw (const char* id) const;
-    float tempoBpm() const;
+    float hostTempoBpm() const;
     bool seqShouldRun() const;
     void loadPatternFromState();
     void writeStepToState (int index, tew::Sequencer::Step step);

@@ -66,26 +66,37 @@ float TEW03AudioProcessor::raw (const char* id) const
     return apvts.getRawParameterValue (id)->load();
 }
 
-float TEW03AudioProcessor::tempoBpm() const
+float TEW03AudioProcessor::hostTempoBpm() const
 {
-    // Standalone has no DAW clock. The Seq Tempo knob drives it.
-    // A plugin follows the host BPM, and falls back to the knob if the host omits it.
-    if (wrapperType != juce::AudioProcessor::wrapperType_Standalone)
+    if (wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        return 0.f;
+
+    if (auto* head = getPlayHead())
     {
-        if (auto* head = getPlayHead())
+        if (const auto pos = head->getPosition())
         {
-            if (const auto pos = head->getPosition())
+            if (const auto bpm = pos->getBpm())
             {
-                if (const auto bpm = pos->getBpm())
-                {
-                    if (*bpm > 0.0)
-                        return (float) *bpm;
-                }
+                if (*bpm > 0.0)
+                    return (float) *bpm;
             }
         }
     }
 
-    return raw (ParamID::seqTempo);
+    return 0.f;
+}
+
+bool TEW03AudioProcessor::usesHostTempo() const
+{
+    return hostTempoBpm() > 0.f;
+}
+
+float TEW03AudioProcessor::tempoBpm() const
+{
+    // Standalone has no DAW clock. The Seq Tempo knob drives it.
+    // A plugin follows the host BPM, and falls back to the knob if the host omits it.
+    const float host = hostTempoBpm();
+    return host > 0.f ? host : raw (ParamID::seqTempo);
 }
 
 bool TEW03AudioProcessor::seqShouldRun() const
