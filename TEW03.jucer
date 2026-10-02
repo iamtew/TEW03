@@ -17,6 +17,7 @@
             file="src/PluginEditor.cpp"/>
       <GROUP id="dspGrp01" name="dsp">
         <FILE id="oscH001" name="Oscillator.h" compile="0" resource="0" file="src/dsp/Oscillator.h"/>
+        <FILE id="fltH001" name="DiodeLadderFilter.h" compile="0" resource="0" file="src/dsp/DiodeLadderFilter.h"/>
         <FILE id="envH001" name="Envelope.h" compile="0" resource="0" file="src/dsp/Envelope.h"/>
         <FILE id="voiH001" name="Voice.h" compile="0" resource="0" file="src/dsp/Voice.h"/>
         <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>

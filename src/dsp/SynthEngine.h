@@ -7,7 +7,6 @@
 namespace tew
 {
 
-// Owns the voice. Cutoff / resonance / drive / classic are latched for the filter pass.
 struct SynthEngine
 {
     void prepare (double sampleRate)
@@ -23,13 +22,9 @@ struct SynthEngine
         voice.setGain (volume);
     }
 
-    // ponytail: stored only. Diode ladder reads these when that pass lands.
-    void latchFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)
+    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)
     {
-        cutoff = cutoffHz;
-        resonance = resonanceAmount;
-        drive = driveAmount;
-        classicMode = classic;
+        voice.setFilter (cutoffHz, resonanceAmount, driveAmount, classic);
     }
 
     Voice& getVoice() { return voice; }
@@ -48,10 +43,6 @@ struct SynthEngine
 
 private:
     Voice voice;
-    float cutoff = 800.f;
-    float resonance = 0.f;
-    float drive = 0.f;
-    bool classicMode = false;
 };
 
 } // namespace tew
