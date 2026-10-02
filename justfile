@@ -24,6 +24,14 @@ build-debug:
 build-release:
     & '{{MSBUILD}}' {{SOLUTION}} /p:Configuration=Release /p:Platform=x64 /m
 
+build-dist: build-release
+    if (Test-Path dist) { Remove-Item dist -Recurse -Force }
+    New-Item dist -ItemType Directory | Out-Null
+    Copy-Item -Recurse 'Builds\VisualStudio2022\x64\Release\VST3\TEW03.vst3' dist
+    New-Item dist\Standalone -ItemType Directory | Out-Null
+    Copy-Item 'Builds\VisualStudio2022\x64\Release\Standalone Plugin\TEW03.exe' dist\Standalone
+    $ver = ([xml](Get-Content '{{PROJECT}}')).JUCERPROJECT.version; Compress-Archive -Path dist\TEW03.vst3, dist\Standalone -DestinationPath "dist\TEW03-$ver-win-x64.zip" -Force
+
 clean:
     & '{{MSBUILD}}' {{SOLUTION}} /t:Clean /p:Configuration=Debug /p:Platform=x64
     & '{{MSBUILD}}' {{SOLUTION}} /t:Clean /p:Configuration=Release /p:Platform=x64

@@ -2,6 +2,9 @@
 Builds/
 JuceLibraryCode/
 
+# just build-dist
+dist/
+
 # Visual Studio
 .vs/
 *.user
