@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT name="TEW03" companyName="Stupid Systems LLC" version="1.0.0" userNotes="Mean acid lines."
+              projectType="audioplug" pluginAUIsSandboxSafe="1" pluginManufacturer="Stupid Systems LLC"
+              pluginManufacturerCode="Ssys" pluginCode="Tew3" cppLanguageStandard="17"
+              pluginFormats="buildVST3,buildStandalone" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut"
+              useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="dBqcWt"
+              jucerFormatVersion="1">
+  <MAINGROUP id="fy3Cc7" name="TEW03">
+    <GROUP id="srcGrp1" name="src">
+      <FILE id="procH01" name="PluginProcessor.h" compile="0" resource="0"
+            file="src/PluginProcessor.h"/>
+      <FILE id="procC01" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="src/PluginProcessor.cpp"/>
+      <FILE id="editH01" name="PluginEditor.h" compile="0" resource="0" file="src/PluginEditor.h"/>
+      <FILE id="editC01" name="PluginEditor.cpp" compile="1" resource="0"
+            file="src/PluginEditor.cpp"/>
+      <GROUP id="dspGrp01" name="dsp">
+        <FILE id="oscH001" name="Oscillator.h" compile="0" resource="0" file="src/dsp/Oscillator.h"/>
+        <FILE id="envH001" name="Envelope.h" compile="0" resource="0" file="src/dsp/Envelope.h"/>
+        <FILE id="voiH001" name="Voice.h" compile="0" resource="0" file="src/dsp/Voice.h"/>
+        <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>
+        <FILE id="seqH001" name="Sequencer.h" compile="0" resource="0" file="src/dsp/Sequencer.h"/>
+      </GROUP>
+      <GROUP id="midGrp01" name="midi">
+        <FILE id="midH001" name="MidiHandler.h" compile="0" resource="0" file="src/midi/MidiHandler.h"/>
+      </GROUP>
+      <GROUP id="prmGrp01" name="parameters">
+        <FILE id="pidH001" name="ParameterIDs.h" compile="0" resource="0" file="src/parameters/ParameterIDs.h"/>
+        <FILE id="plyH001" name="ParameterLayout.h" compile="0" resource="0"
+              file="src/parameters/ParameterLayout.h"/>
+      </GROUP>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+  </MODULES>
+  <EXPORTFORMATS>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="TEW03"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="TEW03"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_WEB_BROWSER="0" JUCE_USE_CURL="0"
+               JUCE_VST3_CAN_REPLACE_VST2="0"/>
+</JUCERPROJECT>
