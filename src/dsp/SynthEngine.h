@@ -14,12 +14,13 @@ struct SynthEngine
         voice.prepare (sampleRate);
     }
 
-    void setTone (float decaySeconds, float accent, float glideSeconds, float volume)
+    void setTone (float decaySeconds, float accent, float glideSeconds, float volume, bool square)
     {
         voice.setDecaySeconds (decaySeconds);
         voice.setAccentAmount (accent);
         voice.setGlideSeconds (glideSeconds);
         voice.setGain (volume);
+        voice.setSquare (square);
     }
 
     void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)

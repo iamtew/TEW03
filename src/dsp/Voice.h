@@ -31,14 +31,22 @@ struct Voice
         glideSeconds = std::max (0.f, seconds);
     }
 
+    void setSquare (bool sq)
+    {
+        wantSquare = sq;
+        osc.setSquare (wantSquare && ! classicMode);
+    }
+
     void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)
     {
         cutoff = cutoffHz;
         resonance = std::clamp (resonanceAmount, 0.f, 1.f);
+        classicMode = classic;
         drive = classic ? 0.f : std::clamp (driveAmount, 0.f, 1.f);
         // Classic 303: keep saw, kill extra drive, stop short of screaming resonance.
         if (classic)
             resonance = std::min (resonance, 0.65f);
+        osc.setSquare (wantSquare && ! classicMode);
     }
 
     // value is the 14-bit MIDI pitch wheel. ±2 semitones, centre 8192.
@@ -114,7 +122,8 @@ struct Voice
             float s = osc.process();
             s = std::tanh (s * driveGain);
             s = filter.process (s);
-            out[i] = s * e * accentGain * gain;
+            s *= e * accentGain * gain;
+            out[i] = std::tanh (s);
         }
     }
 
@@ -143,6 +152,8 @@ private:
     int heldNote = -1;
     bool hasPitch = false;
     bool accented = false;
+    bool wantSquare = false;
+    bool classicMode = false;
 };
 
 } // namespace tew

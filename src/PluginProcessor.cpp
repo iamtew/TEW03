@@ -78,7 +78,8 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     engine.setTone (raw (ParamID::decay),
                     raw (ParamID::accent),
                     raw (ParamID::glide),
-                    raw (ParamID::volume));
+                    raw (ParamID::volume),
+                    raw (ParamID::waveform) >= 0.5f);
     engine.setFilter (raw (ParamID::cutoff),
                       raw (ParamID::resonance),
                       raw (ParamID::drive),

@@ -15,7 +15,7 @@ constexpr float phaseIncrement (float hz, float sampleRate)
 // 44100 Hz at 44100 Hz sample rate is exactly one cycle per sample.
 static_assert (phaseIncrement (44100.f, 44100.f) == 1.f);
 
-// Band-limited saw. Phase runs 0..1.
+// Band-limited saw or square. Phase runs 0..1.
 struct Oscillator
 {
     void prepare (double sr)
@@ -35,17 +35,34 @@ struct Oscillator
         inc = phaseIncrement (hz, sampleRate);
     }
 
+    void setSquare (bool sq) { square = sq; }
+
     float process()
     {
-        // Naive saw is -1..1, rising. PolyBLEP knocks the step down.
-        float saw = (2.f * phase) - 1.f;
-        saw -= polyBlep (phase, inc);
+        float s;
+
+        if (square)
+        {
+            // Naive square, then PolyBLEP at both edges.
+            s = phase < 0.5f ? 1.f : -1.f;
+            s += polyBlep (phase, inc);
+            float half = phase + 0.5f;
+            if (half >= 1.f)
+                half -= 1.f;
+            s -= polyBlep (half, inc);
+        }
+        else
+        {
+            // Naive saw is -1..1, rising. PolyBLEP knocks the step down.
+            s = (2.f * phase) - 1.f;
+            s -= polyBlep (phase, inc);
+        }
 
         phase += inc;
         if (phase >= 1.f)
             phase -= 1.f;
 
-        return saw;
+        return s;
     }
 
 private:
@@ -72,6 +89,7 @@ private:
     float sampleRate = 44100.f;
     float phase = 0.f;
     float inc = 0.f;
+    bool square = false;
 };
 
 } // namespace tew

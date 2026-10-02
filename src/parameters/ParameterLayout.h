@@ -32,6 +32,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                         NormalisableRange<float> (0.f, 1.f), 0.25f));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::classicMode, 1 },
                                                        "Classic 303", false));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::waveform, 1 },
+                                                       "Square", false));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::glide, 1 },
                                                         "Glide",
                                                         NormalisableRange<float> (0.f, 0.5f), 0.f));
