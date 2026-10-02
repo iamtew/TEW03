@@ -50,10 +50,17 @@ private:
         int index = 0;
     };
 
+    struct FlipLnF : public juce::LookAndFeel_V4
+    {
+        void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool, bool) override;
+    };
+
     struct ParamRow : public juce::Component
     {
         ParamRow (juce::AudioProcessorValueTreeState& state,
-                  juce::RangedAudioParameter& param);
+                  juce::RangedAudioParameter& param,
+                  FlipLnF* flip);
+        ~ParamRow() override;
         void resized() override;
 
         juce::Label label;
@@ -62,8 +69,10 @@ private:
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sliderAtt;
         std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonAtt;
         bool isBool = false;
+        bool isFlip = false;
     };
 
+    FlipLnF flipLnF;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamRow> rows;
     int lastPlayhead = -1;

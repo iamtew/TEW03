@@ -6,7 +6,9 @@ constexpr int kColW = 40;
 constexpr int kPitchH = 36;
 constexpr int kToggleH = 22;
 constexpr int kStripH = kPitchH + kToggleH * 2;
-constexpr int kRowH = 28;
+constexpr int kCellW = 72;
+constexpr int kCellH = 96;
+constexpr int kLabelH = 18;
 constexpr int kNoteMin = 24;
 constexpr int kNoteMax = 60;
 
@@ -142,38 +144,77 @@ void TEW03AudioProcessorEditor::StepColumn::setLit (bool on)
     pitch.repaint();
 }
 
+void TEW03AudioProcessorEditor::FlipLnF::drawToggleButton (juce::Graphics& g,
+                                                           juce::ToggleButton& b,
+                                                           bool, bool)
+{
+    auto bounds = b.getLocalBounds().toFloat().reduced (2.f);
+    g.setColour (juce::Colours::darkslategrey);
+    g.fillRoundedRectangle (bounds, 4.f);
+
+    const float half = bounds.getWidth() * 0.5f;
+    auto knob = bounds.withWidth (half);
+    if (b.getToggleState())
+        knob = knob.translated (half, 0.f);
+
+    g.setColour (juce::Colours::darkorange);
+    g.fillRoundedRectangle (knob.reduced (2.f), 3.f);
+    g.setColour (juce::Colours::white);
+    g.setFont (12.f);
+    g.drawText ("SAW", bounds.removeFromLeft (half).toNearestInt(), juce::Justification::centred, false);
+    g.drawText ("SQR", bounds.toNearestInt(), juce::Justification::centred, false);
+}
+
 TEW03AudioProcessorEditor::ParamRow::ParamRow (juce::AudioProcessorValueTreeState& state,
-                                               juce::RangedAudioParameter& param)
+                                               juce::RangedAudioParameter& param,
+                                               FlipLnF* flip)
 {
     label.setText (param.getName (32), juce::dontSendNotification);
-    label.setJustificationType (juce::Justification::centredLeft);
+    label.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (label);
 
     isBool = dynamic_cast<juce::AudioParameterBool*> (&param) != nullptr;
     const auto id = param.getParameterID();
+    isFlip = isBool && id == ParamID::waveform;
 
     if (isBool)
     {
         addAndMakeVisible (button);
+        if (isFlip && flip != nullptr)
+        {
+            button.setLookAndFeel (flip);
+            button.setButtonText ({});
+        }
         buttonAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (state, id, button);
     }
     else
     {
-        slider.setSliderStyle (juce::Slider::LinearHorizontal);
-        slider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 18);
+        slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+        slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 64, 18);
+        slider.setDoubleClickReturnValue (true, param.convertFrom0to1 (param.getDefaultValue()));
         addAndMakeVisible (slider);
         sliderAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (state, id, slider);
     }
 }
 
+TEW03AudioProcessorEditor::ParamRow::~ParamRow()
+{
+    button.setLookAndFeel (nullptr);
+}
+
 void TEW03AudioProcessorEditor::ParamRow::resized()
 {
-    auto r = getLocalBounds().reduced (4, 2);
-    label.setBounds (r.removeFromLeft (88));
+    auto r = getLocalBounds().reduced (2);
+    label.setBounds (r.removeFromTop (kLabelH));
     if (isBool)
-        button.setBounds (r.removeFromLeft (80));
+    {
+        const int h = isFlip ? 28 : 22;
+        button.setBounds (r.removeFromTop (h).reduced (2, 2));
+    }
     else
+    {
         slider.setBounds (r);
+    }
 }
 
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
@@ -190,11 +231,13 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param);
         if (ranged == nullptr)
             continue;
-        auto* row = rows.add (new ParamRow (proc.apvts, *ranged));
+        auto* row = rows.add (new ParamRow (proc.apvts, *ranged, &flipLnF));
         addAndMakeVisible (row);
     }
 
-    setSize (tew::Sequencer::numSteps * kColW, kStripH + 8 + rows.size() * kRowH);
+    const int bankW = juce::jmax (1, rows.size()) * kCellW;
+    const int stripW = tew::Sequencer::numSteps * kColW;
+    setSize (juce::jmax (bankW, stripW), kCellH + 8 + kStripH);
     startTimerHz (15);
 }
 
@@ -211,14 +254,16 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 void TEW03AudioProcessorEditor::resized()
 {
     auto r = getLocalBounds();
-    auto strip = r.removeFromTop (kStripH);
-    const int colW = strip.getWidth() / tew::Sequencer::numSteps;
+    auto strip = r.removeFromBottom (kStripH);
+    const int stepW = strip.getWidth() / tew::Sequencer::numSteps;
     for (int i = 0; i < steps.size(); ++i)
-        steps[i]->setBounds (strip.removeFromLeft (i == steps.size() - 1 ? strip.getWidth() : colW));
+        steps[i]->setBounds (strip.removeFromLeft (i == steps.size() - 1 ? strip.getWidth() : stepW));
 
-    r.removeFromTop (8);
-    for (auto* row : rows)
-        row->setBounds (r.removeFromTop (kRowH));
+    auto bank = r.removeFromTop (kCellH);
+    const int n = juce::jmax (1, rows.size());
+    const int cellW = bank.getWidth() / n;
+    for (int i = 0; i < rows.size(); ++i)
+        rows[i]->setBounds (bank.removeFromLeft (i == rows.size() - 1 ? bank.getWidth() : cellW));
 }
 
 void TEW03AudioProcessorEditor::timerCallback()
