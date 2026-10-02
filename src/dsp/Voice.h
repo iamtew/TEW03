@@ -47,12 +47,18 @@ struct Voice
         bendSemis = ((float) value - 8192.f) / 8192.f * 2.f;
     }
 
-    void noteOn (int note, bool accent)
+    void noteOn (int note, bool accent, bool slide = false)
     {
         const float target = (float) note;
 
-        // hasPitch survives note-off, so a retrigger still glides from the last pitch.
-        if (hasPitch && glideSeconds > 0.f)
+        if (slide)
+        {
+            // Slide always ramps. Glide knob of 0 still gets a short default so the tie is heard.
+            const float seconds = glideSeconds > 0.f ? glideSeconds : 0.05f;
+            glideSamples = std::max (1, (int) std::lround (seconds * sampleRate));
+            glideStep = (target - currentMidi) / (float) glideSamples;
+        }
+        else if (hasPitch && glideSeconds > 0.f)
         {
             glideSamples = std::max (1, (int) std::lround (glideSeconds * sampleRate));
             glideStep = (target - currentMidi) / (float) glideSamples;
@@ -68,7 +74,9 @@ struct Voice
         accentGain = accent ? (1.f + accentAmount) : 1.f;
         heldNote = note;
         hasPitch = true;
-        env.noteOn();
+
+        if (! slide)
+            env.noteOn();
     }
 
     void noteOff (int note)

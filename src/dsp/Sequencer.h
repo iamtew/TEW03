@@ -12,28 +12,46 @@ struct SeqEvent
     int note = 36;
     bool on = false;
     bool accent = false;
+    bool slide = false;
 };
 
-// 16th-note grid. Caller supplies BPM (host or the Seq Tempo knob). Fixed 16-step pattern.
-// ponytail: one repeating C2, accent on the downbeats. Per-step pitch/slide when the pattern UI exists.
+// 16th-note grid. Slide on a step ties into the next (no gap, pitch ramps).
+// Rest is note < 0. Pattern is baked until a step UI exists.
 struct Sequencer
 {
     static constexpr int numSteps = 16;
 
     struct Step
     {
-        int note = 36;
+        int note = 36; // < 0 is a rest
         bool accent = false;
-        bool slide = false; // stored, not applied yet
+        bool slide = false;
     };
 
     Sequencer()
     {
+        // C2 acid line: accents, two slides, two rests.
+        const Step baked[numSteps] = {
+            { 36, true,  false },
+            { 36, false, false },
+            { 39, false, false },
+            { 36, false, true  },
+            { 43, false, false },
+            { -1, false, false },
+            { 41, false, false },
+            { 39, false, false },
+            { 36, true,  false },
+            { 48, false, false },
+            { 46, false, true  },
+            { 43, false, false },
+            { 41, false, false },
+            { -1, false, false },
+            { 39, false, false },
+            { 36, false, false },
+        };
+
         for (int i = 0; i < numSteps; ++i)
-        {
-            steps[i].note = 36;
-            steps[i].accent = (i % 4) == 0;
-        }
+            steps[i] = baked[i];
     }
 
     void prepare (double sr) { sampleRate = sr; }
@@ -50,6 +68,7 @@ struct Sequencer
             step = 0;
             clock = 0.0;
             nextEdge = 0.0;
+            pendingSlide = false;
         }
 
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
@@ -66,20 +85,41 @@ struct Sequencer
         {
             if (nextEdge <= clock)
             {
-                const int need = gate ? 2 : 1;
+                const Step& s = steps[step];
+                const bool rest = s.note < 0;
+                const bool slideIn = pendingSlide && gate;
+                const int need = rest ? (gate ? 1 : 0)
+                                      : (gate ? 2 : 1);
+
                 if (produced + need > maxEvents)
                 {
                     clock += (double) (numSamples - consumed);
                     break;
                 }
 
-                if (gate)
-                    out[produced++] = { consumed, lastNote, false, false };
+                if (rest)
+                {
+                    if (gate)
+                        out[produced++] = { consumed, lastNote, false, false, false };
+                    gate = false;
+                    pendingSlide = false;
+                }
+                else
+                {
+                    if (gate && ! slideIn)
+                        out[produced++] = { consumed, lastNote, false, false, false };
 
-                const Step& s = steps[step];
-                out[produced++] = { consumed, s.note, true, s.accent };
-                lastNote = s.note;
-                gate = true;
+                    out[produced++] = { consumed, s.note, true, s.accent, slideIn };
+
+                    // Overlap: new note-on first, then old note-off. Voice ignores the off.
+                    if (slideIn)
+                        out[produced++] = { consumed, lastNote, false, false, false };
+
+                    lastNote = s.note;
+                    gate = true;
+                    pendingSlide = s.slide;
+                }
+
                 step = (step + 1) % numSteps;
                 nextEdge += stepSamples;
                 continue;
@@ -104,6 +144,7 @@ private:
         running = false;
         clock = 0.0;
         nextEdge = 0.0;
+        pendingSlide = false;
 
         if (! gate || maxEvents < 1)
         {
@@ -112,7 +153,7 @@ private:
         }
 
         gate = false;
-        out[0] = { 0, lastNote, false, false };
+        out[0] = { 0, lastNote, false, false, false };
         return 1;
     }
 
@@ -124,6 +165,7 @@ private:
     int lastNote = 36;
     bool running = false;
     bool gate = false;
+    bool pendingSlide = false;
 };
 
 } // namespace tew

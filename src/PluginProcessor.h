@@ -39,6 +39,7 @@ public:
 private:
     float raw (const char* id) const;
     float tempoBpm() const;
+    bool seqShouldRun() const;
 
     tew::SynthEngine engine;
     tew::Sequencer sequencer;

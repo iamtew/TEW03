@@ -41,6 +41,24 @@ float TEW03AudioProcessor::tempoBpm() const
     return raw (ParamID::seqTempo);
 }
 
+bool TEW03AudioProcessor::seqShouldRun() const
+{
+    if (raw (ParamID::seqPlay) < 0.5f)
+        return false;
+
+    // Standalone, or a host that never handed us a playhead: Seq Play is the clock.
+    if (wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        return true;
+
+    if (auto* head = getPlayHead())
+    {
+        if (const auto pos = head->getPosition())
+            return pos->getIsPlaying();
+    }
+
+    return true;
+}
+
 void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
 {
     engine.prepare (sampleRate);
@@ -73,7 +91,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // Wheel still works while the sequencer owns the notes.
     tew::MidiHandler::applyPitchBend (midi, engine.getVoice());
 
-    const bool playing = raw (ParamID::seqPlay) >= 0.5f;
+    const bool playing = seqShouldRun();
     const float bpm = tempoBpm();
 
     if (! playing)
@@ -111,7 +129,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const auto velocity = events[i].accent ? (juce::uint8) 127 : (juce::uint8) 100;
             midi.addEvent (juce::MidiMessage::noteOn (1, events[i].note, velocity), at);
-            engine.getVoice().noteOn (events[i].note, events[i].accent);
+            engine.getVoice().noteOn (events[i].note, events[i].accent, events[i].slide);
         }
         else
         {
