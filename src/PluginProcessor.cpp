@@ -19,6 +19,28 @@ float TEW03AudioProcessor::raw (const char* id) const
     return apvts.getRawParameterValue (id)->load();
 }
 
+float TEW03AudioProcessor::tempoBpm() const
+{
+    // Standalone has no DAW clock. The Seq Tempo knob drives it.
+    // A plugin follows the host BPM, and falls back to the knob if the host omits it.
+    if (wrapperType != juce::AudioProcessor::wrapperType_Standalone)
+    {
+        if (auto* head = getPlayHead())
+        {
+            if (const auto pos = head->getPosition())
+            {
+                if (const auto bpm = pos->getBpm())
+                {
+                    if (*bpm > 0.0)
+                        return (float) *bpm;
+                }
+            }
+        }
+    }
+
+    return raw (ParamID::seqTempo);
+}
+
 void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
 {
     engine.prepare (sampleRate);
@@ -52,11 +74,12 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     tew::MidiHandler::applyPitchBend (midi, engine.getVoice());
 
     const bool playing = raw (ParamID::seqPlay) >= 0.5f;
+    const float bpm = tempoBpm();
 
     if (! playing)
     {
         tew::SeqEvent stopped[1];
-        const int nStop = sequencer.advance (numSamples, raw (ParamID::seqTempo), false, stopped, 1);
+        const int nStop = sequencer.advance (numSamples, bpm, false, stopped, 1);
         for (int i = 0; i < nStop; ++i)
         {
             midi.addEvent (juce::MidiMessage::noteOff (1, stopped[i].note), stopped[i].offset);
@@ -72,7 +95,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     midi.clear();
 
     tew::SeqEvent events[kMaxEvents];
-    const int nEvents = sequencer.advance (numSamples, raw (ParamID::seqTempo), true, events, kMaxEvents);
+    const int nEvents = sequencer.advance (numSamples, bpm, true, events, kMaxEvents);
 
     int rendered = 0;
     for (int i = 0; i < nEvents; ++i)

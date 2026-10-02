@@ -14,7 +14,7 @@ struct SeqEvent
     bool accent = false;
 };
 
-// 16th-note grid, internal tempo. Fixed 16-step pattern.
+// 16th-note grid. Caller supplies BPM (host or the Seq Tempo knob). Fixed 16-step pattern.
 // ponytail: one repeating C2, accent on the downbeats. Per-step pitch/slide when the pattern UI exists.
 struct Sequencer
 {
@@ -52,7 +52,8 @@ struct Sequencer
             nextEdge = 0.0;
         }
 
-        bpm = std::clamp (bpm, 40.f, 300.f);
+        // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
+        bpm = std::clamp (bpm, 1.f, 999.f);
         // 16th note. 4 steps per beat. Floor of 1 sample so a bad rate cannot spin.
         double stepSamples = sampleRate * 60.0 / (double) bpm / 4.0;
         if (stepSamples < 1.0)
