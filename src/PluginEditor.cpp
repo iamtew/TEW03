@@ -5,18 +5,23 @@
 namespace
 {
 constexpr int kEditorW = 900;
-constexpr int kEditorH = 258;
+constexpr int kEditorH = 480;
+constexpr int kLockH = 22;
 constexpr int kPad = 6;
 constexpr int kTitleH = 22;
 constexpr int kSeqW = 236;
 constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
-constexpr int kPitchH = 28;
 constexpr int kToggleH = 18;
-constexpr int kStripH = kLedH + kPitchH + kToggleH * 2 + 4;
+constexpr int kStripH = kLedH + kToggleH * 2 + 4;
 constexpr int kLabelH = 14;
 constexpr int kNoteMin = 24;
 constexpr int kNoteMax = 60;
+constexpr int kOctave = 12;
+constexpr int kKeyW = 54;
+constexpr int kPianoW = 8;
+constexpr int kRowH = 16;
+constexpr int kRollH = kOctave * kRowH;
 
 const juce::Colour kChassis { 0xffe8c200 };
 const juce::Colour kChassisDark { 0xffc9a400 };
@@ -27,18 +32,239 @@ const juce::Colour kChrome { 0xffd4d8dc };
 const juce::Colour kChromeHi { 0xfff2f4f6 };
 const juce::Colour kLedOn { 0xffff2200 };
 const juce::Colour kLedOff { 0xff5a1808 };
+const juce::Colour kLaneWhite { 0xff3c3c3c };
+const juce::Colour kLaneBlack { 0xff2a2a2a };
 
-juce::String noteText (int note)
+juce::String noteLetter (int note)
 {
-    if (note < 0)
-        return "--";
-    return juce::MidiMessage::getMidiNoteName (note, true, true, 4);
+    return juce::MidiMessage::getMidiNoteName (note, true, false, 4);
+}
+
+int noteOctave (int note)
+{
+    return (note / 12) - 1; // middle C (60) = C4
 }
 
 int nudgeNote (int note, int delta)
 {
     const int from = note < 0 ? 36 : note;
     return juce::jlimit (kNoteMin, kNoteMax, from + delta);
+}
+
+bool inScale (int note, int root, bool minor)
+{
+    const int pc = ((note % 12) - root + 12) % 12;
+    if (minor)
+        return pc == 0 || pc == 2 || pc == 3 || pc == 5 || pc == 7 || pc == 8 || pc == 10;
+    return pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7 || pc == 9 || pc == 11;
+}
+
+int snapScale (int note, int root, bool minor)
+{
+    note = juce::jlimit (kNoteMin, kNoteMax, note);
+    if (inScale (note, root, minor))
+        return note;
+
+    for (int d = 1; d <= 6; ++d)
+    {
+        const int up = note + d;
+        if (up <= kNoteMax && inScale (up, root, minor))
+            return up;
+        const int down = note - d;
+        if (down >= kNoteMin && inScale (down, root, minor))
+            return down;
+    }
+    return note;
+}
+
+int stepScale (int note, int dir, int root, bool minor)
+{
+    int n = note;
+    for (int i = 0; i < 12; ++i)
+    {
+        n = nudgeNote (n, dir);
+        if (n == note)
+            break;
+        if (inScale (n, root, minor))
+            return n;
+    }
+    return note;
+}
+
+bool isBlackKey (int note)
+{
+    switch (note % 12)
+    {
+        case 1: case 3: case 6: case 8: case 10: return true;
+        default: return false;
+    }
+}
+
+struct ScaleList
+{
+    int notes[40] {};
+    int n = 0;
+};
+
+ScaleList scaleNotes (int root, bool minor)
+{
+    ScaleList s;
+    for (int note = kNoteMin; note <= kNoteMax; ++note)
+        if (inScale (note, root, minor))
+            s.notes[s.n++] = note;
+    return s;
+}
+
+int lockedStart (int viewLow, const ScaleList& s)
+{
+    int i = 0;
+    while (i < s.n && s.notes[i] < viewLow)
+        ++i;
+    const int maxStart = juce::jmax (0, s.n - kOctave);
+    return juce::jlimit (0, maxStart, i);
+}
+
+int clampViewLow (int viewLow, bool locked, int root, bool minor)
+{
+    if (! locked)
+        return juce::jlimit (kNoteMin, kNoteMax - kOctave + 1, viewLow);
+
+    const auto s = scaleNotes (root, minor);
+    if (s.n <= 0)
+        return kNoteMin;
+
+    const int maxStartNote = s.notes[juce::jmax (0, s.n - kOctave)];
+    if (! inScale (viewLow, root, minor))
+        viewLow = snapScale (viewLow, root, minor);
+    return juce::jlimit (s.notes[0], maxStartNote, viewLow);
+}
+
+struct RollView
+{
+    bool locked = false;
+    int root = 0;
+    bool minor = false;
+    int viewLow = 36;
+};
+
+int visibleRows (const RollView& v)
+{
+    if (! v.locked)
+        return kOctave;
+
+    return juce::jmin (kOctave, juce::jmax (1, scaleNotes (v.root, v.minor).n));
+}
+
+int noteForRow (int row, const RollView& v)
+{
+    if (! v.locked)
+        return v.viewLow + kOctave - 1 - juce::jlimit (0, kOctave - 1, row);
+
+    const auto s = scaleNotes (v.root, v.minor);
+    const int start = lockedStart (v.viewLow, s);
+    const int count = juce::jmin (kOctave, s.n - start);
+    const int idx = start + count - 1 - juce::jlimit (0, count - 1, row);
+    return s.notes[idx];
+}
+
+int rowForNote (int note, const RollView& v)
+{
+    if (! v.locked)
+    {
+        if (note < v.viewLow || note > v.viewLow + kOctave - 1)
+            return -1;
+        return v.viewLow + kOctave - 1 - note;
+    }
+
+    const auto s = scaleNotes (v.root, v.minor);
+    const int start = lockedStart (v.viewLow, s);
+    const int count = juce::jmin (kOctave, s.n - start);
+    for (int i = 0; i < count; ++i)
+        if (s.notes[start + i] == note)
+            return count - 1 - i;
+    return -1;
+}
+
+juce::Colour pitchColour (int note)
+{
+    const float t = juce::jlimit (0.f, 1.f,
+                                  (float) (kNoteMax - note) / (float) (kNoteMax - kNoteMin));
+    juce::ColourGradient grad (juce::Colour (0xff156878), 0.f, 0.f,
+                               juce::Colour (0xff2a4a08), 0.f, 1.f, false);
+    grad.addColour (0.28, juce::Colour (0xff1a9a58));
+    grad.addColour (0.52, juce::Colour (0xff28b040));
+    grad.addColour (0.78, juce::Colour (0xff3a8a18));
+    return grad.getColourAtPosition ((double) t);
+}
+
+struct RollGeom
+{
+    juce::Rectangle<float> keys;
+    juce::Rectangle<float> grid;
+    float colW = 1.f;
+    float rowH = 1.f;
+    int rows = kOctave;
+};
+
+RollGeom makeGeom (juce::Rectangle<int> bounds, int rows)
+{
+    auto f = bounds.toFloat();
+    RollGeom g;
+    g.keys = f.removeFromLeft ((float) kKeyW);
+    g.grid = f;
+    g.colW = g.grid.getWidth() / (float) tew::Sequencer::numSteps;
+    g.rows = juce::jmax (1, rows);
+    g.rowH = (float) kRowH;
+    return g;
+}
+
+int noteAtY (const RollGeom& g, float y, const RollView& v)
+{
+    const int row = juce::jlimit (0, g.rows - 1,
+                                  (int) std::floor ((y - g.grid.getY()) / g.rowH));
+    return noteForRow (row, v);
+}
+
+int stepAtX (const RollGeom& g, float x)
+{
+    if (x < g.grid.getX())
+        return -1;
+    return juce::jlimit (0, tew::Sequencer::numSteps - 1,
+                         (int) std::floor ((x - g.grid.getX()) / g.colW));
+}
+
+juce::Rectangle<float> cellRect (const RollGeom& g, int step, int note, const RollView& v)
+{
+    const int row = rowForNote (note, v);
+    if (row < 0)
+        return {};
+    return { g.grid.getX() + (float) step * g.colW,
+             g.grid.getY() + (float) row * g.rowH,
+             g.colW, g.rowH };
+}
+
+// Y of a pitch even when scrolled off the window, so slide lines can keep going.
+float pitchY (const RollGeom& g, int note, const RollView& v)
+{
+    const int row = rowForNote (note, v);
+    if (row >= 0)
+        return g.grid.getY() + ((float) row + 0.5f) * g.rowH;
+
+    const int top = noteForRow (0, v);
+    const int bot = noteForRow (g.rows - 1, v);
+    int steps = 0;
+    if (note > top)
+    {
+        for (int n = top + 1; n <= note; ++n)
+            if (! v.locked || inScale (n, v.root, v.minor))
+                ++steps;
+        return g.grid.getY() + 0.5f * g.rowH - (float) steps * g.rowH;
+    }
+
+    for (int n = bot - 1; n >= note; --n)
+        if (! v.locked || inScale (n, v.root, v.minor))
+            ++steps;
+    return g.grid.getY() + ((float) g.rows - 0.5f) * g.rowH + (float) steps * g.rowH;
 }
 
 juce::Font boldFont (float h)
@@ -70,88 +296,250 @@ juce::String uiButton (const juce::String& id)
 
 } // namespace
 
-TEW03AudioProcessorEditor::PitchCell::PitchCell (TEW03AudioProcessor& p, int stepIndex)
-    : proc (p), index (stepIndex)
+TEW03AudioProcessorEditor::PianoRoll::PianoRoll (TEW03AudioProcessor& p)
+    : proc (p)
 {
-    const auto s = proc.getSequencer().getStep (index);
-    lastNote = s.note >= 0 ? s.note : 36;
 }
 
-void TEW03AudioProcessorEditor::PitchCell::paint (juce::Graphics& g)
+void TEW03AudioProcessorEditor::PianoRoll::setPlayhead (int step)
 {
-    const auto note = proc.getSequencer().getStep (index).note;
-    auto r = getLocalBounds().toFloat().reduced (1.f);
-    g.setColour (note < 0 ? kChassisDark : kCream);
-    g.fillRoundedRectangle (r, 3.f);
-    g.setColour (kInk.withAlpha (0.35f));
-    g.drawRoundedRectangle (r, 3.f, 1.f);
-    g.setColour (kInk);
-    g.setFont (boldFont (11.f));
-    g.drawFittedText (noteText (note), getLocalBounds(), juce::Justification::centred, 1);
-}
-
-void TEW03AudioProcessorEditor::PitchCell::refresh()
-{
-    const auto s = proc.getSequencer().getStep (index);
-    if (s.note >= 0)
-        lastNote = s.note;
+    if (playhead == step)
+        return;
+    playhead = step;
     repaint();
 }
 
-void TEW03AudioProcessorEditor::PitchCell::mouseDown (const juce::MouseEvent& e)
+int TEW03AudioProcessorEditor::PianoRoll::lockNote (int note) const
 {
-    auto s = proc.getSequencer().getStep (index);
-    dragStartY = e.y;
-    dragStartNote = s.note < 0 ? lastNote : s.note;
+    return locked ? snapScale (note, keyRoot, minor) : juce::jlimit (kNoteMin, kNoteMax, note);
+}
+
+void TEW03AudioProcessorEditor::PianoRoll::scrollBy (int semitones)
+{
+    const int next = clampViewLow (viewLow + semitones, locked, keyRoot, minor);
+    if (next == viewLow)
+        return;
+    viewLow = next;
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
+{
+    const RollView v { locked, keyRoot, minor, viewLow };
+    auto used = getLocalBounds();
+    used.setHeight (visibleRows (v) * kRowH);
+    const auto geo = makeGeom (used, visibleRows (v));
+
+    for (int row = 0; row < geo.rows; ++row)
+    {
+        const int note = noteForRow (row, v);
+        const float y = geo.keys.getY() + (float) row * geo.rowH;
+        auto lane = juce::Rectangle<float> (geo.grid.getX(), y, geo.grid.getWidth(), geo.rowH);
+        auto key = juce::Rectangle<float> (geo.keys.getX(), y, geo.keys.getWidth(), geo.rowH);
+
+        g.setColour (isBlackKey (note) ? kLaneBlack : kLaneWhite);
+        g.fillRect (lane);
+        g.setColour (pitchColour (note));
+        g.fillRect (key);
+    }
+
+    g.setColour (juce::Colours::black.withAlpha (0.35f));
+    for (int row = 0; row <= geo.rows; ++row)
+        g.drawHorizontalLine ((int) std::round (geo.keys.getY() + (float) row * geo.rowH),
+                              geo.keys.getX(), geo.keys.getRight());
+
+    const float nameH = juce::jlimit (9.f, 13.f, geo.rowH - 3.f);
+    g.setFont (boldFont (nameH));
+
+    for (int row = 0; row < geo.rows; ++row)
+    {
+        const int note = noteForRow (row, v);
+        auto key = juce::Rectangle<float> (geo.keys.getX(),
+                                           geo.keys.getY() + (float) row * geo.rowH,
+                                           geo.keys.getWidth(), geo.rowH);
+
+        if (! locked)
+        {
+            auto piano = key.removeFromRight ((float) kPianoW);
+            g.setColour (isBlackKey (note) ? juce::Colour (0xff111111) : kCream);
+            g.fillRect (piano.reduced (0.f, 0.5f));
+        }
+
+        auto label = key.toNearestInt().reduced (3, 0);
+        g.setColour (kCream);
+        g.drawText (noteLetter (note), label, juce::Justification::centredLeft, false);
+        if (note % 12 == 0)
+            g.drawText (juce::String (noteOctave (note)), label,
+                        juce::Justification::centredRight, false);
+    }
+
+    if (playhead >= 0 && playhead < tew::Sequencer::numSteps)
+    {
+        auto col = juce::Rectangle<float> (geo.grid.getX() + (float) playhead * geo.colW,
+                                           geo.grid.getY(), geo.colW, geo.rowH * (float) geo.rows);
+        g.setColour (kLedOn.withAlpha (0.18f));
+        g.fillRect (col);
+    }
+
+    g.setColour (kCream.withAlpha (0.12f));
+    const float gridBottom = geo.grid.getY() + geo.rowH * (float) geo.rows;
+    for (int i = 0; i <= tew::Sequencer::numSteps; ++i)
+        g.drawVerticalLine ((int) std::round (geo.grid.getX() + (float) i * geo.colW),
+                            geo.grid.getY(), gridBottom);
+    for (int row = 0; row <= geo.rows; ++row)
+        g.drawHorizontalLine ((int) std::round (geo.grid.getY() + (float) row * geo.rowH),
+                              geo.grid.getX(), geo.grid.getRight());
+
+    auto& seq = proc.getSequencer();
+
+    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    {
+        const auto s = seq.getStep (i);
+        if (s.note < 0)
+            continue;
+
+        auto cell = cellRect (geo, i, s.note, v).reduced (1.f, 1.f);
+        if (! cell.isEmpty())
+        {
+            g.setColour (s.accent ? kLedOn : kCream);
+            g.fillRoundedRectangle (cell, 2.f);
+            g.setColour (s.accent ? kCream.withAlpha (0.7f) : juce::Colour (0xff1a1a1a).withAlpha (0.55f));
+            g.drawRoundedRectangle (cell, 2.f, 1.f);
+        }
+
+        if (! s.slide)
+            continue;
+
+        const float y0 = cell.isEmpty() ? pitchY (geo, s.note, v) : cell.getCentreY();
+        if (! cell.isEmpty())
+        {
+            const float tipX = cell.getRight() + juce::jmin (6.f, geo.colW * 0.2f);
+            juce::Path chev;
+            chev.addTriangle (cell.getRight() - 2.f, y0 - 3.5f,
+                              tipX, y0,
+                              cell.getRight() - 2.f, y0 + 3.5f);
+            g.setColour (s.accent ? kCream : juce::Colour (0xff1a1a1a));
+            g.fillPath (chev);
+        }
+
+        const int next = i + 1;
+        if (next >= tew::Sequencer::numSteps)
+            continue;
+
+        const auto ns = seq.getStep (next);
+        if (ns.note < 0)
+            continue;
+
+        const float x0 = geo.grid.getX() + (float) (i + 1) * geo.colW;
+        const float x1 = geo.grid.getX() + (float) next * geo.colW + 1.f;
+        const float y1 = pitchY (geo, ns.note, v);
+        g.saveState();
+        g.reduceClipRegion (juce::Rectangle<float> (geo.grid.getX(), geo.grid.getY(),
+                                                    geo.grid.getWidth(),
+                                                    geo.rowH * (float) geo.rows).toNearestInt());
+        g.setColour ((s.accent ? kLedOn : kCream).withAlpha (0.55f));
+        g.drawLine (x0, y0, x1, y1, 1.6f);
+        g.restoreState();
+    }
+}
+
+void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
+{
+    const RollView v { locked, keyRoot, minor, viewLow };
+    auto used = getLocalBounds();
+    used.setHeight (visibleRows (v) * kRowH);
+    const auto geo = makeGeom (used, visibleRows (v));
+
+    gutterDrag = e.x < (int) geo.grid.getX();
+    gutterStartY = e.y;
+    gutterStartView = viewLow;
+    dragStep = gutterDrag ? -1 : stepAtX (geo, (float) e.x);
     dragged = false;
 }
 
-void TEW03AudioProcessorEditor::PitchCell::mouseDrag (const juce::MouseEvent& e)
+void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
 {
-    const int delta = (dragStartY - e.y) / 6;
-    if (delta == 0)
+    if (gutterDrag)
+    {
+        const int delta = (gutterStartY - e.y) / kRowH;
+        scrollBy ((gutterStartView + delta) - viewLow);
+        return;
+    }
+
+    if (dragStep < 0)
+        return;
+
+    const RollView v { locked, keyRoot, minor, viewLow };
+    auto used = getLocalBounds();
+    used.setHeight (visibleRows (v) * kRowH);
+    const auto geo = makeGeom (used, visibleRows (v));
+    const int note = lockNote (noteAtY (geo, (float) e.y, v));
+    auto s = proc.getSequencer().getStep (dragStep);
+    if (s.note == note)
         return;
 
     dragged = true;
-    auto s = proc.getSequencer().getStep (index);
-    s.note = nudgeNote (dragStartNote, delta);
-    lastNote = s.note;
-    proc.setPatternStep (index, s);
+    s.note = note;
+    proc.setPatternStep (dragStep, s);
     repaint();
 }
 
-void TEW03AudioProcessorEditor::PitchCell::mouseUp (const juce::MouseEvent&)
+void TEW03AudioProcessorEditor::PianoRoll::mouseUp (const juce::MouseEvent& e)
 {
-    if (dragged)
+    if (gutterDrag)
+    {
+        gutterDrag = false;
+        return;
+    }
+
+    if (dragged || dragStep < 0)
         return;
 
-    auto s = proc.getSequencer().getStep (index);
-    if (s.note < 0)
-        s.note = lastNote;
-    else
-    {
-        lastNote = s.note;
-        s.note = -1;
-    }
-    proc.setPatternStep (index, s);
+    const RollView v { locked, keyRoot, minor, viewLow };
+    auto used = getLocalBounds();
+    used.setHeight (visibleRows (v) * kRowH);
+    const auto geo = makeGeom (used, visibleRows (v));
+    if (e.x < (int) geo.grid.getX())
+        return;
+
+    const int note = lockNote (noteAtY (geo, (float) e.y, v));
+    auto s = proc.getSequencer().getStep (dragStep);
+    s.note = (s.note == note) ? -1 : note;
+    proc.setPatternStep (dragStep, s);
     repaint();
 }
 
-void TEW03AudioProcessorEditor::PitchCell::mouseWheelMove (const juce::MouseEvent&,
+void TEW03AudioProcessorEditor::PianoRoll::mouseWheelMove (const juce::MouseEvent& e,
                                                            const juce::MouseWheelDetails& w)
 {
-    auto s = proc.getSequencer().getStep (index);
-    const int delta = w.deltaY > 0 ? 1 : -1;
-    s.note = nudgeNote (s.note, delta);
-    lastNote = s.note;
-    proc.setPatternStep (index, s);
+    const RollView v { locked, keyRoot, minor, viewLow };
+    auto used = getLocalBounds();
+    used.setHeight (visibleRows (v) * kRowH);
+    const auto geo = makeGeom (used, visibleRows (v));
+
+    if (e.x < (int) geo.grid.getX())
+    {
+        scrollBy (w.deltaY > 0 ? 1 : -1);
+        return;
+    }
+
+    const int step = stepAtX (geo, (float) e.x);
+    if (step < 0)
+        return;
+
+    auto s = proc.getSequencer().getStep (step);
+    if (s.note < 0)
+        return;
+
+    const int dir = w.deltaY > 0 ? 1 : -1;
+    s.note = locked ? stepScale (s.note, dir, keyRoot, minor) : nudgeNote (s.note, dir);
+    proc.setPatternStep (step, s);
     repaint();
 }
 
-TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int stepIndex)
-    : pitch (p, stepIndex), index (stepIndex)
+TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int stepIndex, juce::Component& rollToRepaint)
+    : roll (rollToRepaint), index (stepIndex)
 {
-    addAndMakeVisible (pitch);
     addAndMakeVisible (accent);
     addAndMakeVisible (slide);
 
@@ -168,19 +556,21 @@ TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int s
         auto step = p.getSequencer().getStep (index);
         step.accent = accent.getToggleState();
         p.setPatternStep (index, step);
+        roll.repaint();
     };
     slide.onClick = [this, &p]
     {
         auto step = p.getSequencer().getStep (index);
         step.slide = slide.getToggleState();
         p.setPatternStep (index, step);
+        roll.repaint();
     };
 }
 
 void TEW03AudioProcessorEditor::StepColumn::paint (juce::Graphics& g)
 {
     auto led = getLocalBounds().removeFromTop (kLedH).toFloat();
-    g.setColour (pitch.lit ? kLedOn : kLedOff);
+    g.setColour (lit ? kLedOn : kLedOff);
     g.fillEllipse (led.withSizeKeepingCentre (8.f, 8.f));
 }
 
@@ -188,20 +578,15 @@ void TEW03AudioProcessorEditor::StepColumn::resized()
 {
     auto r = getLocalBounds();
     r.removeFromTop (kLedH);
-    pitch.setBounds (r.removeFromTop (kPitchH).reduced (1, 0));
     accent.setBounds (r.removeFromTop (kToggleH));
     slide.setBounds (r.removeFromTop (kToggleH));
 }
 
-void TEW03AudioProcessorEditor::StepColumn::refreshPitch()
-{
-    pitch.refresh();
-}
-
 void TEW03AudioProcessorEditor::StepColumn::setLit (bool on)
 {
-    pitch.lit = on;
-    pitch.repaint();
+    if (lit == on)
+        return;
+    lit = on;
     repaint();
 }
 
@@ -278,6 +663,21 @@ juce::Font TEW03AudioProcessorEditor::PanelLnF::getLabelFont (juce::Label&)
     return boldFont (11.f);
 }
 
+void TEW03AudioProcessorEditor::PanelLnF::drawComboBox (juce::Graphics& g, int width, int height, bool,
+                                                        int, int, int, int, juce::ComboBox&)
+{
+    auto r = juce::Rectangle<float> (0.f, 0.f, (float) width, (float) height);
+    g.setColour (juce::Colour (0xff2e2e2e));
+    g.fillRoundedRectangle (r, 3.f);
+    g.setColour (kInk.withAlpha (0.45f));
+    g.drawRoundedRectangle (r.reduced (0.5f), 3.f, 1.f);
+}
+
+juce::Font TEW03AudioProcessorEditor::PanelLnF::getComboBoxFont (juce::ComboBox&)
+{
+    return boldFont (11.f);
+}
+
 TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeState& state,
                                                  juce::RangedAudioParameter& param)
 {
@@ -334,10 +734,14 @@ void TEW03AudioProcessorEditor::ParamCell::resized()
 }
 
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
-    : juce::AudioProcessorEditor (p), proc (p)
+    : juce::AudioProcessorEditor (p), proc (p), pianoRoll (p)
 {
     setLookAndFeel (&panelLnF);
     setOpaque (true);
+    panelLnF.setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff2e2e2e));
+    panelLnF.setColour (juce::PopupMenu::textColourId, kCream);
+    panelLnF.setColour (juce::PopupMenu::highlightedBackgroundColourId, kLedOn);
+    panelLnF.setColour (juce::PopupMenu::highlightedTextColourId, kCream);
 
     static constexpr const char* kSeq[] = {
         ParamID::seqPlay, ParamID::seqTempo, ParamID::waveform
@@ -367,9 +771,60 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     for (auto* id : kMaster)
         add (masterCells, id);
 
+    addAndMakeVisible (pianoRoll);
+
+    auto setupLabel = [] (juce::Label& l, const juce::String& text)
+    {
+        l.setText (text, juce::dontSendNotification);
+        l.setJustificationType (juce::Justification::centredRight);
+        l.setColour (juce::Label::textColourId, kInk);
+        l.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+    };
+    setupLabel (keyLabel, "Key");
+    setupLabel (scaleLabel, "Scale");
+    addAndMakeVisible (keyLabel);
+    addAndMakeVisible (scaleLabel);
+
+    lockBtn.setClickingTogglesState (true);
+    lockBtn.setToggleState (true, juce::dontSendNotification);
+    lockBtn.setTooltip ("Lock sequencer notes to the selected key and scale");
+    addAndMakeVisible (lockBtn);
+
+    static constexpr const char* kKeys[] = {
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+    };
+    for (int i = 0; i < 12; ++i)
+        keyBox.addItem (kKeys[i], i + 1);
+    keyBox.setSelectedId (1, juce::dontSendNotification);
+    scaleBox.addItem ("Major", 1);
+    scaleBox.addItem ("Minor", 2);
+    scaleBox.setSelectedId (1, juce::dontSendNotification);
+
+    auto colourBox = [] (juce::ComboBox& b)
+    {
+        b.setColour (juce::ComboBox::textColourId, kCream);
+        b.setColour (juce::ComboBox::arrowColourId, kCream);
+        b.setTooltip ("Scale used when key lock is on");
+    };
+    colourBox (keyBox);
+    colourBox (scaleBox);
+
+    auto applyLock = [this]
+    {
+        pianoRoll.locked = lockBtn.getToggleState();
+        pianoRoll.keyRoot = keyBox.getSelectedId() - 1;
+        pianoRoll.minor = scaleBox.getSelectedId() == 2;
+        pianoRoll.repaint();
+    };
+    lockBtn.onClick = applyLock;
+    keyBox.onChange = applyLock;
+    scaleBox.onChange = applyLock;
+    addAndMakeVisible (keyBox);
+    addAndMakeVisible (scaleBox);
+
     for (int i = 0; i < tew::Sequencer::numSteps; ++i)
     {
-        auto* col = steps.add (new StepColumn (proc, i));
+        auto* col = steps.add (new StepColumn (proc, i, pianoRoll));
         addAndMakeVisible (col);
     }
 
@@ -425,7 +880,16 @@ void TEW03AudioProcessorEditor::resized()
     r.removeFromTop (kTitleH);
 
     auto strip = r.removeFromBottom (kStripH);
+    pianoRoll.setBounds (r.removeFromBottom (kRollH));
+    auto lock = r.removeFromBottom (kLockH);
     r.removeFromBottom (4);
+
+    lockBtn.setBounds (lock.removeFromLeft (56).reduced (0, 1));
+    keyLabel.setBounds (lock.removeFromLeft (28));
+    keyBox.setBounds (lock.removeFromLeft (72).reduced (0, 1));
+    lock.removeFromLeft (10);
+    scaleLabel.setBounds (lock.removeFromLeft (40));
+    scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
 
     seqArea = r.removeFromLeft (kSeqW);
     const int masterW = r.getWidth() * 3 / 8;
@@ -453,6 +917,7 @@ void TEW03AudioProcessorEditor::resized()
     place (filterCells, filterArea);
     place (masterCells, masterArea);
 
+    strip.removeFromLeft (kKeyW);
     const int stepW = strip.getWidth() / tew::Sequencer::numSteps;
     for (int i = 0; i < steps.size(); ++i)
         steps[i]->setBounds (strip.removeFromLeft (i == steps.size() - 1 ? strip.getWidth() : stepW));
@@ -496,5 +961,6 @@ void TEW03AudioProcessorEditor::refreshPlayhead()
         steps[lastPlayhead]->setLit (false);
     if (now >= 0 && now < steps.size())
         steps[now]->setLit (true);
+    pianoRoll.setPlayhead (now);
     lastPlayhead = now;
 }

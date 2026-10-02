@@ -19,37 +19,43 @@ private:
 
     TEW03AudioProcessor& proc;
 
-    struct PitchCell : public juce::Component
+    struct PianoRoll : public juce::Component
     {
-        PitchCell (TEW03AudioProcessor& p, int stepIndex);
+        explicit PianoRoll (TEW03AudioProcessor& p);
         void paint (juce::Graphics& g) override;
         void mouseDown (const juce::MouseEvent& e) override;
         void mouseDrag (const juce::MouseEvent& e) override;
         void mouseUp (const juce::MouseEvent& e) override;
         void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w) override;
-        void refresh();
+        void setPlayhead (int step);
+        int lockNote (int note) const;
+        void scrollBy (int semitones);
 
         TEW03AudioProcessor& proc;
-        int index = 0;
-        int lastNote = 36;
-        int dragStartY = 0;
-        int dragStartNote = 36;
+        int playhead = -1;
+        int dragStep = -1;
+        int keyRoot = 0; // C
+        int viewLow = 36; // C2, one octave window
+        int gutterStartY = 0;
+        int gutterStartView = 36;
+        bool minor = false;
+        bool locked = true;
         bool dragged = false;
-        bool lit = false;
+        bool gutterDrag = false;
     };
 
     struct StepColumn : public juce::Component
     {
-        StepColumn (TEW03AudioProcessor& p, int stepIndex);
+        StepColumn (TEW03AudioProcessor& p, int stepIndex, juce::Component& roll);
         void paint (juce::Graphics& g) override;
         void resized() override;
-        void refreshPitch();
         void setLit (bool on);
 
-        PitchCell pitch;
+        juce::Component& roll;
         juce::ToggleButton accent { "A" };
         juce::ToggleButton slide { "S" };
         int index = 0;
+        bool lit = false;
     };
 
     struct PanelLnF : public juce::LookAndFeel_V4
@@ -57,7 +63,9 @@ private:
         void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos,
                                float startAngle, float endAngle, juce::Slider&) override;
         void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool, bool) override;
+        void drawComboBox (juce::Graphics&, int, int, bool, int, int, int, int, juce::ComboBox&) override;
         juce::Font getLabelFont (juce::Label&) override;
+        juce::Font getComboBoxFont (juce::ComboBox&) override;
     };
 
     struct ParamCell : public juce::Component
@@ -77,6 +85,10 @@ private:
 
     PanelLnF panelLnF;
     juce::TooltipWindow tooltipWindow { this };
+    juce::Label keyLabel, scaleLabel;
+    juce::ComboBox keyBox, scaleBox;
+    juce::ToggleButton lockBtn { "Lock" };
+    PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamCell> seqCells;
     juce::OwnedArray<ParamCell> filterCells;
