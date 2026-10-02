@@ -1,8 +1,7 @@
 # TEW03 – Product Requirements
 
 ## Vision
-A software synthesizer that delivers the classic TB-303 acid squelch and then goes further into aggressive, mean, modern acid lines.  
-It can behave like a typical 303 when desired, but its main purpose is harder, dirtier, more flexible lines.
+A software synthesizer that delivers the classic TB-303 acid squelch and then goes further into aggressive, mean, modern acid lines.
 
 An internal step sequencer is the primary performance tool (classic 303 workflow).  
 The sequencer drives the internal synth and also emits MIDI Output so patterns can be recorded into the DAW or used to sequence other plugins.
@@ -12,12 +11,11 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 ### Sound
 - Oscillator: saw + square (band-limited)
 - Resonant low-pass filter with high resonance (diode-ladder character preferred)
-- Envelope that strongly modulates cutoff
+- Envelope that strongly modulates cutoff (Env Mod amount)
 - Accent (boosts level + cutoff + resonance)
 - Slide / portamento
 - Drive / overdrive
 - Master volume + soft limiting
-- “Classic 303” toggle that restricts behaviour toward original 303
 
 ### MIDI & Performance
 - Full MIDI note input + pitch bend

@@ -2,7 +2,7 @@
 
 - Oscillator: band-limited saw/square (PolyBLEP preferred)
 - Filter: diode-ladder inspired, stable at high resonance, accent raises cutoff + resonance
-- Envelope: fast attack, adjustable decay, accent intensifies
+- Envelope: fast attack, adjustable decay, Env Mod sets how far the envelope opens the filter, accent intensifies
 - Drive: soft saturation before and/or after filter
 - Keep everything real-time safe
 

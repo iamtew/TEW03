@@ -21,6 +21,9 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                         "Decay",
                                                         NormalisableRange<float> (0.05f, 2.f, 0.001f, 0.4f),
                                                         0.25f));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::envMod, 1 },
+                                                        "Env Mod",
+                                                        NormalisableRange<float> (0.f, 1.f), 0.7f));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::accent, 1 },
                                                         "Accent",
                                                         NormalisableRange<float> (0.f, 1.f), 0.5f));
@@ -30,8 +33,6 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::volume, 1 },
                                                         "Volume",
                                                         NormalisableRange<float> (0.f, 1.f), 0.25f));
-    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::classicMode, 1 },
-                                                       "Classic 303", false));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::waveform, 1 },
                                                        "Square", false));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::glide, 1 },

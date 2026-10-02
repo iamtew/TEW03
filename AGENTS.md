@@ -2,7 +2,6 @@
 
 You are building a VST3 software synthesizer focused on aggressive TB-303-style acid lines (“mean lines”).
 Not a pure clone. Main purpose = classic resonant squelch + extra nastiness.
-Must also support a “Classic 303” mode.
 
 An internal step sequencer is the primary performance source.
 The sequencer drives the internal voice and also emits MIDI Output

@@ -23,9 +23,9 @@ struct SynthEngine
         voice.setSquare (square);
     }
 
-    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)
+    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, float envModAmount)
     {
-        voice.setFilter (cutoffHz, resonanceAmount, driveAmount, classic);
+        voice.setFilter (cutoffHz, resonanceAmount, driveAmount, envModAmount);
     }
 
     Voice& getVoice() { return voice; }

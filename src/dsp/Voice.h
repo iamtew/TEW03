@@ -34,19 +34,15 @@ struct Voice
     void setSquare (bool sq)
     {
         wantSquare = sq;
-        osc.setSquare (wantSquare && ! classicMode);
+        osc.setSquare (wantSquare);
     }
 
-    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, bool classic)
+    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, float envModAmount)
     {
         cutoff = cutoffHz;
         resonance = std::clamp (resonanceAmount, 0.f, 1.f);
-        classicMode = classic;
-        drive = classic ? 0.f : std::clamp (driveAmount, 0.f, 1.f);
-        // Classic 303: keep saw, kill extra drive, stop short of screaming resonance.
-        if (classic)
-            resonance = std::min (resonance, 0.65f);
-        osc.setSquare (wantSquare && ! classicMode);
+        drive = std::clamp (driveAmount, 0.f, 1.f);
+        envMod = std::clamp (envModAmount, 0.f, 1.f);
     }
 
     // value is the 14-bit MIDI pitch wheel. ±2 semitones, centre 8192.
@@ -114,8 +110,8 @@ struct Voice
             osc.setFrequency (midiToHz (note));
 
             const float e = env.process();
-            // Envelope lifts cutoff up to four octaves. Accent adds two more.
-            const float octaves = 4.f + (accented ? 2.f * accentAmount : 0.f);
+            // envMod 1 = four octaves of cutoff sweep. Accent still adds extra lift.
+            const float octaves = envMod * 4.f + (accented ? 2.f * accentAmount : 0.f);
             const float fc = cutoff * std::pow (2.f, e * octaves);
             filter.set (fc, resNow);
 
@@ -148,12 +144,12 @@ private:
     float cutoff = 800.f;
     float resonance = 0.3f;
     float drive = 0.f;
+    float envMod = 0.7f;
     int glideSamples = 0;
     int heldNote = -1;
     bool hasPitch = false;
     bool accented = false;
     bool wantSquare = false;
-    bool classicMode = false;
 };
 
 } // namespace tew

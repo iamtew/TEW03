@@ -2,16 +2,17 @@
 
 namespace
 {
-constexpr int kEditorW = 960;
-constexpr int kEditorH = 280;
-constexpr int kPad = 8;
-constexpr int kTitleH = 26;
-constexpr int kSeqW = 196;
-constexpr int kLedH = 12;
-constexpr int kPitchH = 32;
-constexpr int kToggleH = 20;
-constexpr int kStripH = kLedH + kPitchH + kToggleH * 2 + 6;
-constexpr int kLabelH = 16;
+constexpr int kEditorW = 900;
+constexpr int kEditorH = 258;
+constexpr int kPad = 6;
+constexpr int kTitleH = 22;
+constexpr int kSeqW = 236;
+constexpr int kSectionH = 14;
+constexpr int kLedH = 10;
+constexpr int kPitchH = 28;
+constexpr int kToggleH = 18;
+constexpr int kStripH = kLedH + kPitchH + kToggleH * 2 + 4;
+constexpr int kLabelH = 14;
 constexpr int kNoteMin = 24;
 constexpr int kNoteMax = 60;
 
@@ -48,21 +49,20 @@ juce::String uiLabel (const juce::String& id)
     if (id == ParamID::cutoff)      return "Cutoff";
     if (id == ParamID::resonance)   return "Resonance";
     if (id == ParamID::decay)       return "Decay";
+    if (id == ParamID::envMod)      return "Env Mod";
     if (id == ParamID::accent)      return "Accent";
     if (id == ParamID::drive)       return "Drive";
     if (id == ParamID::volume)      return "Volume";
-    if (id == ParamID::waveform)    return "Wave";
+    if (id == ParamID::waveform)    return "Waveform";
     if (id == ParamID::glide)       return "Glide";
     if (id == ParamID::seqPlay)     return "Sequencer";
-    if (id == ParamID::seqTempo)    return "Seq Tempo";
-    if (id == ParamID::classicMode) return "Classic 303";
+    if (id == ParamID::seqTempo)    return "Tempo";
     return id;
 }
 
 juce::String uiButton (const juce::String& id)
 {
     if (id == ParamID::seqPlay)     return "Run";
-    if (id == ParamID::classicMode) return "On";
     return uiLabel (id);
 }
 
@@ -304,8 +304,6 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
         }
         if (id == ParamID::seqPlay)
             button.setTooltip ("Run or stop the internal sequencer");
-        else if (id == ParamID::classicMode)
-            button.setTooltip ("Restrict the synth toward classic 303 behaviour");
         buttonAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (state, id, button);
     }
     else
@@ -339,12 +337,14 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     setLookAndFeel (&panelLnF);
     setOpaque (true);
 
-    static constexpr const char* kSynth[] = {
-        ParamID::waveform, ParamID::cutoff, ParamID::resonance, ParamID::decay,
-        ParamID::accent, ParamID::drive, ParamID::volume, ParamID::glide
-    };
     static constexpr const char* kSeq[] = {
-        ParamID::seqPlay, ParamID::seqTempo, ParamID::classicMode
+        ParamID::seqPlay, ParamID::seqTempo, ParamID::waveform
+    };
+    static constexpr const char* kFilter[] = {
+        ParamID::cutoff, ParamID::resonance, ParamID::envMod, ParamID::decay, ParamID::accent
+    };
+    static constexpr const char* kMaster[] = {
+        ParamID::drive, ParamID::glide, ParamID::volume
     };
 
     auto add = [this] (juce::OwnedArray<ParamCell>& dest, const char* id)
@@ -355,10 +355,12 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         addAndMakeVisible (dest.add (new ParamCell (proc.apvts, *p)));
     };
 
-    for (auto* id : kSynth)
-        add (synthCells, id);
     for (auto* id : kSeq)
         add (seqCells, id);
+    for (auto* id : kFilter)
+        add (filterCells, id);
+    for (auto* id : kMaster)
+        add (masterCells, id);
 
     for (int i = 0; i < tew::Sequencer::numSteps; ++i)
     {
@@ -383,17 +385,29 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
     auto r = getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
     g.setColour (kInk);
-    g.setFont (boldFont (18.f));
-    g.drawText ("TEW03", title.removeFromLeft (120), juce::Justification::centredLeft, false);
-    g.setFont (boldFont (11.f));
+    g.setFont (boldFont (16.f));
+    g.drawText ("TEW03", title.removeFromLeft (90), juce::Justification::centredLeft, false);
+    g.setFont (boldFont (10.f));
     g.drawText ("STUPID SYSTEMS", title, juce::Justification::centredRight, false);
 
-    auto body = r.removeFromTop (r.getHeight() - kStripH - 6);
-    auto seq = body.removeFromLeft (kSeqW);
-    g.setColour (kInk.withAlpha (0.25f));
-    g.drawLine ((float) seq.getRight(), (float) seq.getY() + 4.f,
-                (float) seq.getRight(), (float) seq.getBottom() - 4.f, 1.f);
-    g.drawHorizontalLine (body.getBottom() + 3, (float) kPad, (float) getWidth() - kPad);
+    auto header = [this, &g] (juce::Rectangle<int> area, const juce::String& name)
+    {
+        g.setColour (kInk.withAlpha (0.55f));
+        g.setFont (boldFont (10.f));
+        g.drawText (name, area.removeFromTop (kSectionH), juce::Justification::centred, false);
+        g.setColour (kInk.withAlpha (0.22f));
+        g.drawHorizontalLine (area.getY(), (float) area.getX() + 8.f, (float) area.getRight() - 8.f);
+    };
+    header (filterArea, "FILTER");
+    header (masterArea, "MASTER");
+
+    g.setColour (kInk.withAlpha (0.22f));
+    if (! seqArea.isEmpty())
+        g.drawLine ((float) seqArea.getRight(), (float) seqArea.getY() + 2.f,
+                    (float) seqArea.getRight(), (float) seqArea.getBottom() - 2.f, 1.f);
+    if (! filterArea.isEmpty())
+        g.drawLine ((float) filterArea.getRight(), (float) filterArea.getY() + 2.f,
+                    (float) filterArea.getRight(), (float) filterArea.getBottom() - 2.f, 1.f);
 
     auto bevel = getLocalBounds().toFloat().reduced (1.5f);
     g.setColour (kChassisDark);
@@ -406,21 +420,33 @@ void TEW03AudioProcessorEditor::resized()
     r.removeFromTop (kTitleH);
 
     auto strip = r.removeFromBottom (kStripH);
-    r.removeFromBottom (6);
-    auto seq = r.removeFromLeft (kSeqW).reduced (4, 0);
-    auto synth = r.reduced (8, 0);
+    r.removeFromBottom (4);
 
+    seqArea = r.removeFromLeft (kSeqW);
+    const int masterW = r.getWidth() * 3 / 8;
+    filterArea = r.removeFromLeft (r.getWidth() - masterW);
+    masterArea = r;
+
+    auto seq = seqArea.reduced (2, 0);
     if (seqCells.size() >= 3)
     {
-        seqCells[0]->setBounds (seq.removeFromTop (42));
-        seqCells[2]->setBounds (seq.removeFromBottom (42));
-        seqCells[1]->setBounds (seq);
+        seqCells[0]->setBounds (seq.removeFromTop (36));
+        auto row = seq;
+        const int half = row.getWidth() / 2;
+        seqCells[1]->setBounds (row.removeFromLeft (half));
+        seqCells[2]->setBounds (row);
     }
 
-    const int n = juce::jmax (1, synthCells.size());
-    const int cellW = synth.getWidth() / n;
-    for (int i = 0; i < synthCells.size(); ++i)
-        synthCells[i]->setBounds (synth.removeFromLeft (i == synthCells.size() - 1 ? synth.getWidth() : cellW));
+    auto place = [] (juce::OwnedArray<ParamCell>& cells, juce::Rectangle<int> area)
+    {
+        area.removeFromTop (kSectionH);
+        const int n = juce::jmax (1, cells.size());
+        const int w = area.getWidth() / n;
+        for (int i = 0; i < cells.size(); ++i)
+            cells[i]->setBounds (area.removeFromLeft (i == cells.size() - 1 ? area.getWidth() : w));
+    };
+    place (filterCells, filterArea);
+    place (masterCells, masterArea);
 
     const int stepW = strip.getWidth() / tew::Sequencer::numSteps;
     for (int i = 0; i < steps.size(); ++i)

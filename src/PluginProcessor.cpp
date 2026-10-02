@@ -130,7 +130,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     engine.setFilter (raw (ParamID::cutoff),
                       raw (ParamID::resonance),
                       raw (ParamID::drive),
-                      raw (ParamID::classicMode) >= 0.5f);
+                      raw (ParamID::envMod));
 
     const int numSamples = buffer.getNumSamples();
     if (numSamples <= 0)

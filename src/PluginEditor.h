@@ -77,8 +77,10 @@ private:
     PanelLnF panelLnF;
     juce::TooltipWindow tooltipWindow { this };
     juce::OwnedArray<StepColumn> steps;
-    juce::OwnedArray<ParamCell> synthCells;
     juce::OwnedArray<ParamCell> seqCells;
+    juce::OwnedArray<ParamCell> filterCells;
+    juce::OwnedArray<ParamCell> masterCells;
+    juce::Rectangle<int> seqArea, filterArea, masterArea;
     int lastPlayhead = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TEW03AudioProcessorEditor)
