@@ -38,7 +38,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                         "Glide",
                                                         NormalisableRange<float> (0.f, 0.5f), 0.f));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqPlay, 1 },
-                                                       "Seq Play", false));
+                                                       "Sequencer", false));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqTempo, 1 },
                                                         "Seq Tempo",
                                                         NormalisableRange<float> (40.f, 300.f, 0.1f),

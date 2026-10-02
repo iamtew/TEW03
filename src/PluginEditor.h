@@ -40,6 +40,7 @@ private:
     struct StepColumn : public juce::Component
     {
         StepColumn (TEW03AudioProcessor& p, int stepIndex);
+        void paint (juce::Graphics& g) override;
         void resized() override;
         void refreshPitch();
         void setLit (bool on);
@@ -50,17 +51,18 @@ private:
         int index = 0;
     };
 
-    struct FlipLnF : public juce::LookAndFeel_V4
+    struct PanelLnF : public juce::LookAndFeel_V4
     {
+        void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos,
+                               float startAngle, float endAngle, juce::Slider&) override;
         void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool, bool) override;
+        juce::Font getLabelFont (juce::Label&) override;
     };
 
-    struct ParamRow : public juce::Component
+    struct ParamCell : public juce::Component
     {
-        ParamRow (juce::AudioProcessorValueTreeState& state,
-                  juce::RangedAudioParameter& param,
-                  FlipLnF* flip);
-        ~ParamRow() override;
+        ParamCell (juce::AudioProcessorValueTreeState& state,
+                   juce::RangedAudioParameter& param);
         void resized() override;
 
         juce::Label label;
@@ -72,9 +74,11 @@ private:
         bool isFlip = false;
     };
 
-    FlipLnF flipLnF;
+    PanelLnF panelLnF;
+    juce::TooltipWindow tooltipWindow { this };
     juce::OwnedArray<StepColumn> steps;
-    juce::OwnedArray<ParamRow> rows;
+    juce::OwnedArray<ParamCell> synthCells;
+    juce::OwnedArray<ParamCell> seqCells;
     int lastPlayhead = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TEW03AudioProcessorEditor)
