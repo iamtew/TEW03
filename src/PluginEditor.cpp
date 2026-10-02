@@ -14,7 +14,7 @@ constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
 constexpr int kToggleH = 18;
 constexpr int kStripH = kLedH + kToggleH * 2 + 4;
-constexpr int kLabelH = 14;
+constexpr int kLabelH = 11;
 constexpr int kNoteMin = 24;
 constexpr int kNoteMax = 60;
 constexpr int kOctave = 12;
@@ -711,9 +711,8 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
     else
     {
         slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-        const bool tempo = id == ParamID::seqTempo;
-        slider.setTextBoxStyle (tempo ? juce::Slider::TextBoxBelow : juce::Slider::NoTextBox,
-                                false, 56, 14);
+        const int boxW = (id == ParamID::cutoff) ? 88 : 56;
+        slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, boxW, 14);
         slider.setColour (juce::Slider::textBoxTextColourId, kInk);
         slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
         slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
@@ -725,7 +724,7 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
 
 void TEW03AudioProcessorEditor::ParamCell::resized()
 {
-    auto r = getLocalBounds().reduced (2);
+    auto r = getLocalBounds().reduced (2, 0);
     label.setBounds (r.removeFromTop (kLabelH));
     if (isBool)
         button.setBounds ((isFlip ? r : r.removeFromTop (24)).reduced (2, 2));
