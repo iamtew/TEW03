@@ -1,7 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace tew
 {
@@ -16,10 +18,11 @@ struct SeqEvent
 };
 
 // 16th-note grid. Slide on a step ties into the next (no gap, pitch ramps).
-// Rest is note < 0. Pattern is baked until a step UI exists.
+// Rest is note < 0. packed[] is the audio-thread copy; UI writes via setStep.
 struct Sequencer
 {
     static constexpr int numSteps = 16;
+    static constexpr int restCode = 255; // packed note byte for a rest
 
     struct Step
     {
@@ -28,7 +31,24 @@ struct Sequencer
         bool slide = false;
     };
 
-    Sequencer()
+    static uint32_t pack (Step s)
+    {
+        const uint32_t note = s.note < 0 ? (uint32_t) restCode
+                                         : (uint32_t) std::clamp (s.note, 0, 127);
+        return note
+             | (s.accent ? 0x100u : 0u)
+             | (s.slide  ? 0x200u : 0u);
+    }
+
+    static Step unpack (uint32_t bits)
+    {
+        const int noteByte = (int) (bits & 0xffu);
+        return { noteByte == restCode ? -1 : noteByte,
+                 (bits & 0x100u) != 0,
+                 (bits & 0x200u) != 0 };
+    }
+
+    static void fillDefault (Step out[numSteps])
     {
         // C2 acid line: accents, two slides, two rests.
         const Step baked[numSteps] = {
@@ -51,10 +71,39 @@ struct Sequencer
         };
 
         for (int i = 0; i < numSteps; ++i)
-            steps[i] = baked[i];
+            out[i] = baked[i];
+    }
+
+    Sequencer()
+    {
+        Step baked[numSteps];
+        fillDefault (baked);
+        loadAll (baked);
     }
 
     void prepare (double sr) { sampleRate = sr; }
+
+    void setStep (int i, Step s)
+    {
+        if (i < 0 || i >= numSteps)
+            return;
+        packed[i].store (pack (s), std::memory_order_relaxed);
+    }
+
+    Step getStep (int i) const
+    {
+        if (i < 0 || i >= numSteps)
+            return {};
+        return unpack (packed[i].load (std::memory_order_relaxed));
+    }
+
+    void loadAll (const Step in[numSteps])
+    {
+        for (int i = 0; i < numSteps; ++i)
+            packed[i].store (pack (in[i]), std::memory_order_relaxed);
+    }
+
+    int playhead() const { return playheadIndex.load (std::memory_order_relaxed); }
 
     // Fills out[] with note edges inside this block. Returns how many.
     int advance (int numSamples, float bpm, bool playing, SeqEvent* out, int maxEvents)
@@ -85,7 +134,7 @@ struct Sequencer
         {
             if (nextEdge <= clock)
             {
-                const Step& s = steps[step];
+                const Step s = unpack (packed[step].load (std::memory_order_relaxed));
                 const bool rest = s.note < 0;
                 const bool slideIn = pendingSlide && gate;
                 const int need = rest ? (gate ? 1 : 0)
@@ -96,6 +145,8 @@ struct Sequencer
                     clock += (double) (numSamples - consumed);
                     break;
                 }
+
+                playheadIndex.store (step, std::memory_order_relaxed);
 
                 if (rest)
                 {
@@ -145,6 +196,7 @@ private:
         clock = 0.0;
         nextEdge = 0.0;
         pendingSlide = false;
+        playheadIndex.store (-1, std::memory_order_relaxed);
 
         if (! gate || maxEvents < 1)
         {
@@ -157,7 +209,8 @@ private:
         return 1;
     }
 
-    Step steps[numSteps] {};
+    std::atomic<uint32_t> packed[numSteps] {};
+    std::atomic<int> playheadIndex { -1 };
     double sampleRate = 44100.0;
     double clock = 0.0;
     double nextEdge = 0.0;

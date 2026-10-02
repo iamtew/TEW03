@@ -6,12 +6,59 @@ namespace
 {
 constexpr int kMidiBytes = 512;
 constexpr int kMaxEvents = 32;
+
+const juce::Identifier kPattern { "PATTERN" };
+const juce::Identifier kStep { "STEP" };
+const juce::Identifier kIndex { "index" };
+const juce::Identifier kNote { "note" };
+const juce::Identifier kAccent { "accent" };
+const juce::Identifier kSlide { "slide" };
+
+tew::Sequencer::Step stepFromTree (const juce::ValueTree& t)
+{
+    return { (int) t.getProperty (kNote, 36),
+             (bool) t.getProperty (kAccent, false),
+             (bool) t.getProperty (kSlide, false) };
+}
+
+juce::ValueTree makeStepTree (int index, tew::Sequencer::Step s)
+{
+    juce::ValueTree t (kStep);
+    t.setProperty (kIndex, index, nullptr);
+    t.setProperty (kNote, s.note, nullptr);
+    t.setProperty (kAccent, s.accent, nullptr);
+    t.setProperty (kSlide, s.slide, nullptr);
+    return t;
+}
+
+juce::ValueTree makeDefaultPatternTree()
+{
+    tew::Sequencer::Step baked[tew::Sequencer::numSteps];
+    tew::Sequencer::fillDefault (baked);
+
+    juce::ValueTree pattern (kPattern);
+    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+        pattern.appendChild (makeStepTree (i, baked[i]), nullptr);
+    return pattern;
+}
+
+juce::ValueTree findStepChild (juce::ValueTree pattern, int index)
+{
+    for (int i = 0; i < pattern.getNumChildren(); ++i)
+    {
+        auto child = pattern.getChild (i);
+        if ((int) child.getProperty (kIndex, -1) == index)
+            return child;
+    }
+    return {};
+}
 } // namespace
 
 TEW03AudioProcessor::TEW03AudioProcessor()
     : juce::AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "PARAMS", createParameterLayout())
 {
+    loadPatternFromState();
 }
 
 float TEW03AudioProcessor::raw (const char* id) const
@@ -148,6 +195,57 @@ juce::AudioProcessorEditor* TEW03AudioProcessor::createEditor()
     return new TEW03AudioProcessorEditor (*this);
 }
 
+void TEW03AudioProcessor::loadPatternFromState()
+{
+    auto pattern = apvts.state.getChildWithName (kPattern);
+    if (! pattern.isValid())
+    {
+        apvts.state.appendChild (makeDefaultPatternTree(), nullptr);
+        pattern = apvts.state.getChildWithName (kPattern);
+    }
+
+    tew::Sequencer::Step baked[tew::Sequencer::numSteps];
+    tew::Sequencer::fillDefault (baked);
+    tew::Sequencer::Step loaded[tew::Sequencer::numSteps];
+
+    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    {
+        auto child = findStepChild (pattern, i);
+        loaded[i] = child.isValid() ? stepFromTree (child) : baked[i];
+        if (! child.isValid())
+            pattern.appendChild (makeStepTree (i, loaded[i]), nullptr);
+    }
+
+    sequencer.loadAll (loaded);
+}
+
+void TEW03AudioProcessor::writeStepToState (int index, tew::Sequencer::Step step)
+{
+    auto pattern = apvts.state.getChildWithName (kPattern);
+    if (! pattern.isValid())
+    {
+        apvts.state.appendChild (makeDefaultPatternTree(), nullptr);
+        pattern = apvts.state.getChildWithName (kPattern);
+    }
+
+    auto child = findStepChild (pattern, index);
+    if (! child.isValid())
+    {
+        pattern.appendChild (makeStepTree (index, step), nullptr);
+        return;
+    }
+
+    child.setProperty (kNote, step.note, nullptr);
+    child.setProperty (kAccent, step.accent, nullptr);
+    child.setProperty (kSlide, step.slide, nullptr);
+}
+
+void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
+{
+    sequencer.setStep (index, step);
+    writeStepToState (index, step);
+}
+
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     if (auto xml = apvts.copyState().createXml())
@@ -158,7 +256,10 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
         if (xml->hasTagName (apvts.state.getType()))
+        {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            loadPatternFromState();
+        }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

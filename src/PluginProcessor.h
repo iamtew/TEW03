@@ -36,10 +36,15 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    tew::Sequencer& getSequencer() { return sequencer; }
+    void setPatternStep (int index, tew::Sequencer::Step step);
+
 private:
     float raw (const char* id) const;
     float tempoBpm() const;
     bool seqShouldRun() const;
+    void loadPatternFromState();
+    void writeStepToState (int index, tew::Sequencer::Step step);
 
     tew::SynthEngine engine;
     tew::Sequencer sequencer;

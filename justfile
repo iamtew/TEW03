@@ -32,3 +32,6 @@ rebuild: clean build-debug
 
 vs:
     start {{SOLUTION}}
+
+check:
+    cmd /c "call `"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat`" >nul && cl /nologo /EHsc /std:c++17 /I src tests\seq_check.cpp /Fo:tests\seq_check.obj /Fe:tests\seq_check.exe && tests\seq_check.exe"

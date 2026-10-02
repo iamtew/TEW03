@@ -16,3 +16,8 @@ JuceLibraryCode/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# seq_check
+tests/*.exe
+tests/*.obj
+seq_check.obj
