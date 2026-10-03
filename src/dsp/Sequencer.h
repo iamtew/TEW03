@@ -24,6 +24,19 @@ struct Sequencer
     static constexpr int numSteps = 16;  // default loop length (16ths)
     static constexpr int maxSteps = 32;  // 2x splits each 16th into two 32nds
     static constexpr int restCode = 255; // packed note byte for a rest
+    static constexpr int numBanks = 3;
+    static constexpr int patternsPerBank = 12;
+    static constexpr int keyMapBase = 24; // C1; E1 = bank 1 pattern 5
+
+    static bool mapKeyToSlot (int note, int& bank, int& pat)
+    {
+        const int idx = note - keyMapBase;
+        if (idx < 0 || idx >= numBanks * patternsPerBank)
+            return false;
+        bank = idx / patternsPerBank;
+        pat = idx % patternsPerBank;
+        return true;
+    }
 
     struct Step
     {
@@ -49,30 +62,48 @@ struct Sequencer
                  (bits & 0x200u) != 0 };
     }
 
-    static void fillDefault (Step out[maxSteps])
-    {
-        // C2 acid line: accents, two slides, two rests. 2x splits these into 32nds.
-        const Step baked[numSteps] = {
-            { 36, true,  false },
-            { 36, false, false },
-            { 39, false, false },
-            { 36, false, true  },
-            { 43, false, false },
-            { -1, false, false },
-            { 41, false, false },
-            { 39, false, false },
-            { 36, true,  false },
-            { 48, false, false },
-            { 46, false, true  },
-            { 43, false, false },
-            { 41, false, false },
-            { -1, false, false },
-            { 39, false, false },
-            { 36, false, false },
-        };
+    static void fillDefault (Step out[maxSteps]) { fillSlot (out, 0, 0); }
 
+    // 12 motifs × 3 roots (C2 / F2 / C3). Offsets from the bank root; -1 is a rest.
+    static void fillSlot (Step out[maxSteps], int bank, int pat)
+    {
+        bank = std::clamp (bank, 0, numBanks - 1);
+        pat = std::clamp (pat, 0, patternsPerBank - 1);
+
+        static constexpr int8_t kMotif[patternsPerBank][numSteps] = {
+            {  0,  0,  3,  0,  7, -1,  5,  3,  0, 12, 10,  7,  5, -1,  3,  0 },
+            {  0, 12,  0, 12,  0, -1,  7, 12,  0, 12, 10,  7, -1,  5,  3,  0 },
+            {  0, -1,  0, -1,  7, -1,  5, -1,  0, -1, 12, -1,  7, -1,  3,  0 },
+            {  0,  1,  2,  3,  5,  7,  8, 10, 12, 10,  8,  7,  5,  3,  2,  0 },
+            { 12, 10,  7,  5,  3,  0, -1,  0, 12,  7,  5,  3,  0, -1,  7,  0 },
+            {  0,  7,  0,  7, 12,  7,  0, -1,  0,  7, 12,  7,  5,  7,  3,  0 },
+            {  0,  0,  3,  3,  7,  7, 12, 12, 10, 10,  7,  7,  5,  5,  0,  0 },
+            {  0,  3,  5,  7,  3, -1,  8,  7,  0, 12,  8,  7,  5, -1,  3,  0 },
+            {  0,  7, -1, 12,  0,  7, -1, 12,  3,  7, -1, 10,  5,  7, -1,  0 },
+            {  0,  0,  0,  3,  0,  0,  7,  0,  0,  0, 12,  0,  5,  0,  3,  0 },
+            { 12,  7, 12, 10, 12, -1, 10,  7, 12,  7, 10,  5,  7, -1,  3, 12 },
+            {  0, -1, -1,  7,  0, -1, 12, 10,  7, -1,  5,  3,  0, -1, -1,  0 },
+        };
+        static constexpr uint16_t kAccent[patternsPerBank] = {
+            0x0101, 0x1111, 0x0055, 0x0001, 0x0101, 0x0145,
+            0x1111, 0x0081, 0x00aa, 0x0041, 0x0111, 0x0049
+        };
+        static constexpr uint16_t kSlide[patternsPerBank] = {
+            0x0408, 0x0002, 0x0000, 0x1554, 0x0004, 0x0022,
+            0x5555, 0x0408, 0x0000, 0x0008, 0x0444, 0x00c0
+        };
+        static constexpr int kRoot[numBanks] = { 36, 41, 48 }; // C2, F2, C3
+
+        const int root = kRoot[bank];
+        const uint16_t acc = kAccent[pat];
+        const uint16_t sld = kSlide[pat];
         for (int i = 0; i < numSteps; ++i)
-            out[i] = baked[i];
+        {
+            const int off = kMotif[pat][i];
+            out[i] = { off < 0 ? -1 : std::clamp (root + off, 24, 60),
+                       (acc & (1u << i)) != 0,
+                       (sld & (1u << i)) != 0 };
+        }
         for (int i = numSteps; i < maxSteps; ++i)
             out[i] = { -1, false, false };
     }
@@ -104,6 +135,18 @@ struct Sequencer
     {
         for (int i = 0; i < maxSteps; ++i)
             packed[i].store (pack (in[i]), std::memory_order_relaxed);
+    }
+
+    void loadPacked (const std::atomic<uint32_t>* src)
+    {
+        for (int i = 0; i < maxSteps; ++i)
+            packed[i].store (src[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
+    }
+
+    void storePacked (std::atomic<uint32_t>* dest) const
+    {
+        for (int i = 0; i < maxSteps; ++i)
+            dest[i].store (packed[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
     }
 
     // Length only. Use reshapeTo when 2x toggles so the grid splits instead of appending.

@@ -16,6 +16,8 @@ private:
     void timerCallback() override;
     void refreshPlayhead();
     void refreshHostTempo();
+    void refreshSlot();
+    void syncSteps();
 
     TEW03AudioProcessor& proc;
 
@@ -78,19 +80,25 @@ private:
         juce::Label label;
         juce::Slider slider;
         juce::ToggleButton button;
+        juce::ComboBox combo;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sliderAtt;
         std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> buttonAtt;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> comboAtt;
         bool isBool = false;
         bool isFlip = false;
+        bool isChoice = false;
     };
 
     PanelLnF panelLnF;
     juce::TooltipWindow tooltipWindow { this };
-    juce::Label keyLabel, scaleLabel;
-    juce::ComboBox keyBox, scaleBox;
+    juce::Label keyLabel, scaleLabel, bankLabel, patternLabel;
+    juce::ComboBox keyBox, scaleBox, bankBox, patternBox;
+    juce::TextButton prevPat { "<" }, nextPat { ">" };
     juce::ToggleButton lockBtn { "Lock" };
     juce::ToggleButton x2Btn { "2x" };
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att;
+    juce::ToggleButton runBtn { "Run" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, patternAtt;
     PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamCell> seqCells;
@@ -99,6 +107,8 @@ private:
     ParamCell* tempoCell = nullptr;
     juce::Rectangle<int> seqArea, filterArea, masterArea;
     int lastPlayhead = -1;
+    int lastBank = -1;
+    int lastPattern = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TEW03AudioProcessorEditor)
 };

@@ -6,7 +6,12 @@ namespace
 {
 constexpr int kMidiBytes = 512;
 constexpr int kMaxEvents = 32;
+constexpr int kPlayKeyboard = 0;
+constexpr int kPlayPattern = 1;
+constexpr int kPlayKey = 2;
 
+const juce::Identifier kBanks { "BANKS" };
+const juce::Identifier kBank { "BANK" };
 const juce::Identifier kPattern { "PATTERN" };
 const juce::Identifier kStep { "STEP" };
 const juce::Identifier kIndex { "index" };
@@ -31,26 +36,31 @@ juce::ValueTree makeStepTree (int index, tew::Sequencer::Step s)
     return t;
 }
 
-juce::ValueTree makeDefaultPatternTree()
+juce::ValueTree findChildByIndex (juce::ValueTree parent, const juce::Identifier& type, int index)
 {
-    tew::Sequencer::Step baked[tew::Sequencer::maxSteps];
-    tew::Sequencer::fillDefault (baked);
-
-    juce::ValueTree pattern (kPattern);
-    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
-        pattern.appendChild (makeStepTree (i, baked[i]), nullptr);
-    return pattern;
+    for (int i = 0; i < parent.getNumChildren(); ++i)
+    {
+        auto child = parent.getChild (i);
+        if (child.hasType (type) && (int) child.getProperty (kIndex, -1) == index)
+            return child;
+    }
+    return {};
 }
 
 juce::ValueTree findStepChild (juce::ValueTree pattern, int index)
 {
-    for (int i = 0; i < pattern.getNumChildren(); ++i)
+    return findChildByIndex (pattern, kStep, index);
+}
+
+bool slotHasNote (juce::ValueTree pattern)
+{
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
     {
-        auto child = pattern.getChild (i);
-        if ((int) child.getProperty (kIndex, -1) == index)
-            return child;
+        auto child = findStepChild (pattern, i);
+        if (child.isValid() && (int) child.getProperty (kNote, -1) >= 0)
+            return true;
     }
-    return {};
+    return false;
 }
 } // namespace
 
@@ -58,7 +68,24 @@ TEW03AudioProcessor::TEW03AudioProcessor()
     : juce::AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "PARAMS", createParameterLayout())
 {
-    loadPatternFromState();
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
+            tew::Sequencer::Step slot[tew::Sequencer::maxSteps];
+            tew::Sequencer::fillSlot (slot, b, p);
+            for (int s = 0; s < tew::Sequencer::maxSteps; ++s)
+                patterns[b][p][s].store (tew::Sequencer::pack (slot[s]), std::memory_order_relaxed);
+        }
+
+    apvts.addParameterListener (ParamID::seqBank, this);
+    apvts.addParameterListener (ParamID::seqPattern, this);
+    loadBanksFromState();
+}
+
+TEW03AudioProcessor::~TEW03AudioProcessor()
+{
+    apvts.removeParameterListener (ParamID::seqBank, this);
+    apvts.removeParameterListener (ParamID::seqPattern, this);
 }
 
 float TEW03AudioProcessor::raw (const char* id) const
@@ -99,12 +126,12 @@ float TEW03AudioProcessor::tempoBpm() const
     return host > 0.f ? host : raw (ParamID::seqTempo);
 }
 
-bool TEW03AudioProcessor::seqShouldRun() const
+bool TEW03AudioProcessor::patternShouldRun() const
 {
     if (raw (ParamID::seqPlay) < 0.5f)
         return false;
 
-    // Standalone, or a host that never handed us a playhead: Seq Play is the clock.
+    // Standalone, or a host that never handed us a playhead: Run is the clock.
     if (wrapperType == juce::AudioProcessor::wrapperType_Standalone)
         return true;
 
@@ -117,6 +144,43 @@ bool TEW03AudioProcessor::seqShouldRun() const
     return true;
 }
 
+std::atomic<uint32_t>* TEW03AudioProcessor::slotPacked (int bank, int pat)
+{
+    return patterns[bank][pat];
+}
+
+void TEW03AudioProcessor::loadLiveFromSlot()
+{
+    sequencer.loadPacked (slotPacked (currentBank(), currentPattern()));
+}
+
+void TEW03AudioProcessor::storeLiveToSlot()
+{
+    sequencer.storePacked (slotPacked (currentBank(), currentPattern()));
+}
+
+void TEW03AudioProcessor::selectSlot (int bank, int pat)
+{
+    bank = juce::jlimit (0, tew::Sequencer::numBanks - 1, bank);
+    pat = juce::jlimit (0, tew::Sequencer::patternsPerBank - 1, pat);
+    if (bank == currentBank() && pat == currentPattern())
+        return;
+
+    storeLiveToSlot();
+    curBank.store (bank, std::memory_order_relaxed);
+    curPattern.store (pat, std::memory_order_relaxed);
+    loadLiveFromSlot();
+}
+
+void TEW03AudioProcessor::parameterChanged (const juce::String& parameterID, float)
+{
+    if (parameterID != ParamID::seqBank && parameterID != ParamID::seqPattern)
+        return;
+
+    selectSlot ((int) raw (ParamID::seqBank),
+                (int) raw (ParamID::seqPattern));
+}
+
 void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
 {
     engine.prepare (sampleRate);
@@ -124,6 +188,32 @@ void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
 }
 
 void TEW03AudioProcessor::releaseResources() {}
+
+bool TEW03AudioProcessor::handleKeyTriggers (const juce::MidiBuffer& midi)
+{
+    int held = heldKey.load (std::memory_order_relaxed);
+
+    for (const auto meta : midi)
+    {
+        const auto msg = meta.getMessage();
+        if (msg.isNoteOn() && msg.getFloatVelocity() > 0.f)
+        {
+            int bank = 0, pat = 0;
+            if (! tew::Sequencer::mapKeyToSlot (msg.getNoteNumber(), bank, pat))
+                continue;
+            held = msg.getNoteNumber();
+            selectSlot (bank, pat);
+        }
+        else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getFloatVelocity() <= 0.f))
+        {
+            if (msg.getNoteNumber() == held)
+                held = -1;
+        }
+    }
+
+    heldKey.store (held, std::memory_order_relaxed);
+    return held >= 0;
+}
 
 void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
@@ -153,8 +243,20 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
                                                      : tew::Sequencer::numSteps);
 
-    const bool playing = seqShouldRun();
+    const int mode = juce::roundToInt (raw (ParamID::playMode));
     const float bpm = tempoBpm();
+
+    if (mode != kPlayKey)
+        heldKey.store (-1, std::memory_order_relaxed);
+
+    bool playing = false;
+    if (mode == kPlayPattern)
+        playing = patternShouldRun();
+    else if (mode == kPlayKey)
+        playing = handleKeyTriggers (midi) && raw (ParamID::seqPlay) >= 0.5f;
+
+    if (mode != kPlayKeyboard)
+        midi.clear();
 
     if (! playing)
     {
@@ -166,13 +268,11 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             engine.getVoice().noteOff (stopped[i].note);
         }
 
-        tew::MidiHandler::applyNotes (midi, engine.getVoice());
+        if (mode == kPlayKeyboard)
+            tew::MidiHandler::applyNotes (midi, engine.getVoice());
         engine.render (buffer, 0, numSamples);
         return;
     }
-
-    // Replace host notes with the pattern so a DAW records the sequence.
-    midi.clear();
 
     tew::SeqEvent events[kMaxEvents];
     const int nEvents = sequencer.advance (numSamples, bpm, true, events, kMaxEvents);
@@ -209,45 +309,147 @@ juce::AudioProcessorEditor* TEW03AudioProcessor::createEditor()
     return new TEW03AudioProcessorEditor (*this);
 }
 
-void TEW03AudioProcessor::loadPatternFromState()
+void TEW03AudioProcessor::loadBanksFromState()
 {
-    auto pattern = apvts.state.getChildWithName (kPattern);
-    if (! pattern.isValid())
+    auto root = apvts.state;
+    auto banks = root.getChildWithName (kBanks);
+    const auto oldPattern = root.getChildWithName (kPattern);
+
+    if (! banks.isValid())
     {
-        apvts.state.appendChild (makeDefaultPatternTree(), nullptr);
-        pattern = apvts.state.getChildWithName (kPattern);
+        banks = juce::ValueTree (kBanks);
+        root.appendChild (banks, nullptr);
     }
 
-    tew::Sequencer::Step baked[tew::Sequencer::maxSteps];
-    tew::Sequencer::fillDefault (baked);
-    tew::Sequencer::Step loaded[tew::Sequencer::maxSteps];
+    tew::Sequencer::Step factory[tew::Sequencer::maxSteps];
 
-    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
     {
-        auto child = findStepChild (pattern, i);
-        loaded[i] = child.isValid() ? stepFromTree (child) : baked[i];
-        if (! child.isValid())
-            pattern.appendChild (makeStepTree (i, loaded[i]), nullptr);
+        auto bankTree = findChildByIndex (banks, kBank, b);
+        if (! bankTree.isValid())
+        {
+            bankTree = juce::ValueTree (kBank);
+            bankTree.setProperty (kIndex, b, nullptr);
+            banks.appendChild (bankTree, nullptr);
+        }
+
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
+            auto patTree = findChildByIndex (bankTree, kPattern, p);
+            if (! patTree.isValid())
+            {
+                patTree = juce::ValueTree (kPattern);
+                patTree.setProperty (kIndex, p, nullptr);
+                bankTree.appendChild (patTree, nullptr);
+            }
+
+            tew::Sequencer::fillSlot (factory, b, p);
+            const bool migrate = (b == 0 && p == 0 && oldPattern.isValid());
+            const bool useFactory = ! migrate && ! slotHasNote (patTree);
+            const auto src = migrate ? oldPattern : patTree;
+
+            for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+            {
+                auto child = findStepChild (src, i);
+                const auto step = (! useFactory && child.isValid()) ? stepFromTree (child) : factory[i];
+                auto dest = findStepChild (patTree, i);
+                if (! dest.isValid())
+                    patTree.appendChild (makeStepTree (i, step), nullptr);
+                else if (migrate || useFactory)
+                {
+                    dest.setProperty (kNote, step.note, nullptr);
+                    dest.setProperty (kAccent, step.accent, nullptr);
+                    dest.setProperty (kSlide, step.slide, nullptr);
+                }
+                patterns[b][p][i].store (tew::Sequencer::pack (step), std::memory_order_relaxed);
+            }
+        }
     }
 
+    if (oldPattern.isValid())
+        root.removeChild (oldPattern, nullptr);
+
+    curBank.store (juce::jlimit (0, tew::Sequencer::numBanks - 1,
+                                 (int) raw (ParamID::seqBank)),
+                   std::memory_order_relaxed);
+    curPattern.store (juce::jlimit (0, tew::Sequencer::patternsPerBank - 1,
+                                    (int) raw (ParamID::seqPattern)),
+                     std::memory_order_relaxed);
     sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
                                                      : tew::Sequencer::numSteps);
-    sequencer.loadAll (loaded);
+    loadLiveFromSlot();
 }
 
-void TEW03AudioProcessor::writeStepToState (int index, tew::Sequencer::Step step)
+void TEW03AudioProcessor::writeBanksToState()
 {
-    auto pattern = apvts.state.getChildWithName (kPattern);
-    if (! pattern.isValid())
+    storeLiveToSlot();
+
+    auto banks = apvts.state.getChildWithName (kBanks);
+    if (! banks.isValid())
     {
-        apvts.state.appendChild (makeDefaultPatternTree(), nullptr);
-        pattern = apvts.state.getChildWithName (kPattern);
+        banks = juce::ValueTree (kBanks);
+        apvts.state.appendChild (banks, nullptr);
     }
 
-    auto child = findStepChild (pattern, index);
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
+    {
+        auto bankTree = findChildByIndex (banks, kBank, b);
+        if (! bankTree.isValid())
+        {
+            bankTree = juce::ValueTree (kBank);
+            bankTree.setProperty (kIndex, b, nullptr);
+            banks.appendChild (bankTree, nullptr);
+        }
+
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
+            auto patTree = findChildByIndex (bankTree, kPattern, p);
+            if (! patTree.isValid())
+            {
+                patTree = juce::ValueTree (kPattern);
+                patTree.setProperty (kIndex, p, nullptr);
+                bankTree.appendChild (patTree, nullptr);
+            }
+
+            for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+            {
+                const auto step = tew::Sequencer::unpack (
+                    patterns[b][p][i].load (std::memory_order_relaxed));
+                auto child = findStepChild (patTree, i);
+                if (! child.isValid())
+                    patTree.appendChild (makeStepTree (i, step), nullptr);
+                else
+                {
+                    child.setProperty (kNote, step.note, nullptr);
+                    child.setProperty (kAccent, step.accent, nullptr);
+                    child.setProperty (kSlide, step.slide, nullptr);
+                }
+            }
+        }
+    }
+}
+
+void TEW03AudioProcessor::writeStepToState (int bank, int pat, int index, tew::Sequencer::Step step)
+{
+    auto banks = apvts.state.getChildWithName (kBanks);
+    if (! banks.isValid())
+    {
+        writeBanksToState();
+        banks = apvts.state.getChildWithName (kBanks);
+    }
+
+    auto bankTree = findChildByIndex (banks, kBank, bank);
+    auto patTree = bankTree.isValid() ? findChildByIndex (bankTree, kPattern, pat) : juce::ValueTree();
+    if (! patTree.isValid())
+    {
+        writeBanksToState();
+        return;
+    }
+
+    auto child = findStepChild (patTree, index);
     if (! child.isValid())
     {
-        pattern.appendChild (makeStepTree (index, step), nullptr);
+        patTree.appendChild (makeStepTree (index, step), nullptr);
         return;
     }
 
@@ -259,20 +461,25 @@ void TEW03AudioProcessor::writeStepToState (int index, tew::Sequencer::Step step
 void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
 {
     sequencer.setStep (index, step);
-    writeStepToState (index, step);
+    const int bank = currentBank();
+    const int pat = currentPattern();
+    patterns[bank][pat][index].store (tew::Sequencer::pack (step), std::memory_order_relaxed);
+    writeStepToState (bank, pat, index, step);
 }
 
 void TEW03AudioProcessor::syncSeqLength (bool doubled)
 {
     sequencer.reshapeTo (doubled ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);
+    storeLiveToSlot();
+    const int bank = currentBank();
+    const int pat = currentPattern();
     for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
-        writeStepToState (i, sequencer.getStep (i));
+        writeStepToState (bank, pat, i, sequencer.getStep (i));
 }
 
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
-        writeStepToState (i, sequencer.getStep (i));
+    writeBanksToState();
 
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
@@ -284,7 +491,7 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
         if (xml->hasTagName (apvts.state.getType()))
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
-            loadPatternFromState();
+            loadBanksFromState();
         }
 }
 

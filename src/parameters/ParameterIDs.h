@@ -12,6 +12,9 @@ namespace ParamID
     inline constexpr const char* waveform    = "waveform";
     inline constexpr const char* glide       = "glide";
     inline constexpr const char* seqPlay     = "seqPlay";
+    inline constexpr const char* playMode    = "playMode";
     inline constexpr const char* seqTempo    = "seqTempo";
     inline constexpr const char* seq2x       = "seq2x";
+    inline constexpr const char* seqBank     = "seqBank";
+    inline constexpr const char* seqPattern  = "seqPattern";
 }

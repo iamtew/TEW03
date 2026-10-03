@@ -63,13 +63,21 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::glide, 1 },
                                                         "Glide", glideR, 0.f, pct (glideR)));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqPlay, 1 },
-                                                       "Sequencer", false));
+                                                       "Run", false));
+    layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::playMode, 1 },
+                                                         "Play",
+                                                         StringArray { "Keyboard", "Pattern", "Key" },
+                                                         0));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqTempo, 1 },
                                                         "Seq Tempo",
                                                         NormalisableRange<float> (40.f, 300.f, 0.1f),
                                                         130.f));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seq2x, 1 },
                                                        "2x", false));
+    layout.add (std::make_unique<AudioParameterInt> (ParameterID { ParamID::seqBank, 1 },
+                                                      "Bank", 0, 2, 0));
+    layout.add (std::make_unique<AudioParameterInt> (ParameterID { ParamID::seqPattern, 1 },
+                                                      "Pattern", 0, 11, 0));
 
     return layout;
 }

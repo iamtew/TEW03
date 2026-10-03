@@ -291,14 +291,14 @@ juce::String uiLabel (const juce::String& id)
     if (id == ParamID::volume)      return "Volume";
     if (id == ParamID::waveform)    return "Waveform";
     if (id == ParamID::glide)       return "Glide";
-    if (id == ParamID::seqPlay)     return "Sequencer";
+    if (id == ParamID::seqPlay)     return "Run";
+    if (id == ParamID::playMode)    return "Play";
     if (id == ParamID::seqTempo)    return "Tempo";
     return id;
 }
 
 juce::String uiButton (const juce::String& id)
 {
-    if (id == ParamID::seqPlay)     return "Run";
     return uiLabel (id);
 }
 
@@ -704,6 +704,7 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
     addAndMakeVisible (label);
 
     isBool = dynamic_cast<juce::AudioParameterBool*> (&param) != nullptr;
+    isChoice = dynamic_cast<juce::AudioParameterChoice*> (&param) != nullptr;
     isFlip = isBool && id == ParamID::waveform;
 
     if (isBool)
@@ -719,9 +720,20 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
         {
             button.setComponentID ("led");
         }
-        if (id == ParamID::seqPlay)
-            button.setTooltip ("Run or stop the internal sequencer");
         buttonAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (state, id, button);
+    }
+    else if (isChoice)
+    {
+        auto* choice = dynamic_cast<juce::AudioParameterChoice*> (&param);
+        addAndMakeVisible (combo);
+        combo.setColour (juce::ComboBox::textColourId, kCream);
+        combo.setColour (juce::ComboBox::arrowColourId, kCream);
+        if (choice != nullptr)
+            for (int i = 0; i < choice->choices.size(); ++i)
+                combo.addItem (choice->choices[i], i + 1);
+        if (id == ParamID::playMode)
+            combo.setTooltip ("Keyboard plays notes. Pattern loops the selected slot. Key holds C1-B3 to play bank patterns.");
+        comboAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, id, combo);
     }
     else
     {
@@ -743,6 +755,8 @@ void TEW03AudioProcessorEditor::ParamCell::resized()
     label.setBounds (r.removeFromTop (kLabelH));
     if (isBool)
         button.setBounds ((isFlip ? r : r.removeFromTop (24)).reduced (2, 2));
+    else if (isChoice)
+        combo.setBounds (r.removeFromTop (24).reduced (2, 2));
     else
         slider.setBounds (r);
 }
@@ -758,7 +772,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     panelLnF.setColour (juce::PopupMenu::highlightedTextColourId, kCream);
 
     static constexpr const char* kSeq[] = {
-        ParamID::seqPlay, ParamID::seqTempo, ParamID::waveform
+        ParamID::playMode, ParamID::seqTempo, ParamID::waveform
     };
     static constexpr const char* kFilter[] = {
         ParamID::cutoff, ParamID::resonance, ParamID::envMod, ParamID::decay, ParamID::accent
@@ -796,13 +810,24 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     };
     setupLabel (keyLabel, "Key");
     setupLabel (scaleLabel, "Scale");
+    setupLabel (bankLabel, "Bank");
+    setupLabel (patternLabel, "Pat");
     addAndMakeVisible (keyLabel);
     addAndMakeVisible (scaleLabel);
+    addAndMakeVisible (bankLabel);
+    addAndMakeVisible (patternLabel);
 
     lockBtn.setClickingTogglesState (true);
     lockBtn.setToggleState (true, juce::dontSendNotification);
     lockBtn.setTooltip ("Lock sequencer notes to the selected key and scale");
     addAndMakeVisible (lockBtn);
+
+    runBtn.setClickingTogglesState (true);
+    runBtn.setComponentID ("led");
+    runBtn.setTooltip ("Play or pause the sequencer");
+    addAndMakeVisible (runBtn);
+    runAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        proc.apvts, ParamID::seqPlay, runBtn);
 
     x2Btn.setClickingTogglesState (true);
     x2Btn.setTooltip ("Split each step in half (32nds)");
@@ -836,6 +861,40 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     };
     colourBox (keyBox);
     colourBox (scaleBox);
+    colourBox (bankBox);
+    colourBox (patternBox);
+    bankBox.setTooltip ("Pattern bank (1-3)");
+    patternBox.setTooltip ("Pattern in the current bank (1-12)");
+
+    for (int i = 1; i <= tew::Sequencer::numBanks; ++i)
+        bankBox.addItem (juce::String (i), i);
+    for (int i = 1; i <= tew::Sequencer::patternsPerBank; ++i)
+        patternBox.addItem (juce::String (i), i);
+    addAndMakeVisible (bankBox);
+    addAndMakeVisible (patternBox);
+    bankAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::seqBank, bankBox);
+    patternAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::seqPattern, patternBox);
+
+    auto cyclePattern = [this] (int delta)
+    {
+        auto* p = proc.apvts.getParameter (ParamID::seqPattern);
+        if (p == nullptr)
+            return;
+        const int n = tew::Sequencer::patternsPerBank;
+        const int cur = juce::roundToInt (proc.apvts.getRawParameterValue (ParamID::seqPattern)->load());
+        const int next = (cur + delta + n) % n;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (p->convertTo0to1 ((float) next));
+        p->endChangeGesture();
+    };
+    prevPat.setTooltip ("Previous pattern in this bank");
+    nextPat.setTooltip ("Next pattern in this bank");
+    prevPat.onClick = [cyclePattern] { cyclePattern (-1); };
+    nextPat.onClick = [cyclePattern] { cyclePattern (1); };
+    addAndMakeVisible (prevPat);
+    addAndMakeVisible (nextPat);
 
     auto applyLock = [this]
     {
@@ -920,6 +979,15 @@ void TEW03AudioProcessorEditor::resized()
     scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
+    const int clusterW = 36 + 48 + 28 + 52 + 24 + 24;
+    auto mid = lock.withSizeKeepingCentre (juce::jmin (clusterW, lock.getWidth()), lock.getHeight());
+    bankLabel.setBounds (mid.removeFromLeft (36));
+    bankBox.setBounds (mid.removeFromLeft (48).reduced (0, 1));
+    patternLabel.setBounds (mid.removeFromLeft (28));
+    patternBox.setBounds (mid.removeFromLeft (52).reduced (0, 1));
+    prevPat.setBounds (mid.removeFromLeft (24).reduced (1, 1));
+    nextPat.setBounds (mid.removeFromLeft (24).reduced (1, 1));
+
     seqArea = r.removeFromLeft (kSeqW);
     const int masterW = r.getWidth() * 3 / 8;
     filterArea = r.removeFromLeft (r.getWidth() - masterW);
@@ -928,7 +996,11 @@ void TEW03AudioProcessorEditor::resized()
     auto seq = seqArea.reduced (2, 0);
     if (seqCells.size() >= 3)
     {
-        seqCells[0]->setBounds (seq.removeFromTop (36));
+        auto playRow = seq.removeFromTop (36);
+        auto run = playRow.removeFromLeft (52);
+        run.removeFromTop (kLabelH);
+        runBtn.setBounds (run.reduced (2, 2));
+        seqCells[0]->setBounds (playRow);
         auto row = seq;
         const int half = row.getWidth() / 2;
         seqCells[1]->setBounds (row.removeFromLeft (half));
@@ -959,6 +1031,39 @@ void TEW03AudioProcessorEditor::timerCallback()
 {
     refreshPlayhead();
     refreshHostTempo();
+    refreshSlot();
+}
+
+void TEW03AudioProcessorEditor::syncSteps()
+{
+    for (int i = 0; i < steps.size(); ++i)
+        steps[i]->syncFrom (proc);
+    pianoRoll.repaint();
+}
+
+void TEW03AudioProcessorEditor::refreshSlot()
+{
+    const int bank = proc.currentBank();
+    const int pat = proc.currentPattern();
+    if (bank == lastBank && pat == lastPattern)
+        return;
+
+    lastBank = bank;
+    lastPattern = pat;
+
+    auto setInt = [this] (const char* id, int shown)
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (proc.apvts.getParameter (id));
+        if (param == nullptr)
+            return;
+        const int cur = juce::roundToInt (param->convertFrom0to1 (param->getValue()));
+        if (cur == shown)
+            return;
+        param->setValueNotifyingHost (param->convertTo0to1 ((float) shown));
+    };
+    setInt (ParamID::seqBank, bank);
+    setInt (ParamID::seqPattern, pat);
+    syncSteps();
 }
 
 void TEW03AudioProcessorEditor::refreshHostTempo()
