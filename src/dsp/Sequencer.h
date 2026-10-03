@@ -21,7 +21,8 @@ struct SeqEvent
 // Rest is note < 0. packed[] is the audio-thread copy; UI writes via setStep.
 struct Sequencer
 {
-    static constexpr int numSteps = 16;
+    static constexpr int numSteps = 16;  // default loop length (16ths)
+    static constexpr int maxSteps = 32;  // 2x splits each 16th into two 32nds
     static constexpr int restCode = 255; // packed note byte for a rest
 
     struct Step
@@ -48,9 +49,9 @@ struct Sequencer
                  (bits & 0x200u) != 0 };
     }
 
-    static void fillDefault (Step out[numSteps])
+    static void fillDefault (Step out[maxSteps])
     {
-        // C2 acid line: accents, two slides, two rests.
+        // C2 acid line: accents, two slides, two rests. 2x splits these into 32nds.
         const Step baked[numSteps] = {
             { 36, true,  false },
             { 36, false, false },
@@ -72,11 +73,13 @@ struct Sequencer
 
         for (int i = 0; i < numSteps; ++i)
             out[i] = baked[i];
+        for (int i = numSteps; i < maxSteps; ++i)
+            out[i] = { -1, false, false };
     }
 
     Sequencer()
     {
-        Step baked[numSteps];
+        Step baked[maxSteps];
         fillDefault (baked);
         loadAll (baked);
     }
@@ -85,24 +88,76 @@ struct Sequencer
 
     void setStep (int i, Step s)
     {
-        if (i < 0 || i >= numSteps)
+        if (i < 0 || i >= maxSteps)
             return;
         packed[i].store (pack (s), std::memory_order_relaxed);
     }
 
     Step getStep (int i) const
     {
-        if (i < 0 || i >= numSteps)
+        if (i < 0 || i >= maxSteps)
             return {};
         return unpack (packed[i].load (std::memory_order_relaxed));
     }
 
-    void loadAll (const Step in[numSteps])
+    void loadAll (const Step in[maxSteps])
     {
-        for (int i = 0; i < numSteps; ++i)
+        for (int i = 0; i < maxSteps; ++i)
             packed[i].store (pack (in[i]), std::memory_order_relaxed);
     }
 
+    // Length only. Use reshapeTo when 2x toggles so the grid splits instead of appending.
+    void setLength (int n)
+    {
+        const int len = n >= maxSteps ? maxSteps : numSteps;
+        lengthSteps.store (len, std::memory_order_relaxed);
+        if (step >= len)
+            step %= len;
+    }
+
+    // 16→32: each cell becomes two 32nds of the same note (tied). 32→16: take the pair.
+    void reshapeTo (int n)
+    {
+        const int want = n >= maxSteps ? maxSteps : numSteps;
+        int have = lengthSteps.load (std::memory_order_relaxed);
+        if (want == have)
+            return;
+        if (! lengthSteps.compare_exchange_strong (have, want, std::memory_order_relaxed))
+            return;
+
+        Step cur[maxSteps];
+        for (int i = 0; i < maxSteps; ++i)
+            cur[i] = unpack (packed[i].load (std::memory_order_relaxed));
+
+        Step out[maxSteps];
+        if (want == maxSteps)
+        {
+            for (int i = 0; i < numSteps; ++i)
+            {
+                out[2 * i] = cur[i];
+                out[2 * i + 1] = cur[i];
+                if (out[2 * i].note >= 0)
+                    out[2 * i].slide = true;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < numSteps; ++i)
+            {
+                out[i] = cur[2 * i];
+                if (out[i].note >= 0)
+                    out[i].slide = cur[2 * i + 1].slide;
+            }
+            for (int i = numSteps; i < maxSteps; ++i)
+                out[i] = { -1, false, false };
+        }
+
+        loadAll (out);
+        if (step >= want)
+            step %= want;
+    }
+
+    int length() const { return lengthSteps.load (std::memory_order_relaxed); }
     int playhead() const { return playheadIndex.load (std::memory_order_relaxed); }
 
     // Fills out[] with note edges inside this block. Returns how many.
@@ -122,8 +177,10 @@ struct Sequencer
 
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
         bpm = std::clamp (bpm, 1.f, 999.f);
-        // 16th note. 4 steps per beat. Floor of 1 sample so a bad rate cannot spin.
-        double stepSamples = sampleRate * 60.0 / (double) bpm / 4.0;
+        const int len = lengthSteps.load (std::memory_order_relaxed);
+        // 16th grid, or 32nds when 2x. Floor of 1 sample so a bad rate cannot spin.
+        const double perBeat = len >= maxSteps ? 8.0 : 4.0;
+        double stepSamples = sampleRate * 60.0 / (double) bpm / perBeat;
         if (stepSamples < 1.0)
             stepSamples = 1.0;
 
@@ -171,7 +228,7 @@ struct Sequencer
                     pendingSlide = s.slide;
                 }
 
-                step = (step + 1) % numSteps;
+                step = (step + 1) % len;
                 nextEdge += stepSamples;
                 continue;
             }
@@ -209,7 +266,8 @@ private:
         return 1;
     }
 
-    std::atomic<uint32_t> packed[numSteps] {};
+    std::atomic<uint32_t> packed[maxSteps] {};
+    std::atomic<int> lengthSteps { numSteps };
     std::atomic<int> playheadIndex { -1 };
     double sampleRate = 44100.0;
     double clock = 0.0;

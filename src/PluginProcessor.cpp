@@ -33,11 +33,11 @@ juce::ValueTree makeStepTree (int index, tew::Sequencer::Step s)
 
 juce::ValueTree makeDefaultPatternTree()
 {
-    tew::Sequencer::Step baked[tew::Sequencer::numSteps];
+    tew::Sequencer::Step baked[tew::Sequencer::maxSteps];
     tew::Sequencer::fillDefault (baked);
 
     juce::ValueTree pattern (kPattern);
-    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
         pattern.appendChild (makeStepTree (i, baked[i]), nullptr);
     return pattern;
 }
@@ -150,6 +150,9 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // Wheel still works while the sequencer owns the notes.
     tew::MidiHandler::applyPitchBend (midi, engine.getVoice());
 
+    sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
+                                                     : tew::Sequencer::numSteps);
+
     const bool playing = seqShouldRun();
     const float bpm = tempoBpm();
 
@@ -215,11 +218,11 @@ void TEW03AudioProcessor::loadPatternFromState()
         pattern = apvts.state.getChildWithName (kPattern);
     }
 
-    tew::Sequencer::Step baked[tew::Sequencer::numSteps];
+    tew::Sequencer::Step baked[tew::Sequencer::maxSteps];
     tew::Sequencer::fillDefault (baked);
-    tew::Sequencer::Step loaded[tew::Sequencer::numSteps];
+    tew::Sequencer::Step loaded[tew::Sequencer::maxSteps];
 
-    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
     {
         auto child = findStepChild (pattern, i);
         loaded[i] = child.isValid() ? stepFromTree (child) : baked[i];
@@ -227,6 +230,8 @@ void TEW03AudioProcessor::loadPatternFromState()
             pattern.appendChild (makeStepTree (i, loaded[i]), nullptr);
     }
 
+    sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
+                                                     : tew::Sequencer::numSteps);
     sequencer.loadAll (loaded);
 }
 
@@ -257,8 +262,18 @@ void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
     writeStepToState (index, step);
 }
 
+void TEW03AudioProcessor::syncSeqLength (bool doubled)
+{
+    sequencer.reshapeTo (doubled ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+        writeStepToState (i, sequencer.getStep (i));
+}
+
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+        writeStepToState (i, sequencer.getStep (i));
+
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
 }

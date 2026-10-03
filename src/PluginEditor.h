@@ -50,6 +50,7 @@ private:
         void paint (juce::Graphics& g) override;
         void resized() override;
         void setLit (bool on);
+        void syncFrom (TEW03AudioProcessor& p);
 
         juce::Component& roll;
         juce::ToggleButton accent { "A" };
@@ -88,6 +89,8 @@ private:
     juce::Label keyLabel, scaleLabel;
     juce::ComboBox keyBox, scaleBox;
     juce::ToggleButton lockBtn { "Lock" };
+    juce::ToggleButton x2Btn { "2x" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att;
     PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamCell> seqCells;

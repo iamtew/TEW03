@@ -68,6 +68,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                         "Seq Tempo",
                                                         NormalisableRange<float> (40.f, 300.f, 0.1f),
                                                         130.f));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seq2x, 1 },
+                                                       "2x", false));
 
     return layout;
 }

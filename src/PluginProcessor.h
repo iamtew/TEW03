@@ -38,6 +38,7 @@ public:
 
     tew::Sequencer& getSequencer() { return sequencer; }
     void setPatternStep (int index, tew::Sequencer::Step step);
+    void syncSeqLength (bool doubled);
     float tempoBpm() const;
     bool usesHostTempo() const;
 

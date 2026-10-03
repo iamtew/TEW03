@@ -204,15 +204,23 @@ struct RollGeom
     float colW = 1.f;
     float rowH = 1.f;
     int rows = kOctave;
+    int cols = tew::Sequencer::numSteps;
 };
 
-RollGeom makeGeom (juce::Rectangle<int> bounds, int rows)
+int gridSteps (TEW03AudioProcessor& proc)
+{
+    return proc.apvts.getRawParameterValue (ParamID::seq2x)->load() >= 0.5f
+         ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps;
+}
+
+RollGeom makeGeom (juce::Rectangle<int> bounds, int rows, int cols)
 {
     auto f = bounds.toFloat();
     RollGeom g;
     g.keys = f.removeFromLeft ((float) kKeyW);
     g.grid = f;
-    g.colW = g.grid.getWidth() / (float) tew::Sequencer::numSteps;
+    g.cols = juce::jmax (1, cols);
+    g.colW = g.grid.getWidth() / (float) g.cols;
     g.rows = juce::jmax (1, rows);
     g.rowH = (float) kRowH;
     return g;
@@ -229,7 +237,7 @@ int stepAtX (const RollGeom& g, float x)
 {
     if (x < g.grid.getX())
         return -1;
-    return juce::jlimit (0, tew::Sequencer::numSteps - 1,
+    return juce::jlimit (0, g.cols - 1,
                          (int) std::floor ((x - g.grid.getX()) / g.colW));
 }
 
@@ -328,7 +336,7 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
     const RollView v { locked, keyRoot, minor, viewLow };
     auto used = getLocalBounds();
     used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v));
+    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
 
     for (int row = 0; row < geo.rows; ++row)
     {
@@ -373,7 +381,7 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
                         juce::Justification::centredRight, false);
     }
 
-    if (playhead >= 0 && playhead < tew::Sequencer::numSteps)
+    if (playhead >= 0 && playhead < geo.cols)
     {
         auto col = juce::Rectangle<float> (geo.grid.getX() + (float) playhead * geo.colW,
                                            geo.grid.getY(), geo.colW, geo.rowH * (float) geo.rows);
@@ -383,7 +391,7 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
 
     g.setColour (kCream.withAlpha (0.12f));
     const float gridBottom = geo.grid.getY() + geo.rowH * (float) geo.rows;
-    for (int i = 0; i <= tew::Sequencer::numSteps; ++i)
+    for (int i = 0; i <= geo.cols; ++i)
         g.drawVerticalLine ((int) std::round (geo.grid.getX() + (float) i * geo.colW),
                             geo.grid.getY(), gridBottom);
     for (int row = 0; row <= geo.rows; ++row)
@@ -392,7 +400,7 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
 
     auto& seq = proc.getSequencer();
 
-    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    for (int i = 0; i < geo.cols; ++i)
     {
         const auto s = seq.getStep (i);
         if (s.note < 0)
@@ -423,7 +431,7 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
         }
 
         const int next = i + 1;
-        if (next >= tew::Sequencer::numSteps)
+        if (next >= geo.cols)
             continue;
 
         const auto ns = seq.getStep (next);
@@ -448,7 +456,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
     const RollView v { locked, keyRoot, minor, viewLow };
     auto used = getLocalBounds();
     used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v));
+    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
 
     gutterDrag = e.x < (int) geo.grid.getX();
     gutterStartY = e.y;
@@ -472,7 +480,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
     const RollView v { locked, keyRoot, minor, viewLow };
     auto used = getLocalBounds();
     used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v));
+    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
     const int note = lockNote (noteAtY (geo, (float) e.y, v));
     auto s = proc.getSequencer().getStep (dragStep);
     if (s.note == note)
@@ -498,7 +506,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseUp (const juce::MouseEvent& e)
     const RollView v { locked, keyRoot, minor, viewLow };
     auto used = getLocalBounds();
     used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v));
+    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
     if (e.x < (int) geo.grid.getX())
         return;
 
@@ -515,7 +523,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseWheelMove (const juce::MouseEven
     const RollView v { locked, keyRoot, minor, viewLow };
     auto used = getLocalBounds();
     used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v));
+    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
 
     if (e.x < (int) geo.grid.getX())
     {
@@ -588,6 +596,13 @@ void TEW03AudioProcessorEditor::StepColumn::setLit (bool on)
         return;
     lit = on;
     repaint();
+}
+
+void TEW03AudioProcessorEditor::StepColumn::syncFrom (TEW03AudioProcessor& p)
+{
+    const auto s = p.getSequencer().getStep (index);
+    accent.setToggleState (s.accent, juce::dontSendNotification);
+    slide.setToggleState (s.slide, juce::dontSendNotification);
 }
 
 void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
@@ -789,6 +804,20 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     lockBtn.setTooltip ("Lock sequencer notes to the selected key and scale");
     addAndMakeVisible (lockBtn);
 
+    x2Btn.setClickingTogglesState (true);
+    x2Btn.setTooltip ("Split each step in half (32nds)");
+    addAndMakeVisible (x2Btn);
+    x2Att = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        proc.apvts, ParamID::seq2x, x2Btn);
+    x2Btn.onClick = [this]
+    {
+        proc.syncSeqLength (x2Btn.getToggleState());
+        for (int i = 0; i < steps.size(); ++i)
+            steps[i]->syncFrom (proc);
+        resized();
+        pianoRoll.repaint();
+    };
+
     static constexpr const char* kKeys[] = {
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     };
@@ -821,7 +850,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     addAndMakeVisible (keyBox);
     addAndMakeVisible (scaleBox);
 
-    for (int i = 0; i < tew::Sequencer::numSteps; ++i)
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
     {
         auto* col = steps.add (new StepColumn (proc, i, pianoRoll));
         addAndMakeVisible (col);
@@ -889,6 +918,7 @@ void TEW03AudioProcessorEditor::resized()
     lock.removeFromLeft (10);
     scaleLabel.setBounds (lock.removeFromLeft (40));
     scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
+    x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
     seqArea = r.removeFromLeft (kSeqW);
     const int masterW = r.getWidth() * 3 / 8;
@@ -917,9 +947,12 @@ void TEW03AudioProcessorEditor::resized()
     place (masterCells, masterArea);
 
     strip.removeFromLeft (kKeyW);
-    const int stepW = strip.getWidth() / tew::Sequencer::numSteps;
+    const int n = gridSteps (proc);
     for (int i = 0; i < steps.size(); ++i)
-        steps[i]->setBounds (strip.removeFromLeft (i == steps.size() - 1 ? strip.getWidth() : stepW));
+        steps[i]->setVisible (i < n);
+    const int stepW = strip.getWidth() / n;
+    for (int i = 0; i < n; ++i)
+        steps[i]->setBounds (strip.removeFromLeft (i == n - 1 ? strip.getWidth() : stepW));
 }
 
 void TEW03AudioProcessorEditor::timerCallback()

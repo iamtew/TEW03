@@ -20,7 +20,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 ### MIDI & Performance
 - Full MIDI note input + pitch bend
 - Internal monophonic step sequencer (classic 303-style):
-  - Pattern length (16 steps default, configurable later)
+  - Pattern length 16 or 32 (2x splits each step in half)
   - Per-step: note, accent, slide/tie
   - Tempo sync with host transport when available; free-running fallback
 - Sequencer drives the internal Voice **and** emits MIDI Output
