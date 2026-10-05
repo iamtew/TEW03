@@ -1,9 +1,12 @@
 #include "dsp/Sequencer.h"
+#include "parameters/Library.h"
 
 #include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <string>
+#include <vector>
 
 int main()
 {
@@ -145,6 +148,44 @@ int main()
     for (int i = 0; i < 16; ++i)
         wrap32.advance (step32, 120.f, true, ev, 8);
     assert (wrap32.playhead() == 16);
+
+    std::vector<tew::PatchParam> patchIn { { "cutoff", 1234.5f },
+                                           { "seqBank", 2.f },
+                                           { "seqPattern", 7.f },
+                                           { "drive", 0.4f } };
+    const auto patchXml = tew::writePatchXml (patchIn);
+    assert (patchXml.find ("TEW03PATCH") != std::string::npos);
+    assert (patchXml.find ("BANKS") == std::string::npos);
+    assert (patchXml.find ("seqBank") == std::string::npos);
+    assert (patchXml.find ("seqPattern") == std::string::npos);
+    assert (patchXml.find ("cutoff") != std::string::npos);
+
+    std::vector<tew::PatchParam> patchOut;
+    assert (tew::readPatchXml (patchXml, patchOut));
+    assert (patchOut.size() == 2);
+    assert (patchOut[0].id == "cutoff");
+    assert (std::abs (patchOut[0].value - 1234.5f) < 0.01f);
+    assert (patchOut[1].id == "drive");
+    assert (std::abs (patchOut[1].value - 0.4f) < 1e-5f);
+    assert (! tew::readPatchXml ("<nope/>", patchOut));
+
+    tew::Sequencer::Step banks[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps] {};
+    for (int b = 0; b < Sequencer::numBanks; ++b)
+        for (int p = 0; p < Sequencer::patternsPerBank; ++p)
+            Sequencer::fillSlot (banks[b][p], b, p);
+    banks[2][11][31] = { 48, true, true };
+
+    const auto bankXml = tew::writeBankXml (banks);
+    assert (bankXml.find ("TEW03BANK") != std::string::npos);
+    assert (bankXml.find ("seqBank") == std::string::npos);
+
+    tew::Sequencer::Step bankLoaded[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps];
+    assert (tew::readBankXml (bankXml, bankLoaded));
+    assert (bankLoaded[0][0][0].note == banks[0][0][0].note);
+    assert (bankLoaded[2][11][31].note == 48);
+    assert (bankLoaded[2][11][31].accent);
+    assert (bankLoaded[2][11][31].slide);
+    assert (! tew::readBankXml (patchXml, bankLoaded));
 
     std::puts ("seq_check ok");
     return 0;

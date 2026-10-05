@@ -1,6 +1,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "midi/MidiHandler.h"
+#include "parameters/Library.h"
+
+#include <cstring>
 
 namespace
 {
@@ -18,6 +21,58 @@ const juce::Identifier kIndex { "index" };
 const juce::Identifier kNote { "note" };
 const juce::Identifier kAccent { "accent" };
 const juce::Identifier kSlide { "slide" };
+const juce::Identifier kPatchName { "PATCH_NAME" };
+const juce::Identifier kBankName { "BANK_NAME" };
+constexpr const char* kInitPatch = "Init Patch";
+constexpr const char* kInitBank = "Init Bank";
+constexpr const char* kPatchExt = ".tew3p";
+constexpr const char* kBankExt = ".tew3b";
+
+juce::File libraryRoot()
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("Stupid Systems LLC")
+        .getChildFile ("TEW03");
+}
+
+juce::File ensureDir (juce::File dir)
+{
+    dir.createDirectory();
+    return dir;
+}
+
+juce::StringArray listStemNames (const juce::File& dir, const char* wildcard)
+{
+    juce::StringArray names;
+    if (! dir.isDirectory())
+        return names;
+
+    for (const auto& entry : juce::RangedDirectoryIterator (dir, false, wildcard))
+        names.add (entry.getFile().getFileNameWithoutExtension());
+    names.sortNatural();
+    return names;
+}
+
+juce::String legalStem (const juce::String& name)
+{
+    auto stem = juce::File::createLegalFileName (name.trim());
+    if (stem.endsWithIgnoreCase (kPatchExt))
+        stem = stem.dropLastCharacters ((int) std::strlen (kPatchExt));
+    if (stem.endsWithIgnoreCase (kBankExt))
+        stem = stem.dropLastCharacters ((int) std::strlen (kBankExt));
+    return stem;
+}
+
+bool writeText (const juce::File& dest, const std::string& text)
+{
+    dest.getParentDirectory().createDirectory();
+    return dest.replaceWithText (text);
+}
+
+std::string readText (const juce::File& src)
+{
+    return src.loadFileAsString().toStdString();
+}
 
 tew::Sequencer::Step stepFromTree (const juce::ValueTree& t)
 {
@@ -80,6 +135,11 @@ TEW03AudioProcessor::TEW03AudioProcessor()
     apvts.addParameterListener (ParamID::seqBank, this);
     apvts.addParameterListener (ParamID::seqPattern, this);
     loadBanksFromState();
+
+    if (! apvts.state.hasProperty (kPatchName))
+        apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
+    if (! apvts.state.hasProperty (kBankName))
+        apvts.state.setProperty (kBankName, kInitBank, nullptr);
 }
 
 TEW03AudioProcessor::~TEW03AudioProcessor()
@@ -477,6 +537,245 @@ void TEW03AudioProcessor::syncSeqLength (bool doubled)
         writeStepToState (bank, pat, i, sequencer.getStep (i));
 }
 
+juce::File TEW03AudioProcessor::patchesDir() const
+{
+    return ensureDir (libraryRoot().getChildFile ("Patches"));
+}
+
+juce::File TEW03AudioProcessor::banksDir() const
+{
+    return ensureDir (libraryRoot().getChildFile ("Banks"));
+}
+
+juce::StringArray TEW03AudioProcessor::patchNames() const
+{
+    return listStemNames (patchesDir(), "*.tew3p");
+}
+
+juce::StringArray TEW03AudioProcessor::bankNames() const
+{
+    return listStemNames (banksDir(), "*.tew3b");
+}
+
+juce::String TEW03AudioProcessor::patchName() const
+{
+    return apvts.state.getProperty (kPatchName, kInitPatch).toString();
+}
+
+juce::String TEW03AudioProcessor::bankName() const
+{
+    return apvts.state.getProperty (kBankName, kInitBank).toString();
+}
+
+void TEW03AudioProcessor::copyLiveBanks (tew::Sequencer::Step dest[tew::Sequencer::numBanks]
+                                                               [tew::Sequencer::patternsPerBank]
+                                                               [tew::Sequencer::maxSteps])
+{
+    storeLiveToSlot();
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+            for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+                dest[b][p][i] = tew::Sequencer::unpack (
+                    patterns[b][p][i].load (std::memory_order_relaxed));
+}
+
+void TEW03AudioProcessor::applyBankSteps (const tew::Sequencer::Step src[tew::Sequencer::numBanks]
+                                                                      [tew::Sequencer::patternsPerBank]
+                                                                      [tew::Sequencer::maxSteps])
+{
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+            for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+                patterns[b][p][i].store (tew::Sequencer::pack (src[b][p][i]), std::memory_order_relaxed);
+    writeBanksToState();
+    loadLiveFromSlot();
+}
+
+void TEW03AudioProcessor::applyPatchParams (const std::vector<tew::PatchParam>& params)
+{
+    for (const auto& p : params)
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (p.id));
+        if (param == nullptr || ! tew::storeInPatch (p.id.c_str()))
+            continue;
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (param->convertTo0to1 (p.value));
+        param->endChangeGesture();
+    }
+    syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
+}
+
+std::vector<tew::PatchParam> TEW03AudioProcessor::currentPatchParams() const
+{
+    std::vector<tew::PatchParam> params;
+    for (auto* base : getParameters())
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (base);
+        if (param == nullptr)
+            continue;
+        const auto id = param->getParameterID().toStdString();
+        if (! tew::storeInPatch (id.c_str()))
+            continue;
+        params.push_back ({ id, param->convertFrom0to1 (param->getValue()) });
+    }
+    return params;
+}
+
+void TEW03AudioProcessor::initPatch()
+{
+    for (auto* base : getParameters())
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (base);
+        if (param == nullptr || ! tew::storeInPatch (param->getParameterID().toStdString().c_str()))
+            continue;
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (param->getDefaultValue());
+        param->endChangeGesture();
+    }
+    syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
+    apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
+}
+
+void TEW03AudioProcessor::initBank()
+{
+    tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
+    for (int b = 0; b < tew::Sequencer::numBanks; ++b)
+        for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+            tew::Sequencer::fillSlot (steps[b][p], b, p);
+    applyBankSteps (steps);
+    apvts.state.setProperty (kBankName, kInitBank, nullptr);
+}
+
+bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::String& shownName)
+{
+    std::vector<tew::PatchParam> params;
+    if (! tew::readPatchXml (readText (src), params))
+        return false;
+    applyPatchParams (params);
+    apvts.state.setProperty (kPatchName, shownName, nullptr);
+    return true;
+}
+
+bool TEW03AudioProcessor::loadBankFile (const juce::File& src, const juce::String& shownName)
+{
+    tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
+    if (! tew::readBankXml (readText (src), steps))
+        return false;
+    applyBankSteps (steps);
+    apvts.state.setProperty (kBankName, shownName, nullptr);
+    return true;
+}
+
+bool TEW03AudioProcessor::loadPatchByName (const juce::String& name)
+{
+    const auto stem = legalStem (name);
+    if (stem.isEmpty() || stem == kInitPatch)
+    {
+        initPatch();
+        return true;
+    }
+    return loadPatchFile (patchesDir().getChildFile (stem + kPatchExt), stem);
+}
+
+bool TEW03AudioProcessor::loadBankByName (const juce::String& name)
+{
+    const auto stem = legalStem (name);
+    if (stem.isEmpty() || stem == kInitBank)
+    {
+        initBank();
+        return true;
+    }
+    return loadBankFile (banksDir().getChildFile (stem + kBankExt), stem);
+}
+
+bool TEW03AudioProcessor::savePatchAs (const juce::String& name)
+{
+    const auto stem = legalStem (name);
+    if (stem.isEmpty() || stem == kInitPatch)
+        return false;
+    if (! writeText (patchesDir().getChildFile (stem + kPatchExt), tew::writePatchXml (currentPatchParams())))
+        return false;
+    apvts.state.setProperty (kPatchName, stem, nullptr);
+    return true;
+}
+
+bool TEW03AudioProcessor::saveBankAs (const juce::String& name)
+{
+    const auto stem = legalStem (name);
+    if (stem.isEmpty() || stem == kInitBank)
+        return false;
+    tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
+    copyLiveBanks (steps);
+    if (! writeText (banksDir().getChildFile (stem + kBankExt), tew::writeBankXml (steps)))
+        return false;
+    apvts.state.setProperty (kBankName, stem, nullptr);
+    return true;
+}
+
+bool TEW03AudioProcessor::savePatch()
+{
+    const auto name = patchName();
+    if (name.isEmpty() || name == kInitPatch)
+        return false;
+    return savePatchAs (name);
+}
+
+bool TEW03AudioProcessor::saveBank()
+{
+    const auto name = bankName();
+    if (name.isEmpty() || name == kInitBank)
+        return false;
+    return saveBankAs (name);
+}
+
+bool TEW03AudioProcessor::exportPatch (const juce::File& dest)
+{
+    auto file = dest;
+    if (! file.hasFileExtension ("tew3p"))
+        file = file.withFileExtension ("tew3p");
+    return writeText (file, tew::writePatchXml (currentPatchParams()));
+}
+
+bool TEW03AudioProcessor::exportBank (const juce::File& dest)
+{
+    auto file = dest;
+    if (! file.hasFileExtension ("tew3b"))
+        file = file.withFileExtension ("tew3b");
+    tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
+    copyLiveBanks (steps);
+    return writeText (file, tew::writeBankXml (steps));
+}
+
+bool TEW03AudioProcessor::importPatch (const juce::File& src)
+{
+    const auto stem = legalStem (src.getFileNameWithoutExtension());
+    if (stem.isEmpty())
+        return false;
+    const auto dest = patchesDir().getChildFile (stem + kPatchExt);
+    if (src.getFullPathName() != dest.getFullPathName())
+    {
+        dest.deleteFile();
+        if (! src.copyFileTo (dest))
+            return false;
+    }
+    return loadPatchFile (dest, stem);
+}
+
+bool TEW03AudioProcessor::importBank (const juce::File& src)
+{
+    const auto stem = legalStem (src.getFileNameWithoutExtension());
+    if (stem.isEmpty())
+        return false;
+    const auto dest = banksDir().getChildFile (stem + kBankExt);
+    if (src.getFullPathName() != dest.getFullPathName())
+    {
+        dest.deleteFile();
+        if (! src.copyFileTo (dest))
+            return false;
+    }
+    return loadBankFile (dest, stem);
+}
+
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     writeBanksToState();
@@ -492,6 +791,10 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             loadBanksFromState();
+            if (! apvts.state.hasProperty (kPatchName))
+                apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
+            if (! apvts.state.hasProperty (kBankName))
+                apvts.state.setProperty (kBankName, kInitBank, nullptr);
         }
 }
 

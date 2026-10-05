@@ -2,9 +2,11 @@
 
 #include "dsp/Sequencer.h"
 #include "dsp/SynthEngine.h"
+#include "parameters/Library.h"
 #include "parameters/ParameterLayout.h"
 
 #include <JuceHeader.h>
+#include <vector>
 
 class TEW03AudioProcessor : public juce::AudioProcessor,
                             private juce::AudioProcessorValueTreeState::Listener
@@ -46,6 +48,25 @@ public:
     float tempoBpm() const;
     bool usesHostTempo() const;
 
+    juce::File patchesDir() const;
+    juce::File banksDir() const;
+    juce::StringArray patchNames() const;
+    juce::StringArray bankNames() const;
+    juce::String patchName() const;
+    juce::String bankName() const;
+    void initPatch();
+    void initBank();
+    bool loadPatchByName (const juce::String& name);
+    bool loadBankByName (const juce::String& name);
+    bool savePatch();
+    bool saveBank();
+    bool savePatchAs (const juce::String& name);
+    bool saveBankAs (const juce::String& name);
+    bool exportPatch (const juce::File& dest);
+    bool exportBank (const juce::File& dest);
+    bool importPatch (const juce::File& src);
+    bool importBank (const juce::File& src);
+
 private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     float raw (const char* id) const;
@@ -58,6 +79,16 @@ private:
     void loadLiveFromSlot();
     void storeLiveToSlot();
     std::atomic<uint32_t>* slotPacked (int bank, int pat);
+    void copyLiveBanks (tew::Sequencer::Step dest[tew::Sequencer::numBanks]
+                                                 [tew::Sequencer::patternsPerBank]
+                                                 [tew::Sequencer::maxSteps]);
+    void applyBankSteps (const tew::Sequencer::Step src[tew::Sequencer::numBanks]
+                                                      [tew::Sequencer::patternsPerBank]
+                                                      [tew::Sequencer::maxSteps]);
+    void applyPatchParams (const std::vector<tew::PatchParam>& params);
+    std::vector<tew::PatchParam> currentPatchParams() const;
+    bool loadPatchFile (const juce::File& src, const juce::String& shownName);
+    bool loadBankFile (const juce::File& src, const juce::String& shownName);
 
     tew::SynthEngine engine;
     tew::Sequencer sequencer;

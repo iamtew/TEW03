@@ -5,10 +5,10 @@
 namespace
 {
 constexpr int kEditorW = 900;
-constexpr int kEditorH = 480;
+constexpr int kEditorH = 488;
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
-constexpr int kTitleH = 22;
+constexpr int kTitleH = 28;
 constexpr int kSeqW = 236;
 constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
@@ -761,6 +761,63 @@ void TEW03AudioProcessorEditor::ParamCell::resized()
         slider.setBounds (r);
 }
 
+void TEW03AudioProcessorEditor::SlotBar::setText (const juce::String& t)
+{
+    if (text == t)
+        return;
+    text = t;
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::SlotBar::paint (juce::Graphics& g)
+{
+    auto r = getLocalBounds().toFloat();
+    g.setColour (juce::Colour (0xff2e2e2e));
+    g.fillRoundedRectangle (r, 4.f);
+    g.setColour (kInk.withAlpha (0.45f));
+    g.drawRoundedRectangle (r.reduced (0.5f), 4.f, 1.f);
+
+    auto left = r.removeFromLeft (18.f);
+    auto right = r.removeFromRight (18.f);
+
+    auto chev = [] (juce::Rectangle<float> box, bool back)
+    {
+        juce::Path p;
+        const float cx = box.getCentreX();
+        const float cy = box.getCentreY();
+        if (back)
+            p.addTriangle (cx + 3.f, cy - 5.f, cx - 4.f, cy, cx + 3.f, cy + 5.f);
+        else
+            p.addTriangle (cx - 3.f, cy - 5.f, cx + 4.f, cy, cx - 3.f, cy + 5.f);
+        return p;
+    };
+
+    g.setColour (kCream);
+    g.fillPath (chev (left, true));
+    g.fillPath (chev (right, false));
+    g.setFont (boldFont (12.f));
+    g.drawText (text, r.toNearestInt(), juce::Justification::centred, false);
+}
+
+void TEW03AudioProcessorEditor::SlotBar::mouseUp (const juce::MouseEvent& e)
+{
+    if (! e.mouseWasClicked())
+        return;
+    const int w = getWidth();
+    if (e.x < 20)
+    {
+        if (onStep)
+            onStep (-1);
+    }
+    else if (e.x > w - 20)
+    {
+        if (onStep)
+            onStep (1);
+    }
+    else if (onOpen)
+        onOpen();
+}
+
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     : juce::AudioProcessorEditor (p), proc (p), pianoRoll (p)
 {
@@ -862,39 +919,28 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     colourBox (keyBox);
     colourBox (scaleBox);
     colourBox (bankBox);
-    colourBox (patternBox);
     bankBox.setTooltip ("Pattern bank (1-3)");
-    patternBox.setTooltip ("Pattern in the current bank (1-12)");
 
     for (int i = 1; i <= tew::Sequencer::numBanks; ++i)
         bankBox.addItem (juce::String (i), i);
-    for (int i = 1; i <= tew::Sequencer::patternsPerBank; ++i)
-        patternBox.addItem (juce::String (i), i);
     addAndMakeVisible (bankBox);
-    addAndMakeVisible (patternBox);
     bankAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         proc.apvts, ParamID::seqBank, bankBox);
-    patternAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-        proc.apvts, ParamID::seqPattern, patternBox);
 
-    auto cyclePattern = [this] (int delta)
-    {
-        auto* p = proc.apvts.getParameter (ParamID::seqPattern);
-        if (p == nullptr)
-            return;
-        const int n = tew::Sequencer::patternsPerBank;
-        const int cur = juce::roundToInt (proc.apvts.getRawParameterValue (ParamID::seqPattern)->load());
-        const int next = (cur + delta + n) % n;
-        p->beginChangeGesture();
-        p->setValueNotifyingHost (p->convertTo0to1 ((float) next));
-        p->endChangeGesture();
-    };
-    prevPat.setTooltip ("Previous pattern in this bank");
-    nextPat.setTooltip ("Next pattern in this bank");
-    prevPat.onClick = [cyclePattern] { cyclePattern (-1); };
-    nextPat.onClick = [cyclePattern] { cyclePattern (1); };
-    addAndMakeVisible (prevPat);
-    addAndMakeVisible (nextPat);
+    patchBar.setTooltip ("Patch: sound knobs. Click for save / load.");
+    bankLibBar.setTooltip ("Bank: all 36 patterns. Click for save / load.");
+    patBar.setTooltip ("Pattern in the current bank (1-12)");
+    patchBar.onStep = [this] (int d) { cyclePatch (d); };
+    patchBar.onOpen = [this] { openPatchMenu(); };
+    bankLibBar.onStep = [this] (int d) { cycleBank (d); };
+    bankLibBar.onOpen = [this] { openBankMenu(); };
+    patBar.onStep = [this] (int d) { cyclePattern (d); };
+    patBar.onOpen = [this] { openPatternMenu(); };
+    addAndMakeVisible (patchBar);
+    addAndMakeVisible (bankLibBar);
+    addAndMakeVisible (patBar);
+    refreshLibraryNames();
+    patBar.setText (juce::String (proc.currentPattern() + 1));
 
     auto applyLock = [this]
     {
@@ -964,7 +1010,12 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 void TEW03AudioProcessorEditor::resized()
 {
     auto r = getLocalBounds().reduced (kPad);
-    r.removeFromTop (kTitleH);
+    auto title = r.removeFromTop (kTitleH);
+    title.removeFromLeft (90);
+    title.removeFromRight (110);
+    const int barW = title.getWidth() / 2;
+    patchBar.setBounds (title.removeFromLeft (barW).reduced (6, 2));
+    bankLibBar.setBounds (title.reduced (6, 2));
 
     auto strip = r.removeFromBottom (kStripH);
     pianoRoll.setBounds (r.removeFromBottom (kRollH));
@@ -979,14 +1030,12 @@ void TEW03AudioProcessorEditor::resized()
     scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
-    const int clusterW = 36 + 48 + 28 + 52 + 24 + 24;
+    const int clusterW = 36 + 48 + 28 + 88;
     auto mid = lock.withSizeKeepingCentre (juce::jmin (clusterW, lock.getWidth()), lock.getHeight());
     bankLabel.setBounds (mid.removeFromLeft (36));
     bankBox.setBounds (mid.removeFromLeft (48).reduced (0, 1));
     patternLabel.setBounds (mid.removeFromLeft (28));
-    patternBox.setBounds (mid.removeFromLeft (52).reduced (0, 1));
-    prevPat.setBounds (mid.removeFromLeft (24).reduced (1, 1));
-    nextPat.setBounds (mid.removeFromLeft (24).reduced (1, 1));
+    patBar.setBounds (mid.removeFromLeft (88).reduced (1, 1));
 
     seqArea = r.removeFromLeft (kSeqW);
     const int masterW = r.getWidth() * 3 / 8;
@@ -1032,6 +1081,7 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshPlayhead();
     refreshHostTempo();
     refreshSlot();
+    refreshLibraryNames();
 }
 
 void TEW03AudioProcessorEditor::syncSteps()
@@ -1063,6 +1113,7 @@ void TEW03AudioProcessorEditor::refreshSlot()
     };
     setInt (ParamID::seqBank, bank);
     setInt (ParamID::seqPattern, pat);
+    patBar.setText (juce::String (pat + 1));
     syncSteps();
 }
 
@@ -1100,4 +1151,259 @@ void TEW03AudioProcessorEditor::refreshPlayhead()
         steps[now]->setLit (true);
     pianoRoll.setPlayhead (now);
     lastPlayhead = now;
+}
+
+void TEW03AudioProcessorEditor::refreshLibraryNames()
+{
+    patchBar.setText (proc.patchName());
+    bankLibBar.setText (proc.bankName());
+}
+
+void TEW03AudioProcessorEditor::cyclePattern (int delta)
+{
+    auto* p = proc.apvts.getParameter (ParamID::seqPattern);
+    if (p == nullptr)
+        return;
+    const int n = tew::Sequencer::patternsPerBank;
+    const int cur = juce::roundToInt (proc.apvts.getRawParameterValue (ParamID::seqPattern)->load());
+    const int next = (cur + delta + n) % n;
+    p->beginChangeGesture();
+    p->setValueNotifyingHost (p->convertTo0to1 ((float) next));
+    p->endChangeGesture();
+}
+
+void TEW03AudioProcessorEditor::cyclePatch (int delta)
+{
+    const auto names = proc.patchNames();
+    if (names.isEmpty())
+        return;
+    const auto cur = proc.patchName();
+    int idx = names.indexOf (cur);
+    if (idx < 0)
+        idx = delta > 0 ? 0 : names.size() - 1;
+    else
+        idx = (idx + delta + names.size()) % names.size();
+    proc.loadPatchByName (names[idx]);
+    refreshLibraryNames();
+    syncSteps();
+    resized();
+}
+
+void TEW03AudioProcessorEditor::cycleBank (int delta)
+{
+    const auto names = proc.bankNames();
+    if (names.isEmpty())
+        return;
+    const auto cur = proc.bankName();
+    int idx = names.indexOf (cur);
+    if (idx < 0)
+        idx = delta > 0 ? 0 : names.size() - 1;
+    else
+        idx = (idx + delta + names.size()) % names.size();
+    proc.loadBankByName (names[idx]);
+    refreshLibraryNames();
+    syncSteps();
+}
+
+void TEW03AudioProcessorEditor::openPatternMenu()
+{
+    juce::PopupMenu m;
+    const int cur = proc.currentPattern();
+    for (int i = 0; i < tew::Sequencer::patternsPerBank; ++i)
+        m.addItem (i + 1, juce::String (i + 1), true, i == cur);
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (patBar),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         auto* p = safe->proc.apvts.getParameter (ParamID::seqPattern);
+                         if (p == nullptr)
+                             return;
+                         p->beginChangeGesture();
+                         p->setValueNotifyingHost (p->convertTo0to1 ((float) (result - 1)));
+                         p->endChangeGesture();
+                     });
+}
+
+namespace
+{
+enum
+{
+    kMenuInit = 1,
+    kMenuSave,
+    kMenuSaveAs,
+    kMenuExport,
+    kMenuImport,
+    kMenuFiles = 100
+};
+
+void fillLibraryMenu (juce::PopupMenu& m, const juce::StringArray& names,
+                      const juce::String& current, const juce::String& initLabel)
+{
+    m.addItem (kMenuInit, initLabel, true, current == initLabel);
+    m.addSeparator();
+    for (int i = 0; i < names.size(); ++i)
+        m.addItem (kMenuFiles + i, names[i], true, names[i] == current);
+    m.addSeparator();
+    m.addItem (kMenuSave, "Save");
+    m.addItem (kMenuSaveAs, "Save As...");
+    m.addItem (kMenuExport, "Export...");
+    m.addItem (kMenuImport, "Import...");
+}
+} // namespace
+
+void TEW03AudioProcessorEditor::openPatchMenu()
+{
+    juce::PopupMenu m;
+    const auto names = proc.patchNames();
+    fillLibraryMenu (m, names, proc.patchName(), "Init Patch");
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (patchBar),
+                     [safe, names] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         if (result == kMenuInit)
+                             safe->proc.initPatch();
+                         else if (result == kMenuSave)
+                         {
+                             if (! safe->proc.savePatch())
+                                 safe->chooseSaveAs (true);
+                         }
+                         else if (result == kMenuSaveAs)
+                             safe->chooseSaveAs (true);
+                         else if (result == kMenuExport)
+                             safe->chooseExport (true);
+                         else if (result == kMenuImport)
+                             safe->chooseImport (true);
+                         else if (result >= kMenuFiles)
+                         {
+                             const int i = result - kMenuFiles;
+                             if (juce::isPositiveAndBelow (i, names.size()))
+                                 safe->proc.loadPatchByName (names[i]);
+                         }
+                         safe->refreshLibraryNames();
+                         safe->syncSteps();
+                         safe->resized();
+                     });
+}
+
+void TEW03AudioProcessorEditor::openBankMenu()
+{
+    juce::PopupMenu m;
+    const auto names = proc.bankNames();
+    fillLibraryMenu (m, names, proc.bankName(), "Init Bank");
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (bankLibBar),
+                     [safe, names] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         if (result == kMenuInit)
+                             safe->proc.initBank();
+                         else if (result == kMenuSave)
+                         {
+                             if (! safe->proc.saveBank())
+                                 safe->chooseSaveAs (false);
+                         }
+                         else if (result == kMenuSaveAs)
+                             safe->chooseSaveAs (false);
+                         else if (result == kMenuExport)
+                             safe->chooseExport (false);
+                         else if (result == kMenuImport)
+                             safe->chooseImport (false);
+                         else if (result >= kMenuFiles)
+                         {
+                             const int i = result - kMenuFiles;
+                             if (juce::isPositiveAndBelow (i, names.size()))
+                                 safe->proc.loadBankByName (names[i]);
+                         }
+                         safe->refreshLibraryNames();
+                         safe->syncSteps();
+                     });
+}
+
+void TEW03AudioProcessorEditor::chooseSaveAs (bool patch)
+{
+    const auto dir = patch ? proc.patchesDir() : proc.banksDir();
+    const char* ext = patch ? "*.tew3p" : "*.tew3b";
+    const auto start = dir.getChildFile (patch ? "Patch.tew3p" : "Bank.tew3b");
+    chooser = std::make_unique<juce::FileChooser> (patch ? "Save Patch" : "Save Bank", start, ext);
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [safe, patch] (const juce::FileChooser& c)
+                          {
+                              if (safe == nullptr)
+                                  return;
+                              auto file = c.getResult();
+                              if (file.getFullPathName().isEmpty())
+                                  return;
+                              const auto name = file.getFileNameWithoutExtension();
+                              if (patch)
+                                  safe->proc.savePatchAs (name);
+                              else
+                                  safe->proc.saveBankAs (name);
+                              safe->refreshLibraryNames();
+                          });
+}
+
+void TEW03AudioProcessorEditor::chooseExport (bool patch)
+{
+    const char* ext = patch ? "*.tew3p" : "*.tew3b";
+    const auto start = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                           .getChildFile (patch ? "TEW03 Patch.tew3p" : "TEW03 Bank.tew3b");
+    chooser = std::make_unique<juce::FileChooser> (patch ? "Export Patch" : "Export Bank", start, ext);
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [safe, patch] (const juce::FileChooser& c)
+                          {
+                              if (safe == nullptr)
+                                  return;
+                              auto file = c.getResult();
+                              if (file.getFullPathName().isEmpty())
+                                  return;
+                              if (patch)
+                                  safe->proc.exportPatch (file);
+                              else
+                                  safe->proc.exportBank (file);
+                          });
+}
+
+void TEW03AudioProcessorEditor::chooseImport (bool patch)
+{
+    const char* ext = patch ? "*.tew3p" : "*.tew3b";
+    chooser = std::make_unique<juce::FileChooser> (
+        patch ? "Import Patch" : "Import Bank",
+        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+        ext);
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectFiles,
+                          [safe, patch] (const juce::FileChooser& c)
+                          {
+                              if (safe == nullptr)
+                                  return;
+                              auto file = c.getResult();
+                              if (! file.existsAsFile())
+                                  return;
+                              if (patch)
+                                  safe->proc.importPatch (file);
+                              else
+                                  safe->proc.importBank (file);
+                              safe->refreshLibraryNames();
+                              safe->syncSteps();
+                              if (patch)
+                                  safe->resized();
+                          });
 }

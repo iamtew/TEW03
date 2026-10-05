@@ -30,6 +30,7 @@
         <FILE id="pidH001" name="ParameterIDs.h" compile="0" resource="0" file="src/parameters/ParameterIDs.h"/>
         <FILE id="plyH001" name="ParameterLayout.h" compile="0" resource="0"
               file="src/parameters/ParameterLayout.h"/>
+        <FILE id="libH001" name="Library.h" compile="0" resource="0" file="src/parameters/Library.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

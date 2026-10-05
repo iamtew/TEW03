@@ -28,6 +28,13 @@ Pattern bank:
 - 3 banks × 12 patterns stored as packed atomics (audio-thread safe) and in APVTS `BANKS` state.
 - Live sequencer is the current slot. Edits dual-write. Slot switch copies packed steps only.
 
+Patch vs bank files (message thread only):
+- Patch (`.tew3p`) = APVTS knobs / play settings. Never includes `BANKS`, `seqBank`, or `seqPattern`.
+- Bank (`.tew3b`) = all 36 patterns. Never includes patch knobs.
+- Library folder: `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`.
+- Current names live as `PATCH_NAME` / `BANK_NAME` on `apvts.state` for DAW recall.
+- Loading one library does not overwrite the other. `Init Patch` / `Init Bank` restore defaults / factory fills.
+
 Key design points:
 - Sequencer is the primary performance engine (303-style).
 - MIDI Output always mirrors what the sequencer (and/or incoming notes) is playing so the user can record the pattern into the DAW.

@@ -2,6 +2,8 @@
 
 #include "PluginProcessor.h"
 
+#include <functional>
+
 class TEW03AudioProcessorEditor : public juce::AudioProcessorEditor,
                                   private juce::Timer
 {
@@ -18,6 +20,16 @@ private:
     void refreshHostTempo();
     void refreshSlot();
     void syncSteps();
+    void refreshLibraryNames();
+    void openPatchMenu();
+    void openBankMenu();
+    void openPatternMenu();
+    void cyclePatch (int delta);
+    void cycleBank (int delta);
+    void cyclePattern (int delta);
+    void chooseSaveAs (bool patch);
+    void chooseExport (bool patch);
+    void chooseImport (bool patch);
 
     TEW03AudioProcessor& proc;
 
@@ -71,6 +83,18 @@ private:
         juce::Font getComboBoxFont (juce::ComboBox&) override;
     };
 
+    struct SlotBar : public juce::Component,
+                     public juce::SettableTooltipClient
+    {
+        void paint (juce::Graphics& g) override;
+        void mouseUp (const juce::MouseEvent& e) override;
+        void setText (const juce::String& t);
+
+        juce::String text;
+        std::function<void (int)> onStep;
+        std::function<void()> onOpen;
+    };
+
     struct ParamCell : public juce::Component
     {
         ParamCell (juce::AudioProcessorValueTreeState& state,
@@ -92,13 +116,14 @@ private:
     PanelLnF panelLnF;
     juce::TooltipWindow tooltipWindow { this };
     juce::Label keyLabel, scaleLabel, bankLabel, patternLabel;
-    juce::ComboBox keyBox, scaleBox, bankBox, patternBox;
-    juce::TextButton prevPat { "<" }, nextPat { ">" };
+    juce::ComboBox keyBox, scaleBox, bankBox;
     juce::ToggleButton lockBtn { "Lock" };
     juce::ToggleButton x2Btn { "2x" };
     juce::ToggleButton runBtn { "Run" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, patternAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt;
+    SlotBar patchBar, bankLibBar, patBar;
+    std::unique_ptr<juce::FileChooser> chooser;
     PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamCell> seqCells;
