@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT name="TEW03" companyName="Stupid Systems LLC" version="0.0.2" userNotes="Mean acid lines."
-              projectType="audioplug" pluginAUIsSandboxSafe="1" pluginManufacturer="Stupid Systems LLC"
-              pluginManufacturerCode="Ssys" pluginCode="Tew3" cppLanguageStandard="17"
-              pluginFormats="buildVST3,buildStandalone" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut"
+<JUCERPROJECT name="TEW03" companyName="Stupid Systems LLC" version="0.0.2"
+              userNotes="Mean acid lines." projectType="audioplug" pluginAUIsSandboxSafe="1"
+              pluginManufacturer="Stupid Systems LLC" pluginManufacturerCode="Ssys"
+              pluginCode="Tew3" cppLanguageStandard="17" pluginFormats="buildVST3,buildStandalone"
+              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut"
               useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="dBqcWt"
               jucerFormatVersion="1">
   <MAINGROUP id="fy3Cc7" name="TEW03">
+    <FILE id="icoPng01" name="icon.png" compile="0" resource="0" file="assets/icon.png"/>
     <GROUP id="srcGrp1" name="src">
       <FILE id="procH01" name="PluginProcessor.h" compile="0" resource="0"
             file="src/PluginProcessor.h"/>
@@ -17,7 +19,8 @@
             file="src/PluginEditor.cpp"/>
       <GROUP id="dspGrp01" name="dsp">
         <FILE id="oscH001" name="Oscillator.h" compile="0" resource="0" file="src/dsp/Oscillator.h"/>
-        <FILE id="fltH001" name="DiodeLadderFilter.h" compile="0" resource="0" file="src/dsp/DiodeLadderFilter.h"/>
+        <FILE id="fltH001" name="DiodeLadderFilter.h" compile="0" resource="0"
+              file="src/dsp/DiodeLadderFilter.h"/>
         <FILE id="envH001" name="Envelope.h" compile="0" resource="0" file="src/dsp/Envelope.h"/>
         <FILE id="voiH001" name="Voice.h" compile="0" resource="0" file="src/dsp/Voice.h"/>
         <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>
@@ -53,7 +56,8 @@
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <EXPORTFORMATS>
-    <VS2022 targetFolder="Builds/VisualStudio2022">
+    <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="icoPng01"
+            smallIcon="icoPng01">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="TEW03"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="TEW03"/>
