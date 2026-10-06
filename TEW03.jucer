@@ -22,6 +22,7 @@
         <FILE id="voiH001" name="Voice.h" compile="0" resource="0" file="src/dsp/Voice.h"/>
         <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>
         <FILE id="seqH001" name="Sequencer.h" compile="0" resource="0" file="src/dsp/Sequencer.h"/>
+        <FILE id="lfoH001" name="Lfo.h" compile="0" resource="0" file="src/dsp/Lfo.h"/>
       </GROUP>
       <GROUP id="midGrp01" name="midi">
         <FILE id="midH001" name="MidiHandler.h" compile="0" resource="0" file="src/midi/MidiHandler.h"/>

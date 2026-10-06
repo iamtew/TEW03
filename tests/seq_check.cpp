@@ -1,3 +1,4 @@
+#include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "parameters/Library.h"
 
@@ -186,6 +187,40 @@ int main()
     assert (bankLoaded[2][11][31].accent);
     assert (bankLoaded[2][11][31].slide);
     assert (! tew::readBankXml (patchXml, bankLoaded));
+
+    tew::LfoShape tri;
+    tri.setTriangle();
+    assert (std::abs (tri.lookup (0.f) - 0.f) < 1e-5f);
+    assert (std::abs (tri.lookup (0.5f) - 1.f) < 1e-5f);
+    assert (std::abs (tri.lookup (1.f) - 0.f) < 1e-5f);
+    assert (std::abs (tri.lookup (1.25f) - 0.5f) < 1e-5f);
+
+    tew::Lfo lfo;
+    lfo.shape.setTriangle();
+    lfo.prepare (100.0);
+    lfo.retrigger();
+    assert (std::abs (lfo.peek() - 0.f) < 1e-5f);
+    // 1 Hz at 100 Hz sr = 0.01 phase per sample. 50 samples -> phase 0.5.
+    float y = 0.f;
+    for (int i = 0; i < 50; ++i)
+        y = lfo.process (1.f, 0.f);
+    assert (std::abs (y - 1.f) < 0.02f);
+    lfo.retrigger();
+    assert (std::abs (lfo.peek() - 0.f) < 1e-5f);
+    assert (lfo.phase < 1.0e-6f);
+
+    tew::LfoShape shapes[tew::numLfos];
+    tew::defaultLfoShapes (shapes);
+    shapes[1].setSawUp();
+    std::vector<tew::PatchParam> withLfo { { "cutoff", 800.f } };
+    const auto lfoXml = tew::writePatchXml (withLfo, shapes);
+    assert (lfoXml.find ("<LFO i=\"0\"") != std::string::npos);
+    assert (lfoXml.find ("<LFO i=\"1\"") != std::string::npos);
+    tew::LfoShape lfoLoaded[tew::numLfos];
+    std::vector<tew::PatchParam> lfoParams;
+    assert (tew::readPatchXml (lfoXml, lfoParams, lfoLoaded));
+    assert (lfoLoaded[0].presetIndex() == 0);
+    assert (lfoLoaded[1].presetIndex() == 2);
 
     std::puts ("seq_check ok");
     return 0;

@@ -5,7 +5,8 @@
 namespace
 {
 constexpr int kEditorW = 900;
-constexpr int kEditorH = 488;
+constexpr int kEditorH = 628;
+constexpr int kLfoH = 140;
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
 constexpr int kTitleH = 28;
@@ -34,6 +35,22 @@ const juce::Colour kLedOn { 0xffff2200 };
 const juce::Colour kLedOff { 0xff5a1808 };
 const juce::Colour kLaneWhite { 0xff3c3c3c };
 const juce::Colour kLaneBlack { 0xff2a2a2a };
+const juce::Colour kLfoCol[2] { juce::Colour (0xff3dcc8c), juce::Colour (0xffff6a00) };
+const juce::Colour kLfoIdle { 0xff7a7a7a };
+
+juce::Colour lfoCol (int src)
+{
+    return kLfoCol[src == 2 ? 1 : 0];
+}
+
+bool lfoAssigned (TEW03AudioProcessor& proc, int index)
+{
+    const int src = index + 1;
+    for (int d = 0; d < tew::destCount; ++d)
+        if (juce::roundToInt (proc.apvts.getRawParameterValue (ParamID::destLfoIds[d])->load()) == src)
+            return true;
+    return false;
+}
 
 juce::String noteLetter (int note)
 {
@@ -449,6 +466,44 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
         g.drawLine (x0, y0, x1, y1, 1.6f);
         g.restoreState();
     }
+
+    // LFO overlay sits on the grid. Y is 0-1 of the LFO, not pitch — scale scroll leaves it.
+    {
+        auto clip = juce::Rectangle<float> (geo.grid.getX(), geo.grid.getY(),
+                                            geo.grid.getWidth(),
+                                            geo.rowH * (float) geo.rows).toNearestInt();
+        g.saveState();
+        g.reduceClipRegion (clip);
+        const float bpm = proc.tempoBpm();
+        for (int li = 0; li < tew::numLfos; ++li)
+        {
+            if (! lfoAssigned (proc, li))
+                continue;
+            const bool sync = proc.apvts.getRawParameterValue (ParamID::lfoSyncIds[li])->load() >= 0.5f;
+            const int div = juce::roundToInt (proc.apvts.getRawParameterValue (ParamID::lfoDivIds[li])->load());
+            const float rate = proc.apvts.getRawParameterValue (ParamID::lfoRateIds[li])->load();
+            const float cycles = tew::cyclesPerBar (sync, div, rate, bpm);
+            const auto shape = proc.getLfoShape (li);
+            juce::Path path;
+            constexpr int kPts = 96;
+            for (int i = 0; i <= kPts; ++i)
+            {
+                const float x01 = (float) i / (float) kPts;
+                float phase = x01 * cycles;
+                phase -= std::floor (phase);
+                const float y01 = shape.lookup (phase);
+                const float x = geo.grid.getX() + x01 * geo.grid.getWidth();
+                const float y = geo.grid.getY() + (1.f - y01) * geo.rowH * (float) geo.rows;
+                if (i == 0)
+                    path.startNewSubPath (x, y);
+                else
+                    path.lineTo (x, y);
+            }
+            g.setColour (kLfoCol[li].withAlpha (0.55f));
+            g.strokePath (path, juce::PathStrokeType (1.4f));
+        }
+        g.restoreState();
+    }
 }
 
 void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
@@ -607,7 +662,7 @@ void TEW03AudioProcessorEditor::StepColumn::syncFrom (TEW03AudioProcessor& p)
 
 void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
                                                             float pos, float startAngle, float endAngle,
-                                                            juce::Slider&)
+                                                            juce::Slider& slider)
 {
     auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h).reduced (3.f);
     const float d = juce::jmin (bounds.getWidth(), bounds.getHeight());
@@ -629,6 +684,14 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
     g.setColour (kInk);
     g.drawLine (c.x, c.y, tip.x, tip.y, 2.2f);
     g.fillEllipse (c.x - 2.5f, c.y - 2.5f, 5.f, 5.f);
+
+    const int src = (int) slider.getProperties().getWithDefault ("lfoSrc", 0);
+    if (src > 0)
+    {
+        const float amt = std::abs ((float) slider.getProperties().getWithDefault ("lfoAmt", 0.f));
+        g.setColour (lfoCol (src).withAlpha (0.45f + 0.5f * amt));
+        g.drawEllipse (rc.expanded (2.f), 3.f);
+    }
 }
 
 void TEW03AudioProcessorEditor::PanelLnF::drawToggleButton (juce::Graphics& g, juce::ToggleButton& b,
@@ -693,10 +756,15 @@ juce::Font TEW03AudioProcessorEditor::PanelLnF::getComboBoxFont (juce::ComboBox&
     return boldFont (11.f);
 }
 
-TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeState& state,
+TEW03AudioProcessorEditor::ParamCell::ParamCell (TEW03AudioProcessorEditor& ed,
                                                  juce::RangedAudioParameter& param)
+    : editor (ed)
 {
     const auto id = param.getParameterID();
+    paramId = id;
+    dest = ParamID::destIndexForId (id.toRawUTF8());
+    if (dest >= 0)
+        label.setInterceptsMouseClicks (false, false);
     label.setText (uiLabel (id), juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
     label.setColour (juce::Label::textColourId, kInk);
@@ -706,6 +774,7 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
     isBool = dynamic_cast<juce::AudioParameterBool*> (&param) != nullptr;
     isChoice = dynamic_cast<juce::AudioParameterChoice*> (&param) != nullptr;
     isFlip = isBool && id == ParamID::waveform;
+    auto& state = editor.proc.apvts;
 
     if (isBool)
     {
@@ -746,6 +815,7 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (juce::AudioProcessorValueTreeSt
         slider.setDoubleClickReturnValue (true, param.convertFrom0to1 (param.getDefaultValue()));
         addAndMakeVisible (slider);
         sliderAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (state, id, slider);
+        slider.addMouseListener (this, false);
     }
 }
 
@@ -759,6 +829,95 @@ void TEW03AudioProcessorEditor::ParamCell::resized()
         combo.setBounds (r.removeFromTop (24).reduced (2, 2));
     else
         slider.setBounds (r);
+}
+
+juce::Rectangle<int> TEW03AudioProcessorEditor::ParamCell::badgeBounds() const
+{
+    return { getWidth() - 16, 0, 14, kLabelH };
+}
+
+void TEW03AudioProcessorEditor::ParamCell::refreshMod()
+{
+    if (dest < 0)
+        return;
+    lfoSrc = juce::roundToInt (editor.proc.apvts.getRawParameterValue (ParamID::destLfoIds[dest])->load());
+    lfoAmt = editor.proc.apvts.getRawParameterValue (ParamID::destAmtIds[dest])->load();
+    slider.getProperties().set ("lfoSrc", lfoSrc);
+    slider.getProperties().set ("lfoAmt", lfoAmt);
+    slider.repaint();
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::ParamCell::paintOverChildren (juce::Graphics& g)
+{
+    if (dest < 0 || lfoSrc <= 0)
+        return;
+    auto b = badgeBounds().toFloat();
+    const auto col = lfoCol (lfoSrc);
+    g.setColour (kKnob);
+    g.fillRoundedRectangle (b, 3.f);
+    g.setColour (col);
+    g.drawRoundedRectangle (b, 3.f, 1.2f);
+    g.setFont (boldFont (10.f));
+    g.setColour (col);
+    g.drawText (juce::String (lfoSrc), b.toNearestInt(), juce::Justification::centred, false);
+}
+
+void TEW03AudioProcessorEditor::ParamCell::mouseDown (const juce::MouseEvent& e)
+{
+    if (dest < 0)
+        return;
+
+    const auto pos = e.getEventRelativeTo (this).getPosition();
+    if (lfoSrc > 0 && badgeBounds().contains (pos))
+    {
+        amtDragging = true;
+        amtDragStart = lfoAmt;
+        amtDragY = pos.y;
+        return;
+    }
+
+    if (! e.mods.isPopupMenu())
+        return;
+
+    juce::PopupMenu m;
+    m.addItem (1, "LFO 1", true, lfoSrc == 1);
+    m.addItem (2, "LFO 2", true, lfoSrc == 2);
+    m.addItem (3, "None", true, lfoSrc == 0);
+    juce::Component::SafePointer<ParamCell> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         safe->editor.assignDest (safe->dest, result == 3 ? 0 : result);
+                     });
+}
+
+void TEW03AudioProcessorEditor::ParamCell::mouseDrag (const juce::MouseEvent& e)
+{
+    if (! amtDragging || dest < 0)
+        return;
+    const auto pos = e.getEventRelativeTo (this).getPosition();
+    const float next = juce::jlimit (-1.f, 1.f, amtDragStart - (float) (pos.y - amtDragY) / 80.f);
+    editor.setDestAmt (dest, next);
+}
+
+void TEW03AudioProcessorEditor::ParamCell::mouseUp (const juce::MouseEvent&)
+{
+    amtDragging = false;
+}
+
+bool TEW03AudioProcessorEditor::ParamCell::isInterestedInDragSource (const SourceDetails& d)
+{
+    return dest >= 0 && d.description.toString().startsWith ("lfo:");
+}
+
+void TEW03AudioProcessorEditor::ParamCell::itemDropped (const SourceDetails& d)
+{
+    const int src = d.description.toString().fromFirstOccurrenceOf (":", false, false).getIntValue();
+    if (src >= 1 && src <= tew::numLfos)
+        editor.assignDest (dest, src);
 }
 
 void TEW03AudioProcessorEditor::SlotBar::setText (const juce::String& t)
@@ -818,6 +977,323 @@ void TEW03AudioProcessorEditor::SlotBar::mouseUp (const juce::MouseEvent& e)
         onOpen();
 }
 
+TEW03AudioProcessorEditor::LfoHandle::LfoHandle (TEW03AudioProcessorEditor& ed, int i)
+    : editor (ed), index (i)
+{
+    setMouseCursor (juce::MouseCursor::DraggingHandCursor);
+}
+
+void TEW03AudioProcessorEditor::LfoHandle::paint (juce::Graphics& g)
+{
+    auto r = getLocalBounds().toFloat().reduced (1.f);
+    const bool on = lfoAssigned (editor.proc, index);
+    const auto col = on ? kLfoCol[index] : kLfoIdle;
+    g.setColour (kLaneBlack);
+    g.fillRoundedRectangle (r, 4.f);
+    g.setColour (col);
+    g.drawRoundedRectangle (r, 4.f, on ? 1.5f : 1.f);
+    g.setFont (boldFont (11.f));
+    g.drawText ("LFO " + juce::String (index + 1), r.toNearestInt(), juce::Justification::centred, false);
+}
+
+void TEW03AudioProcessorEditor::LfoHandle::mouseDown (const juce::MouseEvent&)
+{
+    dragging = false;
+}
+
+void TEW03AudioProcessorEditor::LfoHandle::mouseDrag (const juce::MouseEvent& e)
+{
+    if (dragging || e.getDistanceFromDragStart() < 4)
+        return;
+    dragging = true;
+    editor.startDragging ("lfo:" + juce::String (index + 1), this);
+}
+
+TEW03AudioProcessorEditor::LfoShapeView::LfoShapeView (TEW03AudioProcessorEditor& ed, int i)
+    : editor (ed), index (i)
+{
+}
+
+juce::Point<float> TEW03AudioProcessorEditor::LfoShapeView::toScreenPt (const tew::LfoShape& s, int i) const
+{
+    auto r = getLocalBounds().toFloat().reduced (8.f, 6.f);
+    return { r.getX() + s.x[i] * r.getWidth(),
+             r.getBottom() - s.y[i] * r.getHeight() };
+}
+
+int TEW03AudioProcessorEditor::LfoShapeView::hitPoint (juce::Point<float> p) const
+{
+    const auto s = editor.proc.getLfoShape (index);
+    for (int i = 0; i < s.n; ++i)
+        if (p.getDistanceFrom (toScreenPt (s, i)) <= 8.f)
+            return i;
+    return -1;
+}
+
+int TEW03AudioProcessorEditor::LfoShapeView::sixteenths() const
+{
+    auto& p = editor.proc;
+    const bool sync = p.apvts.getRawParameterValue (ParamID::lfoSyncIds[index])->load() >= 0.5f;
+    const int div = juce::roundToInt (p.apvts.getRawParameterValue (ParamID::lfoDivIds[index])->load());
+    const float rate = p.apvts.getRawParameterValue (ParamID::lfoRateIds[index])->load();
+    return tew::sixteenthsPerCycle (sync, div, rate, p.tempoBpm());
+}
+
+void TEW03AudioProcessorEditor::LfoShapeView::paint (juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour (kLaneBlack);
+    g.fillRoundedRectangle (bounds, 4.f);
+
+    auto r = bounds.reduced (8.f, 6.f);
+    const auto col = kLfoCol[index];
+    const int n16 = sixteenths();
+    for (int i = 1; i < n16; ++i)
+    {
+        const float x = r.getX() + r.getWidth() * (float) i / (float) n16;
+        g.setColour (i % 4 == 0 ? col.withAlpha (0.35f) : kCream.withAlpha (0.12f));
+        g.drawVerticalLine ((int) std::round (x), r.getY(), r.getBottom());
+    }
+    g.setColour (kCream.withAlpha (0.12f));
+    for (int i = 1; i < 4; ++i)
+        g.drawHorizontalLine ((int) (r.getY() + r.getHeight() * 0.25f * (float) i),
+                              r.getX(), r.getRight());
+
+    const auto s = editor.proc.getLfoShape (index);
+    if (s.n < 2)
+        return;
+
+    juce::Path path;
+    path.startNewSubPath (toScreenPt (s, 0));
+    for (int i = 1; i < s.n; ++i)
+        path.lineTo (toScreenPt (s, i));
+    g.setColour (col);
+    g.strokePath (path, juce::PathStrokeType (1.6f));
+
+    juce::Path fill = path;
+    fill.lineTo (r.getRight(), r.getBottom());
+    fill.lineTo (r.getX(), r.getBottom());
+    fill.closeSubPath();
+    g.setColour (col.withAlpha (0.22f));
+    g.fillPath (fill);
+
+    for (int i = 0; i < s.n; ++i)
+    {
+        const auto c = toScreenPt (s, i);
+        g.setColour (col);
+        g.fillEllipse (c.x - 3.5f, c.y - 3.5f, 7.f, 7.f);
+        g.setColour (kCream);
+        g.drawEllipse (c.x - 3.5f, c.y - 3.5f, 7.f, 7.f, 1.f);
+    }
+
+    if (editor.proc.lfoPlayheadOn())
+    {
+        const float phase = editor.proc.lfoPhase (index);
+        const float px = r.getX() + phase * r.getWidth();
+        g.setColour (col.withAlpha (0.9f));
+        g.drawLine (px, r.getY(), px, r.getBottom(), 1.f);
+    }
+}
+
+void TEW03AudioProcessorEditor::LfoShapeView::mouseDown (const juce::MouseEvent& e)
+{
+    auto s = editor.proc.getLfoShape (index);
+    const int hit = hitPoint (e.position);
+    if (e.mods.isPopupMenu())
+    {
+        if (hit > 0 && hit < s.n - 1 && s.n > 2)
+        {
+            tew::LfoShape next;
+            for (int i = 0; i < s.n; ++i)
+                if (i != hit)
+                    next.add (s.x[i], s.y[i]);
+            editor.proc.setLfoShape (index, next);
+            editor.refreshLfo();
+        }
+        return;
+    }
+    dragPt = hit;
+}
+
+void TEW03AudioProcessorEditor::LfoShapeView::mouseDrag (const juce::MouseEvent& e)
+{
+    if (dragPt < 0)
+        return;
+    auto s = editor.proc.getLfoShape (index);
+    auto r = getLocalBounds().toFloat().reduced (8.f, 6.f);
+    float nx = juce::jlimit (0.f, 1.f, (e.position.x - r.getX()) / r.getWidth());
+    float ny = juce::jlimit (0.f, 1.f, (r.getBottom() - e.position.y) / r.getHeight());
+    if (dragPt == 0)
+        nx = 0.f;
+    else if (dragPt == s.n - 1)
+        nx = 1.f;
+    else
+    {
+        const float lo = s.x[dragPt - 1] + 0.01f;
+        const float hi = s.x[dragPt + 1] - 0.01f;
+        nx = juce::jlimit (lo, hi, nx);
+    }
+    s.x[dragPt] = nx;
+    s.y[dragPt] = ny;
+    editor.proc.setLfoShape (index, s);
+    editor.pianoRoll.repaint();
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::LfoShapeView::mouseUp (const juce::MouseEvent&)
+{
+    dragPt = -1;
+}
+
+void TEW03AudioProcessorEditor::LfoShapeView::mouseDoubleClick (const juce::MouseEvent& e)
+{
+    if (hitPoint (e.position) >= 0)
+        return;
+    auto s = editor.proc.getLfoShape (index);
+    if (s.n >= tew::lfoMaxPoints)
+        return;
+    auto r = getLocalBounds().toFloat().reduced (8.f, 6.f);
+    const float nx = juce::jlimit (0.02f, 0.98f, (e.position.x - r.getX()) / r.getWidth());
+    const float ny = juce::jlimit (0.f, 1.f, (r.getBottom() - e.position.y) / r.getHeight());
+    tew::LfoShape next;
+    bool inserted = false;
+    for (int i = 0; i < s.n; ++i)
+    {
+        if (! inserted && nx < s.x[i])
+        {
+            next.add (nx, ny);
+            inserted = true;
+        }
+        next.add (s.x[i], s.y[i]);
+    }
+    if (! inserted)
+        next.add (nx, ny);
+    editor.proc.setLfoShape (index, next);
+    editor.refreshLfo();
+}
+
+TEW03AudioProcessorEditor::LfoLane::LfoLane (TEW03AudioProcessorEditor& ed, int i)
+    : editor (ed), index (i), handle (ed, i), view (ed, i)
+{
+    addAndMakeVisible (handle);
+    addAndMakeVisible (view);
+    nameBar.onStep = [this] (int d) { cyclePreset (d); };
+    addAndMakeVisible (nameBar);
+
+    auto lab = [this] (juce::Label& l, const juce::String& t)
+    {
+        l.setText (t, juce::dontSendNotification);
+        l.setJustificationType (juce::Justification::centred);
+        l.setColour (juce::Label::textColourId, kCream);
+        l.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible (l);
+    };
+    lab (modeLabel, "MODE");
+    lab (tempoLabel, "TEMPO");
+    lab (smoothLabel, "SMOOTH");
+
+    modeBox.addItem ("Free", 1);
+    modeBox.addItem ("Trigger", 2);
+    divBox.addItem ("1/16", 1);
+    divBox.addItem ("1/8", 2);
+    divBox.addItem ("1/4", 3);
+    divBox.addItem ("1/2", 4);
+    divBox.addItem ("1", 5);
+    divBox.addItem ("2", 6);
+    auto colourBox = [] (juce::ComboBox& b)
+    {
+        b.setColour (juce::ComboBox::textColourId, kCream);
+        b.setColour (juce::ComboBox::arrowColourId, kCream);
+    };
+    colourBox (modeBox);
+    colourBox (divBox);
+    addAndMakeVisible (modeBox);
+    addAndMakeVisible (divBox);
+
+    syncBtn.setClickingTogglesState (true);
+    syncBtn.setComponentID ("led");
+    syncBtn.setTooltip ("Sync LFO rate to tempo");
+    addAndMakeVisible (syncBtn);
+
+    auto setupKnob = [this] (juce::Slider& s, int boxW)
+    {
+        s.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+        s.setTextBoxStyle (juce::Slider::TextBoxBelow, false, boxW, 12);
+        s.setColour (juce::Slider::textBoxTextColourId, kCream);
+        s.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+        s.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible (s);
+    };
+    setupKnob (rateSlider, 44);
+    setupKnob (smoothSlider, 40);
+
+    auto& st = editor.proc.apvts;
+    modeAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        st, ParamID::lfoModeIds[index], modeBox);
+    divAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        st, ParamID::lfoDivIds[index], divBox);
+    syncAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        st, ParamID::lfoSyncIds[index], syncBtn);
+    rateAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        st, ParamID::lfoRateIds[index], rateSlider);
+    smoothAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        st, ParamID::lfoSmoothIds[index], smoothSlider);
+
+    syncBtn.onClick = [this] { refresh(); };
+    rateSlider.onValueChange = [this] { view.repaint(); editor.pianoRoll.repaint(); };
+    divBox.onChange = [this] { view.repaint(); editor.pianoRoll.repaint(); };
+}
+
+void TEW03AudioProcessorEditor::LfoLane::resized()
+{
+    auto r = getLocalBounds().reduced (4, 2);
+    auto ctrls = r.removeFromLeft (108);
+    auto modeR = ctrls.removeFromTop (36);
+    modeLabel.setBounds (modeR.removeFromTop (12));
+    modeBox.setBounds (modeR.reduced (1, 0));
+
+    auto tempoR = ctrls.removeFromTop (52);
+    tempoLabel.setBounds (tempoR.removeFromTop (12));
+    syncBtn.setBounds (tempoR.removeFromLeft (40).reduced (1, 2));
+    rateSlider.setBounds (tempoR);
+    divBox.setBounds (rateSlider.getBounds());
+
+    smoothLabel.setBounds (ctrls.removeFromTop (12));
+    smoothSlider.setBounds (ctrls);
+
+    auto head = r.removeFromTop (22);
+    handle.setBounds (head.removeFromLeft (52));
+    head.removeFromLeft (4);
+    nameBar.setBounds (head);
+    r.removeFromTop (3);
+    view.setBounds (r);
+}
+
+void TEW03AudioProcessorEditor::LfoLane::refresh()
+{
+    const bool sync = editor.proc.apvts.getRawParameterValue (ParamID::lfoSyncIds[index])->load() >= 0.5f;
+    rateSlider.setVisible (! sync);
+    divBox.setVisible (sync);
+    const auto shape = editor.proc.getLfoShape (index);
+    const int preset = shape.presetIndex();
+    nameBar.setText (preset >= 0 ? tew::LfoShape::presetName (preset) : "Custom");
+    handle.repaint();
+    view.repaint();
+}
+
+void TEW03AudioProcessorEditor::LfoLane::cyclePreset (int delta)
+{
+    auto shape = editor.proc.getLfoShape (index);
+    int idx = shape.presetIndex();
+    if (idx < 0)
+        idx = 0;
+    const int n = tew::LfoShape::numPresets;
+    idx = (idx + delta + n) % n;
+    shape.applyPreset (idx);
+    editor.proc.setLfoShape (index, shape);
+    editor.refreshLfo();
+}
+
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     : juce::AudioProcessorEditor (p), proc (p), pianoRoll (p)
 {
@@ -843,7 +1319,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         auto* p = dynamic_cast<juce::RangedAudioParameter*> (proc.apvts.getParameter (id));
         if (p == nullptr)
             return;
-        auto* cell = dest.add (new ParamCell (proc.apvts, *p));
+        auto* cell = dest.add (new ParamCell (*this, *p));
         addAndMakeVisible (cell);
         if (id == ParamID::seqTempo)
             tempoCell = cell;
@@ -961,6 +1437,10 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         addAndMakeVisible (col);
     }
 
+    addAndMakeVisible (lfoLane0);
+    addAndMakeVisible (lfoLane1);
+    refreshLfo();
+
     setSize (kEditorW, kEditorH);
     startTimerHz (15);
 }
@@ -1002,6 +1482,12 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
         g.drawLine ((float) filterArea.getRight(), (float) filterArea.getY() + 2.f,
                     (float) filterArea.getRight(), (float) filterArea.getBottom() - 2.f, 1.f);
 
+    if (! lfoArea.isEmpty())
+    {
+        g.setColour (kLaneBlack);
+        g.fillRoundedRectangle (lfoArea.toFloat(), 4.f);
+    }
+
     auto bevel = getLocalBounds().toFloat().reduced (1.5f);
     g.setColour (kChassisDark);
     g.drawRoundedRectangle (bevel, 2.f, 2.f);
@@ -1017,6 +1503,7 @@ void TEW03AudioProcessorEditor::resized()
     patchBar.setBounds (title.removeFromLeft (barW).reduced (6, 2));
     bankLibBar.setBounds (title.reduced (6, 2));
 
+    lfoArea = r.removeFromBottom (kLfoH);
     auto strip = r.removeFromBottom (kStripH);
     pianoRoll.setBounds (r.removeFromBottom (kRollH));
     auto lock = r.removeFromBottom (kLockH);
@@ -1074,6 +1561,11 @@ void TEW03AudioProcessorEditor::resized()
     const int stepW = strip.getWidth() / n;
     for (int i = 0; i < n; ++i)
         steps[i]->setBounds (strip.removeFromLeft (i == n - 1 ? strip.getWidth() : stepW));
+
+    auto lfo = lfoArea.reduced (4, 4);
+    const int half = lfo.getWidth() / 2;
+    lfoLane0.setBounds (lfo.removeFromLeft (half));
+    lfoLane1.setBounds (lfo);
 }
 
 void TEW03AudioProcessorEditor::timerCallback()
@@ -1082,6 +1574,7 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshHostTempo();
     refreshSlot();
     refreshLibraryNames();
+    refreshLfo();
 }
 
 void TEW03AudioProcessorEditor::syncSteps()
@@ -1142,15 +1635,64 @@ void TEW03AudioProcessorEditor::refreshHostTempo()
 void TEW03AudioProcessorEditor::refreshPlayhead()
 {
     const int now = proc.getSequencer().playhead();
-    if (now == lastPlayhead)
-        return;
+    if (now != lastPlayhead)
+    {
+        if (lastPlayhead >= 0 && lastPlayhead < steps.size())
+            steps[lastPlayhead]->setLit (false);
+        if (now >= 0 && now < steps.size())
+            steps[now]->setLit (true);
+        pianoRoll.setPlayhead (now);
+        lastPlayhead = now;
+    }
+    lfoLane0.view.repaint();
+    lfoLane1.view.repaint();
+}
 
-    if (lastPlayhead >= 0 && lastPlayhead < steps.size())
-        steps[lastPlayhead]->setLit (false);
-    if (now >= 0 && now < steps.size())
-        steps[now]->setLit (true);
-    pianoRoll.setPlayhead (now);
-    lastPlayhead = now;
+void TEW03AudioProcessorEditor::refreshLfo()
+{
+    lfoLane0.refresh();
+    lfoLane1.refresh();
+    pianoRoll.repaint();
+
+    auto refreshCells = [] (juce::OwnedArray<ParamCell>& cells)
+    {
+        for (auto* c : cells)
+            c->refreshMod();
+    };
+    refreshCells (seqCells);
+    refreshCells (filterCells);
+    refreshCells (masterCells);
+}
+
+void TEW03AudioProcessorEditor::assignDest (int dest, int lfoIndexSrc)
+{
+    if (dest < 0 || dest >= tew::destCount)
+        return;
+    auto* src = proc.apvts.getParameter (ParamID::destLfoIds[dest]);
+    auto* amt = proc.apvts.getParameter (ParamID::destAmtIds[dest]);
+    if (src == nullptr || amt == nullptr)
+        return;
+    src->beginChangeGesture();
+    src->setValueNotifyingHost (src->convertTo0to1 ((float) juce::jlimit (0, tew::numLfos, lfoIndexSrc)));
+    src->endChangeGesture();
+    if (lfoIndexSrc > 0 && std::abs (proc.apvts.getRawParameterValue (ParamID::destAmtIds[dest])->load()) < 0.001f)
+    {
+        amt->beginChangeGesture();
+        amt->setValueNotifyingHost (amt->convertTo0to1 (0.5f));
+        amt->endChangeGesture();
+    }
+    refreshLfo();
+}
+
+void TEW03AudioProcessorEditor::setDestAmt (int dest, float amount)
+{
+    if (dest < 0 || dest >= tew::destCount)
+        return;
+    auto* amt = proc.apvts.getParameter (ParamID::destAmtIds[dest]);
+    if (amt == nullptr)
+        return;
+    amt->setValueNotifyingHost (amt->convertTo0to1 (juce::jlimit (-1.f, 1.f, amount)));
+    refreshLfo();
 }
 
 void TEW03AudioProcessorEditor::refreshLibraryNames()

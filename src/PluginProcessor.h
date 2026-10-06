@@ -1,11 +1,13 @@
 #pragma once
 
+#include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "dsp/SynthEngine.h"
 #include "parameters/Library.h"
 #include "parameters/ParameterLayout.h"
 
 #include <JuceHeader.h>
+#include <atomic>
 #include <vector>
 
 class TEW03AudioProcessor : public juce::AudioProcessor,
@@ -48,6 +50,12 @@ public:
     float tempoBpm() const;
     bool usesHostTempo() const;
 
+    void setLfoShape (int index, const tew::LfoShape& shape);
+    tew::LfoShape getLfoShape (int index) const;
+    float lfoPhase (int index) const;
+    bool lfoPlayheadOn() const;
+    void resetLfoShapes();
+
     juce::File patchesDir() const;
     juce::File banksDir() const;
     juce::StringArray patchNames() const;
@@ -89,9 +97,22 @@ private:
     std::vector<tew::PatchParam> currentPatchParams() const;
     bool loadPatchFile (const juce::File& src, const juce::String& shownName);
     bool loadBankFile (const juce::File& src, const juce::String& shownName);
+    void writeLfosToState();
+    void loadLfosFromState();
+    void publishLfoShapes();
+    void fillVoiceMod (tew::VoiceMod& mod);
+    void retriggerLfos();
+    float lfoRateHz (int index) const;
 
     tew::SynthEngine engine;
     tew::Sequencer sequencer;
+    tew::Lfo lfo[tew::numLfos];
+    tew::LfoShape uiLfo[tew::numLfos];
+    tew::LfoShape lfoBank[2][tew::numLfos];
+    std::atomic<int> lfoPublished { 0 };
+    int lfoSeen { -1 };
+    std::atomic<float> lfoPhaseUi[tew::numLfos] {};
+    std::atomic<bool> keyboardSounding { false };
     std::atomic<uint32_t> patterns[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps] {};
     std::atomic<int> curBank { 0 };
     std::atomic<int> curPattern { 0 };

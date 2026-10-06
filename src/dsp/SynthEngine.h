@@ -30,13 +30,13 @@ struct SynthEngine
 
     Voice& getVoice() { return voice; }
 
-    void render (juce::AudioBuffer<float>& buffer, int start, int numSamples)
+    void render (juce::AudioBuffer<float>& buffer, int start, int numSamples, const VoiceMod* mod = nullptr)
     {
         if (numSamples <= 0 || buffer.getNumChannels() == 0)
             return;
 
         auto* left = buffer.getWritePointer (0, start);
-        voice.render (left, numSamples);
+        voice.render (left, numSamples, mod);
 
         for (int ch = 1; ch < buffer.getNumChannels(); ++ch)
             juce::FloatVectorOperations::copy (buffer.getWritePointer (ch, start), left, numSamples);

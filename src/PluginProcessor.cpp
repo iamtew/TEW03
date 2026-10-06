@@ -23,6 +23,11 @@ const juce::Identifier kAccent { "accent" };
 const juce::Identifier kSlide { "slide" };
 const juce::Identifier kPatchName { "PATCH_NAME" };
 const juce::Identifier kBankName { "BANK_NAME" };
+const juce::Identifier kLfos { "LFOS" };
+const juce::Identifier kLfo { "LFO" };
+const juce::Identifier kPt { "PT" };
+const juce::Identifier kX { "x" };
+const juce::Identifier kY { "y" };
 constexpr const char* kInitPatch = "Init Patch";
 constexpr const char* kInitBank = "Init Bank";
 constexpr const char* kPatchExt = ".tew3p";
@@ -140,6 +145,9 @@ TEW03AudioProcessor::TEW03AudioProcessor()
         apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
     if (! apvts.state.hasProperty (kBankName))
         apvts.state.setProperty (kBankName, kInitBank, nullptr);
+
+    resetLfoShapes();
+    loadLfosFromState();
 }
 
 TEW03AudioProcessor::~TEW03AudioProcessor()
@@ -245,6 +253,8 @@ void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
 {
     engine.prepare (sampleRate);
     sequencer.prepare (sampleRate);
+    for (int i = 0; i < tew::numLfos; ++i)
+        lfo[i].prepare (sampleRate);
 }
 
 void TEW03AudioProcessor::releaseResources() {}
@@ -283,9 +293,20 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // First callback may grow the host buffer. Later blocks stay at this size.
     midi.ensureSize (kMidiBytes);
 
-    engine.setTone (raw (ParamID::decay),
-                    raw (ParamID::accent),
-                    raw (ParamID::glide),
+    tew::VoiceMod mod;
+    fillVoiceMod (mod);
+
+    float peekY[tew::numLfos];
+    for (int i = 0; i < tew::numLfos; ++i)
+        peekY[i] = lfo[i].peek();
+
+    const float decayNow = tew::destFrom01 (tew::destDecay, mod.sample01 (tew::destDecay, peekY));
+    const float accentNow = tew::destFrom01 (tew::destAccent, mod.sample01 (tew::destAccent, peekY));
+    const float glideNow = tew::destFrom01 (tew::destGlide, mod.sample01 (tew::destGlide, peekY));
+
+    engine.setTone (decayNow,
+                    accentNow,
+                    glideNow,
                     raw (ParamID::volume),
                     raw (ParamID::waveform) >= 0.5f);
     engine.setFilter (raw (ParamID::cutoff),
@@ -308,6 +329,8 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
     if (mode != kPlayKey)
         heldKey.store (-1, std::memory_order_relaxed);
+    if (mode != kPlayKeyboard)
+        keyboardSounding.store (false, std::memory_order_relaxed);
 
     bool playing = false;
     if (mode == kPlayPattern)
@@ -317,6 +340,13 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
     if (mode != kPlayKeyboard)
         midi.clear();
+
+    auto render = [this, &buffer, &mod] (int start, int n)
+    {
+        engine.render (buffer, start, n, &mod);
+        for (int i = 0; i < tew::numLfos; ++i)
+            lfoPhaseUi[i].store (lfo[i].phase, std::memory_order_relaxed);
+    };
 
     if (! playing)
     {
@@ -329,8 +359,24 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
 
         if (mode == kPlayKeyboard)
-            tew::MidiHandler::applyNotes (midi, engine.getVoice());
-        engine.render (buffer, 0, numSamples);
+        {
+            for (const auto meta : midi)
+            {
+                const auto msg = meta.getMessage();
+                if (msg.isNoteOn())
+                {
+                    retriggerLfos();
+                    keyboardSounding.store (true, std::memory_order_relaxed);
+                    engine.getVoice().noteOn (msg.getNoteNumber(), msg.getVelocity() >= 110);
+                }
+                else if (msg.isNoteOff())
+                {
+                    keyboardSounding.store (false, std::memory_order_relaxed);
+                    engine.getVoice().noteOff (msg.getNoteNumber());
+                }
+            }
+        }
+        render (0, numSamples);
         return;
     }
 
@@ -343,7 +389,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         const int at = events[i].offset;
         if (at > rendered)
         {
-            engine.render (buffer, rendered, at - rendered);
+            render (rendered, at - rendered);
             rendered = at;
         }
 
@@ -351,6 +397,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const auto velocity = events[i].accent ? (juce::uint8) 127 : (juce::uint8) 100;
             midi.addEvent (juce::MidiMessage::noteOn (1, events[i].note, velocity), at);
+            retriggerLfos();
             engine.getVoice().noteOn (events[i].note, events[i].accent, events[i].slide);
         }
         else
@@ -361,12 +408,160 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     }
 
     if (rendered < numSamples)
-        engine.render (buffer, rendered, numSamples - rendered);
+        render (rendered, numSamples - rendered);
 }
 
 juce::AudioProcessorEditor* TEW03AudioProcessor::createEditor()
 {
     return new TEW03AudioProcessorEditor (*this);
+}
+
+void TEW03AudioProcessor::resetLfoShapes()
+{
+    for (int i = 0; i < tew::numLfos; ++i)
+        uiLfo[i].setTriangle();
+    publishLfoShapes();
+}
+
+void TEW03AudioProcessor::publishLfoShapes()
+{
+    const int cur = lfoPublished.load (std::memory_order_relaxed);
+    const int w = 1 - juce::jlimit (0, 1, cur);
+    for (int i = 0; i < tew::numLfos; ++i)
+        lfoBank[w][i] = uiLfo[i];
+    lfoPublished.store (w, std::memory_order_release);
+}
+
+void TEW03AudioProcessor::setLfoShape (int index, const tew::LfoShape& shape)
+{
+    if (index < 0 || index >= tew::numLfos)
+        return;
+    uiLfo[index] = shape;
+    if (uiLfo[index].n < 2)
+        uiLfo[index].setTriangle();
+    publishLfoShapes();
+}
+
+tew::LfoShape TEW03AudioProcessor::getLfoShape (int index) const
+{
+    if (index < 0 || index >= tew::numLfos)
+        return {};
+    return uiLfo[index];
+}
+
+float TEW03AudioProcessor::lfoPhase (int index) const
+{
+    if (index < 0 || index >= tew::numLfos)
+        return 0.f;
+    return lfoPhaseUi[index].load (std::memory_order_relaxed);
+}
+
+bool TEW03AudioProcessor::lfoPlayheadOn() const
+{
+    const int mode = juce::roundToInt (raw (ParamID::playMode));
+    if (mode == kPlayPattern)
+        return patternShouldRun();
+    if (mode == kPlayKey)
+        return raw (ParamID::seqPlay) >= 0.5f && heldKey.load (std::memory_order_relaxed) >= 0;
+    return keyboardSounding.load (std::memory_order_relaxed);
+}
+
+float TEW03AudioProcessor::lfoRateHz (int index) const
+{
+    if (raw (ParamID::lfoSyncIds[index]) >= 0.5f)
+        return tew::syncedHz (tempoBpm(), juce::roundToInt (raw (ParamID::lfoDivIds[index])));
+    return raw (ParamID::lfoRateIds[index]);
+}
+
+void TEW03AudioProcessor::retriggerLfos()
+{
+    for (int i = 0; i < tew::numLfos; ++i)
+        if (raw (ParamID::lfoModeIds[i]) >= 0.5f)
+            lfo[i].retrigger();
+}
+
+void TEW03AudioProcessor::fillVoiceMod (tew::VoiceMod& mod)
+{
+    const int pub = lfoPublished.load (std::memory_order_acquire);
+    if (pub != lfoSeen && pub >= 0 && pub < 2)
+    {
+        for (int i = 0; i < tew::numLfos; ++i)
+            lfo[i].shape = lfoBank[pub][i];
+        lfoSeen = pub;
+    }
+
+    for (int i = 0; i < tew::numLfos; ++i)
+    {
+        mod.lfo[i] = &lfo[i];
+        mod.rateHz[i] = lfoRateHz (i);
+        mod.smooth[i] = raw (ParamID::lfoSmoothIds[i]);
+    }
+
+    for (int d = 0; d < tew::destCount; ++d)
+    {
+        mod.src[d] = juce::roundToInt (raw (ParamID::destLfoIds[d]));
+        mod.amt[d] = raw (ParamID::destAmtIds[d]);
+        mod.base01[d] = tew::destTo01 (d, raw (ParamID::destIds[d]));
+    }
+}
+
+void TEW03AudioProcessor::writeLfosToState()
+{
+    auto root = apvts.state;
+    auto lfos = root.getChildWithName (kLfos);
+    if (! lfos.isValid())
+    {
+        lfos = juce::ValueTree (kLfos);
+        root.appendChild (lfos, nullptr);
+    }
+
+    for (int i = lfos.getNumChildren(); --i >= 0;)
+        lfos.removeChild (i, nullptr);
+
+    for (int i = 0; i < tew::numLfos; ++i)
+    {
+        juce::ValueTree t (kLfo);
+        t.setProperty (kIndex, i, nullptr);
+        const auto& s = uiLfo[i];
+        for (int p = 0; p < s.n; ++p)
+        {
+            juce::ValueTree pt (kPt);
+            pt.setProperty (kX, s.x[p], nullptr);
+            pt.setProperty (kY, s.y[p], nullptr);
+            t.appendChild (pt, nullptr);
+        }
+        lfos.appendChild (t, nullptr);
+    }
+}
+
+void TEW03AudioProcessor::loadLfosFromState()
+{
+    tew::defaultLfoShapes (uiLfo);
+    auto lfos = apvts.state.getChildWithName (kLfos);
+    if (lfos.isValid())
+    {
+        for (int c = 0; c < lfos.getNumChildren(); ++c)
+        {
+            auto t = lfos.getChild (c);
+            if (! t.hasType (kLfo))
+                continue;
+            const int i = (int) t.getProperty (kIndex, -1);
+            if (i < 0 || i >= tew::numLfos)
+                continue;
+            uiLfo[i].clear();
+            for (int p = 0; p < t.getNumChildren() && uiLfo[i].n < tew::lfoMaxPoints; ++p)
+            {
+                auto pt = t.getChild (p);
+                if (! pt.hasType (kPt))
+                    continue;
+                uiLfo[i].add ((float) pt.getProperty (kX, 0.f),
+                              (float) pt.getProperty (kY, 0.f));
+            }
+            if (uiLfo[i].n < 2)
+                uiLfo[i].setTriangle();
+        }
+    }
+    publishLfoShapes();
 }
 
 void TEW03AudioProcessor::loadBanksFromState()
@@ -633,6 +828,7 @@ void TEW03AudioProcessor::initPatch()
         param->endChangeGesture();
     }
     syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
+    resetLfoShapes();
     apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
 }
 
@@ -649,9 +845,12 @@ void TEW03AudioProcessor::initBank()
 bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::String& shownName)
 {
     std::vector<tew::PatchParam> params;
-    if (! tew::readPatchXml (readText (src), params))
+    tew::LfoShape shapes[tew::numLfos];
+    if (! tew::readPatchXml (readText (src), params, shapes))
         return false;
     applyPatchParams (params);
+    for (int i = 0; i < tew::numLfos; ++i)
+        setLfoShape (i, shapes[i]);
     apvts.state.setProperty (kPatchName, shownName, nullptr);
     return true;
 }
@@ -693,7 +892,8 @@ bool TEW03AudioProcessor::savePatchAs (const juce::String& name)
     const auto stem = legalStem (name);
     if (stem.isEmpty() || stem == kInitPatch)
         return false;
-    if (! writeText (patchesDir().getChildFile (stem + kPatchExt), tew::writePatchXml (currentPatchParams())))
+    if (! writeText (patchesDir().getChildFile (stem + kPatchExt),
+                     tew::writePatchXml (currentPatchParams(), uiLfo)))
         return false;
     apvts.state.setProperty (kPatchName, stem, nullptr);
     return true;
@@ -733,7 +933,7 @@ bool TEW03AudioProcessor::exportPatch (const juce::File& dest)
     auto file = dest;
     if (! file.hasFileExtension ("tew3p"))
         file = file.withFileExtension ("tew3p");
-    return writeText (file, tew::writePatchXml (currentPatchParams()));
+    return writeText (file, tew::writePatchXml (currentPatchParams(), uiLfo));
 }
 
 bool TEW03AudioProcessor::exportBank (const juce::File& dest)
@@ -779,6 +979,7 @@ bool TEW03AudioProcessor::importBank (const juce::File& src)
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     writeBanksToState();
+    writeLfosToState();
 
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
@@ -791,6 +992,7 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             loadBanksFromState();
+            loadLfosFromState();
             if (! apvts.state.hasProperty (kPatchName))
                 apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
             if (! apvts.state.hasProperty (kBankName))

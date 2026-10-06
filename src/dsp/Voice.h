@@ -2,6 +2,7 @@
 
 #include "DiodeLadderFilter.h"
 #include "Envelope.h"
+#include "Lfo.h"
 #include "Oscillator.h"
 
 #include <algorithm>
@@ -91,14 +92,36 @@ struct Voice
         env.noteOff();
     }
 
-    void render (float* out, int numSamples)
+    void render (float* out, int numSamples, const VoiceMod* mod = nullptr)
     {
-        // drive 0 is unity. drive 1 is a hard tanh shove.
-        const float driveGain = 1.f + drive * 8.f;
-        const float resNow = std::clamp (resonance + (accented ? 0.25f * accentAmount : 0.f), 0.f, 1.f);
+        auto sample01 = [&] (int dest, float lfoY[numLfos], float fallback01) -> float
+        {
+            if (mod == nullptr || mod->src[dest] <= 0)
+                return fallback01;
+            return mod->sample01 (dest, lfoY);
+        };
 
         for (int i = 0; i < numSamples; ++i)
         {
+            float lfoY[numLfos] { 0.5f, 0.5f };
+            if (mod != nullptr)
+            {
+                for (int l = 0; l < numLfos; ++l)
+                    if (mod->lfo[l] != nullptr)
+                        lfoY[l] = mod->lfo[l]->process (mod->rateHz[l], mod->smooth[l]);
+            }
+
+            const float cutoffNow = destFrom01 (destCutoff,
+                sample01 (destCutoff, lfoY, destTo01 (destCutoff, cutoff)));
+            const float resAmt = sample01 (destResonance, lfoY, resonance);
+            const float driveAmt = sample01 (destDrive, lfoY, drive);
+            const float envAmt = sample01 (destEnvMod, lfoY, envMod);
+            const float gainNow = sample01 (destVolume, lfoY, gain);
+
+            // drive 0 is unity. drive 1 is a hard tanh shove.
+            const float driveGain = 1.f + driveAmt * 8.f;
+            const float resNow = std::clamp (resAmt + (accented ? 0.25f * accentAmount : 0.f), 0.f, 1.f);
+
             if (glideSamples > 0)
             {
                 currentMidi += glideStep;
@@ -111,14 +134,14 @@ struct Voice
 
             const float e = env.process();
             // envMod 1 = four octaves of cutoff sweep. Accent still adds extra lift.
-            const float octaves = envMod * 4.f + (accented ? 2.f * accentAmount : 0.f);
-            const float fc = cutoff * std::pow (2.f, e * octaves);
+            const float octaves = envAmt * 4.f + (accented ? 2.f * accentAmount : 0.f);
+            const float fc = cutoffNow * std::pow (2.f, e * octaves);
             filter.set (fc, resNow);
 
             float s = osc.process();
             s = std::tanh (s * driveGain);
             s = filter.process (s);
-            s *= e * accentGain * gain;
+            s *= e * accentGain * gainNow;
             out[i] = std::tanh (s);
         }
     }

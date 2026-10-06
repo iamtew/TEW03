@@ -16,6 +16,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 - Slide / portamento
 - Drive / overdrive
 - Master volume + soft limiting
+- Two assignable LFOs with custom breakpoint shapes (not BPM)
 
 ### MIDI & Performance
 - Full MIDI note input + pitch bend

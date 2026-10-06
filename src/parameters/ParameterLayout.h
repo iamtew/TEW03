@@ -79,5 +79,36 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterInt> (ParameterID { ParamID::seqPattern, 1 },
                                                       "Pattern", 0, 11, 0));
 
+    auto addLfo = [&] (int i)
+    {
+        const String n = "LFO " + String (i + 1);
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { ParamID::lfoRateIds[i], 1 }, n + " Rate",
+            NormalisableRange<float> (0.05f, 30.f, 0.01f, 0.4f), 1.f));
+        layout.add (std::make_unique<AudioParameterBool> (
+            ParameterID { ParamID::lfoSyncIds[i], 1 }, n + " Sync", false));
+        layout.add (std::make_unique<AudioParameterChoice> (
+            ParameterID { ParamID::lfoDivIds[i], 1 }, n + " Div",
+            StringArray { "1/16", "1/8", "1/4", "1/2", "1", "2" }, 2));
+        layout.add (std::make_unique<AudioParameterChoice> (
+            ParameterID { ParamID::lfoModeIds[i], 1 }, n + " Mode",
+            StringArray { "Free", "Trigger" }, 0));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { ParamID::lfoSmoothIds[i], 1 }, n + " Smooth", unit, 0.f, pct (unit)));
+    };
+    addLfo (0);
+    addLfo (1);
+
+    auto amtR = NormalisableRange<float> (-1.f, 1.f);
+    for (int d = 0; d < 8; ++d)
+    {
+        layout.add (std::make_unique<AudioParameterInt> (
+            ParameterID { ParamID::destLfoIds[d], 1 },
+            String (ParamID::destIds[d]) + " LFO", 0, 2, 0));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { ParamID::destAmtIds[d], 1 },
+            String (ParamID::destIds[d]) + " LFO Amt", amtR, 0.f));
+    }
+
     return layout;
 }
