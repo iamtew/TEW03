@@ -111,7 +111,8 @@ inline void readLfoXml (const std::string& xml, LfoShape out[numLfos])
 }
 
 inline std::string writePatchXml (const std::vector<PatchParam>& params,
-                                  const LfoShape shapes[numLfos])
+                                  const LfoShape shapes[numLfos],
+                                  const std::string& fxOrder = {})
 {
     std::string o = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TEW03PATCH>\n";
     for (const auto& p : params)
@@ -124,6 +125,12 @@ inline std::string writePatchXml (const std::vector<PatchParam>& params,
         o += line;
     }
     writeLfoXml (o, shapes);
+    if (! fxOrder.empty())
+    {
+        o += "  <FX order=\"";
+        o += fxOrder;
+        o += "\"/>\n";
+    }
     o += "</TEW03PATCH>\n";
     return o;
 }
@@ -135,12 +142,15 @@ inline std::string writePatchXml (const std::vector<PatchParam>& params)
     return writePatchXml (params, shapes);
 }
 
-inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out, LfoShape shapes[numLfos])
+inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out,
+                          LfoShape shapes[numLfos], std::string* fxOrder = nullptr)
 {
     if (xml.find ("<TEW03PATCH") == std::string::npos)
         return false;
 
     out.clear();
+    if (fxOrder != nullptr)
+        fxOrder->clear();
     std::size_t pos = 0;
     while ((pos = xml.find ("<PARAM", pos)) != std::string::npos)
     {
@@ -158,6 +168,19 @@ inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out, 
         out.push_back ({ std::move (id), (float) std::atof (val.c_str()) });
     }
     readLfoXml (xml, shapes);
+    if (fxOrder != nullptr)
+    {
+        const auto fxPos = xml.find ("<FX");
+        if (fxPos != std::string::npos)
+        {
+            const auto end = xml.find ('>', fxPos);
+            if (end != std::string::npos)
+            {
+                const auto tag = xml.substr (fxPos, end - fxPos);
+                readXmlAttr (tag, "order", *fxOrder);
+            }
+        }
+    }
     return true;
 }
 

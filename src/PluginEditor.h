@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "ui/EffectsPage.h"
 
 #include <functional>
 
@@ -35,6 +36,10 @@ private:
     void chooseSaveAs (bool patch);
     void chooseExport (bool patch);
     void chooseImport (bool patch);
+    void setEditorPage (int page);
+    void openPageMenu();
+    void cyclePage (int delta);
+    void applyPageVisibility();
 
     TEW03AudioProcessor& proc;
 
@@ -201,7 +206,9 @@ private:
     juce::ToggleButton runBtn { "Run" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt;
-    SlotBar patchBar, bankLibBar, patBar;
+    SlotBar patchBar, bankLibBar, patBar, pageBar;
+    EffectsPage effectsPage;
+    int editorPage = 0;
     std::unique_ptr<juce::FileChooser> chooser;
     PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;

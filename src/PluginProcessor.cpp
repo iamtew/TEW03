@@ -28,6 +28,7 @@ const juce::Identifier kLfo { "LFO" };
 const juce::Identifier kPt { "PT" };
 const juce::Identifier kX { "x" };
 const juce::Identifier kY { "y" };
+const juce::Identifier kFxOrder { "FX_ORDER" };
 constexpr const char* kInitPatch = "Init Patch";
 constexpr const char* kInitBank = "Init Bank";
 constexpr const char* kPatchExt = ".tew3p";
@@ -77,6 +78,13 @@ bool writeText (const juce::File& dest, const std::string& text)
 std::string readText (const juce::File& src)
 {
     return src.loadFileAsString().toStdString();
+}
+
+std::string fxOrderXml (std::uint64_t packed)
+{
+    char buf[32];
+    tew::formatFxOrder (packed, buf, (int) sizeof (buf));
+    return buf;
 }
 
 tew::Sequencer::Step stepFromTree (const juce::ValueTree& t)
@@ -148,6 +156,7 @@ TEW03AudioProcessor::TEW03AudioProcessor()
 
     resetLfoShapes();
     loadLfosFromState();
+    loadFxOrderFromState();
 }
 
 TEW03AudioProcessor::~TEW03AudioProcessor()
@@ -249,12 +258,13 @@ void TEW03AudioProcessor::parameterChanged (const juce::String& parameterID, flo
                 (int) raw (ParamID::seqPattern));
 }
 
-void TEW03AudioProcessor::prepareToPlay (double sampleRate, int)
+void TEW03AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine.prepare (sampleRate);
     sequencer.prepare (sampleRate);
     for (int i = 0; i < tew::numLfos; ++i)
         lfo[i].prepare (sampleRate);
+    fx.prepare (sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 }
 
 void TEW03AudioProcessor::releaseResources() {}
@@ -377,6 +387,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             }
         }
         render (0, numSamples);
+        fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
         return;
     }
 
@@ -409,6 +420,8 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
     if (rendered < numSamples)
         render (rendered, numSamples - rendered);
+
+    fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
 }
 
 juce::AudioProcessorEditor* TEW03AudioProcessor::createEditor()
@@ -562,6 +575,95 @@ void TEW03AudioProcessor::loadLfosFromState()
         }
     }
     publishLfoShapes();
+}
+
+void TEW03AudioProcessor::publishFxOrder (const int* types, int n)
+{
+    int buf[tew::fxCount];
+    int m = 0;
+    if (types == nullptr || n <= 0)
+        m = tew::fillDefaultFxOrder (buf);
+    else
+    {
+        m = n > tew::fxCount ? tew::fxCount : n;
+        for (int i = 0; i < m; ++i)
+            buf[i] = types[i];
+        m = tew::completeFxOrder (buf, m);
+    }
+    const auto packed = tew::packFxOrder (buf, m);
+    fxOrder.store (packed, std::memory_order_relaxed);
+    char str[32];
+    tew::formatFxOrder (packed, str, (int) sizeof (str));
+    apvts.state.setProperty (kFxOrder, juce::String (str), nullptr);
+}
+
+void TEW03AudioProcessor::writeFxOrderToState()
+{
+    char buf[32];
+    tew::formatFxOrder (fxOrder.load (std::memory_order_relaxed), buf, (int) sizeof (buf));
+    apvts.state.setProperty (kFxOrder, juce::String (buf), nullptr);
+}
+
+void TEW03AudioProcessor::loadFxOrderFromState()
+{
+    const auto s = apvts.state.getProperty (kFxOrder, "").toString();
+    int types[tew::fxCount];
+    int n = tew::parseFxOrder (s.toRawUTF8(), types);
+    n = tew::completeFxOrder (types, n);
+    fxOrder.store (tew::packFxOrder (types, n), std::memory_order_relaxed);
+}
+
+void TEW03AudioProcessor::getFxOrder (int* types, int& n) const
+{
+    n = tew::unpackFxOrder (fxOrder.load (std::memory_order_relaxed), types);
+    n = tew::completeFxOrder (types, n);
+}
+
+void TEW03AudioProcessor::setFxEnabled (int type, bool on)
+{
+    if (type < 0 || type >= tew::fxCount)
+        return;
+    if (auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (ParamID::fxOnIds[type])))
+    {
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (on ? 1.f : 0.f);
+        param->endChangeGesture();
+    }
+}
+
+void TEW03AudioProcessor::moveFx (int fromType, int beforeType)
+{
+    if (fromType < 0 || fromType >= tew::fxCount || fromType == beforeType)
+        return;
+    int types[tew::fxCount];
+    int n = 0;
+    getFxOrder (types, n);
+    int tmp[tew::fxCount];
+    int m = 0;
+    bool inserted = false;
+    for (int i = 0; i < n; ++i)
+    {
+        if (types[i] == fromType)
+            continue;
+        if (types[i] == beforeType && ! inserted)
+        {
+            tmp[m++] = fromType;
+            inserted = true;
+        }
+        tmp[m++] = types[i];
+    }
+    if (! inserted)
+        tmp[m++] = fromType;
+    publishFxOrder (tmp, m);
+}
+
+double TEW03AudioProcessor::getTailLengthSeconds() const
+{
+    if (raw (ParamID::fxOnIds[8]) >= 0.5f)
+        return 4.0;
+    if (raw (ParamID::fxOnIds[2]) >= 0.5f)
+        return 2.0;
+    return 0.0;
 }
 
 void TEW03AudioProcessor::loadBanksFromState()
@@ -865,6 +967,7 @@ void TEW03AudioProcessor::initPatch()
     syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
     resetLfoShapes();
     apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
+    publishFxOrder (nullptr, 0);
 }
 
 void TEW03AudioProcessor::initBank()
@@ -881,11 +984,15 @@ bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::Stri
 {
     std::vector<tew::PatchParam> params;
     tew::LfoShape shapes[tew::numLfos];
-    if (! tew::readPatchXml (readText (src), params, shapes))
+    std::string fxOrd;
+    if (! tew::readPatchXml (readText (src), params, shapes, &fxOrd))
         return false;
     applyPatchParams (params);
     for (int i = 0; i < tew::numLfos; ++i)
         setLfoShape (i, shapes[i]);
+    int types[tew::fxCount];
+    const int n = tew::parseFxOrder (fxOrd.c_str(), types);
+    publishFxOrder (types, n);
     apvts.state.setProperty (kPatchName, shownName, nullptr);
     return true;
 }
@@ -928,7 +1035,8 @@ bool TEW03AudioProcessor::savePatchAs (const juce::String& name)
     if (stem.isEmpty() || stem == kInitPatch)
         return false;
     if (! writeText (patchesDir().getChildFile (stem + kPatchExt),
-                     tew::writePatchXml (currentPatchParams(), uiLfo)))
+                     tew::writePatchXml (currentPatchParams(), uiLfo,
+                                         fxOrderXml (fxOrder.load (std::memory_order_relaxed)))))
         return false;
     apvts.state.setProperty (kPatchName, stem, nullptr);
     return true;
@@ -968,7 +1076,8 @@ bool TEW03AudioProcessor::exportPatch (const juce::File& dest)
     auto file = dest;
     if (! file.hasFileExtension ("tew3p"))
         file = file.withFileExtension ("tew3p");
-    return writeText (file, tew::writePatchXml (currentPatchParams(), uiLfo));
+    return writeText (file, tew::writePatchXml (currentPatchParams(), uiLfo,
+                                               fxOrderXml (fxOrder.load (std::memory_order_relaxed))));
 }
 
 bool TEW03AudioProcessor::exportBank (const juce::File& dest)
@@ -1015,6 +1124,7 @@ void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     writeBanksToState();
     writeLfosToState();
+    writeFxOrderToState();
 
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
@@ -1028,6 +1138,7 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             loadBanksFromState();
             loadLfosFromState();
+            loadFxOrderFromState();
             if (! apvts.state.hasProperty (kPatchName))
                 apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
             if (! apvts.state.hasProperty (kBankName))

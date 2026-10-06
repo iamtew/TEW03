@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dsp/FxChain.h"
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "dsp/SynthEngine.h"
@@ -28,7 +29,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return true; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override;
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -59,6 +60,11 @@ public:
     float lfoPhase (int index) const;
     bool lfoPlayheadOn() const;
     void resetLfoShapes();
+
+    void setFxEnabled (int type, bool on);
+    void moveFx (int fromType, int beforeType);
+    void getFxOrder (int* types, int& n) const;
+    std::uint64_t fxOrderPacked() const { return fxOrder.load (std::memory_order_relaxed); }
 
     juce::File patchesDir() const;
     juce::File banksDir() const;
@@ -104,12 +110,16 @@ private:
     bool loadBankFile (const juce::File& src, const juce::String& shownName);
     void writeLfosToState();
     void loadLfosFromState();
+    void writeFxOrderToState();
+    void loadFxOrderFromState();
+    void publishFxOrder (const int* types, int n);
     void publishLfoShapes();
     void fillVoiceMod (tew::VoiceMod& mod);
     void retriggerLfos();
     float lfoRateHz (int index) const;
 
     tew::SynthEngine engine;
+    tew::FxChain fx;
     tew::Sequencer sequencer;
     tew::Lfo lfo[tew::numLfos];
     tew::LfoShape uiLfo[tew::numLfos];
@@ -124,6 +134,7 @@ private:
     std::atomic<int> curBank { 0 };
     std::atomic<int> curPattern { 0 };
     std::atomic<int> heldKey { -1 };
+    std::atomic<std::uint64_t> fxOrder { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TEW03AudioProcessor)
 };

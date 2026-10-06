@@ -25,6 +25,7 @@
         <FILE id="voiH001" name="Voice.h" compile="0" resource="0" file="src/dsp/Voice.h"/>
         <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>
         <FILE id="seqH001" name="Sequencer.h" compile="0" resource="0" file="src/dsp/Sequencer.h"/>
+        <FILE id="fxcH001" name="FxChain.h" compile="0" resource="0" file="src/dsp/FxChain.h"/>
         <FILE id="lfoH001" name="Lfo.h" compile="0" resource="0" file="src/dsp/Lfo.h"/>
       </GROUP>
       <GROUP id="midGrp01" name="midi">
@@ -35,6 +36,9 @@
         <FILE id="plyH001" name="ParameterLayout.h" compile="0" resource="0"
               file="src/parameters/ParameterLayout.h"/>
         <FILE id="libH001" name="Library.h" compile="0" resource="0" file="src/parameters/Library.h"/>
+      </GROUP>
+      <GROUP id="uiGrp01" name="ui">
+        <FILE id="fxpH001" name="EffectsPage.h" compile="0" resource="0" file="src/ui/EffectsPage.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>
@@ -50,14 +54,14 @@
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <EXPORTFORMATS>
-    <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="icoPng01"
-            smallIcon="icoPng01">
+    <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="icoPng01" smallIcon="icoPng01">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="TEW03"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="TEW03"/>
@@ -76,6 +80,7 @@
         <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
         <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
         <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>

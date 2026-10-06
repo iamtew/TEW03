@@ -222,6 +222,29 @@ int main()
     assert (lfoLoaded[0].presetIndex() == 0);
     assert (lfoLoaded[1].presetIndex() == 2);
 
+    int orderIn[] = { 3, 0, 8 };
+    const auto packed = tew::packFxOrder (orderIn, 3);
+    int orderOut[tew::fxCount];
+    assert (tew::unpackFxOrder (packed, orderOut) == 3);
+    assert (orderOut[0] == 3 && orderOut[1] == 0 && orderOut[2] == 8);
+    char orderBuf[32];
+    tew::formatFxOrder (packed, orderBuf, 32);
+    const auto fxXml = tew::writePatchXml (withLfo, shapes, orderBuf);
+    assert (fxXml.find ("<FX order=\"3,0,8\"") != std::string::npos);
+    std::string fxOrd;
+    tew::LfoShape fxShapes[tew::numLfos];
+    std::vector<tew::PatchParam> fxParams;
+    assert (tew::readPatchXml (fxXml, fxParams, fxShapes, &fxOrd));
+    int parsed[tew::fxCount];
+    assert (tew::parseFxOrder (fxOrd.c_str(), parsed) == 3);
+    assert (parsed[0] == 3 && parsed[1] == 0 && parsed[2] == 8);
+    assert (tew::parseFxOrder ("", parsed) == 0);
+    int partial[tew::fxCount] {};
+    partial[0] = 3;
+    partial[1] = 0;
+    assert (tew::completeFxOrder (partial, 2) == tew::fxCount);
+    assert (partial[0] == 3 && partial[1] == 0 && partial[2] == 1);
+
     std::puts ("seq_check ok");
     return 0;
 }

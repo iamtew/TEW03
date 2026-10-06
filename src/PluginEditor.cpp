@@ -1425,7 +1425,7 @@ void TEW03AudioProcessorEditor::LfoLane::cyclePreset (int delta)
 }
 
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
-    : juce::AudioProcessorEditor (p), proc (p), pianoRoll (p)
+    : juce::AudioProcessorEditor (p), proc (p), effectsPage (p), pianoRoll (p)
 {
     setLookAndFeel (&panelLnF);
     setOpaque (true);
@@ -1546,6 +1546,10 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     patchBar.setTooltip ("Patch: sound knobs. Click for save / load.");
     bankLibBar.setTooltip ("Bank: all 36 patterns. Click for save / load.");
     patBar.setTooltip ("Pattern in the current bank (1-12)");
+    pageBar.setTooltip ("Main synth view or Effects chain");
+    pageBar.setText ("Main");
+    pageBar.onStep = [this] (int d) { cyclePage (d); };
+    pageBar.onOpen = [this] { openPageMenu(); };
     patchBar.onStep = [this] (int d) { cyclePatch (d); };
     patchBar.onOpen = [this] { openPatchMenu(); };
     bankLibBar.onStep = [this] (int d) { cycleBank (d); };
@@ -1553,9 +1557,12 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     patBar.onStep = [this] (int d) { cyclePattern (d); };
     patBar.onOpen = [this] { openPatternMenu(); };
     patBar.onPopup = [this] { openPatternClipMenu(); };
+    addAndMakeVisible (pageBar);
     addAndMakeVisible (patchBar);
     addAndMakeVisible (bankLibBar);
     addAndMakeVisible (patBar);
+    addAndMakeVisible (effectsPage);
+    effectsPage.setVisible (false);
     refreshLibraryNames();
     patBar.setText (juce::String (proc.currentPattern() + 1));
 
@@ -1606,6 +1613,14 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText ("v" JucePlugin_VersionString, nameCol, juce::Justification::centredLeft, false);
     g.drawText ("STUPID SYSTEMS", title, juce::Justification::centredRight, false);
 
+    if (editorPage != 0)
+    {
+        auto bevel = getLocalBounds().toFloat().reduced (1.5f);
+        g.setColour (kChassisDark);
+        g.drawRoundedRectangle (bevel, 2.f, 2.f);
+        return;
+    }
+
     auto header = [this, &g] (juce::Rectangle<int> area, const juce::String& name)
     {
         g.setColour (kInk.withAlpha (0.55f));
@@ -1642,9 +1657,13 @@ void TEW03AudioProcessorEditor::resized()
     auto title = r.removeFromTop (kTitleH);
     title.removeFromLeft (90);
     title.removeFromRight (110);
+    pageBar.setBounds (title.removeFromLeft (80).reduced (4, 2));
     const int barW = title.getWidth() / 2;
     patchBar.setBounds (title.removeFromLeft (barW).reduced (6, 2));
     bankLibBar.setBounds (title.reduced (6, 2));
+
+    const auto body = r;
+    effectsPage.setBounds (body);
 
     lfoArea = r.removeFromBottom (kLfoH);
     auto strip = r.removeFromBottom (kStripH);
@@ -1710,6 +1729,7 @@ void TEW03AudioProcessorEditor::resized()
     const int half = lfo.getWidth() / 2;
     lfoLane0.setBounds (lfo.removeFromLeft (half));
     lfoLane1.setBounds (lfo);
+    applyPageVisibility();
 }
 
 void TEW03AudioProcessorEditor::timerCallback()
@@ -1719,6 +1739,8 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshSlot();
     refreshLibraryNames();
     refreshLfo();
+    if (editorPage != 0)
+        effectsPage.refresh();
 }
 
 void TEW03AudioProcessorEditor::syncSteps()
@@ -1961,6 +1983,69 @@ void fillLibraryMenu (juce::PopupMenu& m, const juce::StringArray& names,
     m.addItem (kMenuImport, "Import...");
 }
 } // namespace
+
+void TEW03AudioProcessorEditor::setEditorPage (int page)
+{
+    editorPage = page != 0 ? 1 : 0;
+    pageBar.setText (editorPage == 0 ? "Main" : "Effects");
+    applyPageVisibility();
+    resized();
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::cyclePage (int delta)
+{
+    setEditorPage ((editorPage + delta + 2) % 2);
+}
+
+void TEW03AudioProcessorEditor::openPageMenu()
+{
+    juce::PopupMenu m;
+    m.addItem (1, "Main", true, editorPage == 0);
+    m.addItem (2, "Effects", true, editorPage != 0);
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (pageBar),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         safe->setEditorPage (result == 2 ? 1 : 0);
+                     });
+}
+
+void TEW03AudioProcessorEditor::applyPageVisibility()
+{
+    const bool main = editorPage == 0;
+    effectsPage.setVisible (! main);
+    if (! main)
+        effectsPage.refresh();
+
+    auto vis = [main] (juce::Component& c) { c.setVisible (main); };
+    vis (pianoRoll);
+    vis (lockBtn);
+    vis (keyLabel);
+    vis (scaleLabel);
+    vis (bankLabel);
+    vis (patternLabel);
+    vis (keyBox);
+    vis (scaleBox);
+    vis (bankBox);
+    vis (x2Btn);
+    vis (clearBtn);
+    vis (runBtn);
+    vis (patBar);
+    vis (lfoLane0);
+    vis (lfoLane1);
+    for (auto* c : seqCells)
+        vis (*c);
+    for (auto* c : filterCells)
+        vis (*c);
+    for (auto* c : masterCells)
+        vis (*c);
+    const int n = gridSteps (proc);
+    for (int i = 0; i < steps.size(); ++i)
+        steps[i]->setVisible (main && i < n);
+}
 
 void TEW03AudioProcessorEditor::openPatchMenu()
 {

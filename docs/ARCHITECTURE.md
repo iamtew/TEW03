@@ -17,7 +17,13 @@ Data flow (audio thread):
 1. Host MIDI in  →  MidiHandler
 2. Sequencer (if running) generates note / accent / slide events
 3. Events → Voice (for sound) **and** → MIDI Output buffer (for DAW / other plugins)
-4. Voice: Osc → (pre-drive) → Filter (env + accent) → (post-drive) → Amp Env → Output
+4. Voice: Osc → (pre-drive) → Filter (env + accent) → Amp Env → Output
+5. Post-voice FX chain (insert, user order) → master out
+
+FX chain (Effects page):
+- One instance each of chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb.
+- Enable from the left rail; drag rows to reorder. Bypass is APVTS; order is `FX_ORDER` on `apvts.state` (also in `.tew3p`).
+- Default all off. DSP is `juce::dsp` in `src/dsp/FxChain.h`, allocation-free after `prepareToPlay`.
 
 Play modes (`playMode`):
 - Keyboard: host MIDI notes play the voice.
@@ -29,7 +35,7 @@ Pattern bank:
 - Live sequencer is the current slot. Edits dual-write. Slot switch copies packed steps only.
 
 Patch vs bank files (message thread only):
-- Patch (`.tew3p`) = APVTS knobs / play settings. Never includes `BANKS`, `seqBank`, or `seqPattern`.
+- Patch (`.tew3p`) = APVTS knobs / play settings / LFO shapes / FX params + order. Never includes `BANKS`, `seqBank`, or `seqPattern`.
 - Bank (`.tew3b`) = all 36 patterns. Never includes patch knobs.
 - Library folder: `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`.
 - Current names live as `PATCH_NAME` / `BANK_NAME` on `apvts.state` for DAW recall.

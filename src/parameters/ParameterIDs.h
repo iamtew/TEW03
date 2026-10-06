@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <cstring>
 
 namespace ParamID
@@ -71,4 +72,175 @@ namespace ParamID
                 return i;
         return -1;
     }
+
+    inline constexpr int fxCount = 9;
+
+    inline constexpr const char* fxNames[fxCount] = {
+        "Chorus", "Compressor", "Delay", "Distortion", "Equalizer",
+        "Filter", "Flanger", "Phaser", "Reverb"
+    };
+
+    inline constexpr const char* fxOnIds[fxCount] = {
+        "fxChoOn", "fxCmpOn", "fxDlyOn", "fxDstOn", "fxEqOn",
+        "fxFltOn", "fxFlaOn", "fxPhaOn", "fxRevOn"
+    };
+
+    inline constexpr const char* fxChoRate = "fxChoRate";
+    inline constexpr const char* fxChoDepth = "fxChoDepth";
+    inline constexpr const char* fxChoMix = "fxChoMix";
+    inline constexpr const char* fxChoFb = "fxChoFb";
+
+    inline constexpr const char* fxCmpThr = "fxCmpThr";
+    inline constexpr const char* fxCmpRat = "fxCmpRat";
+    inline constexpr const char* fxCmpAtk = "fxCmpAtk";
+    inline constexpr const char* fxCmpRel = "fxCmpRel";
+    inline constexpr const char* fxCmpMix = "fxCmpMix";
+
+    inline constexpr const char* fxDlyTime = "fxDlyTime";
+    inline constexpr const char* fxDlyFb = "fxDlyFb";
+    inline constexpr const char* fxDlyMix = "fxDlyMix";
+    inline constexpr const char* fxDlyCut = "fxDlyCut";
+    inline constexpr const char* fxDlySync = "fxDlySync";
+    inline constexpr const char* fxDlyDiv = "fxDlyDiv";
+
+    inline constexpr const char* fxDstDrive = "fxDstDrive";
+    inline constexpr const char* fxDstMix = "fxDstMix";
+
+    inline constexpr const char* fxEqLow = "fxEqLow";
+    inline constexpr const char* fxEqMid = "fxEqMid";
+    inline constexpr const char* fxEqHigh = "fxEqHigh";
+
+    inline constexpr const char* fxFltCut = "fxFltCut";
+    inline constexpr const char* fxFltRes = "fxFltRes";
+    inline constexpr const char* fxFltMix = "fxFltMix";
+    inline constexpr const char* fxFltType = "fxFltType";
+
+    inline constexpr const char* fxFlaRate = "fxFlaRate";
+    inline constexpr const char* fxFlaDepth = "fxFlaDepth";
+    inline constexpr const char* fxFlaFb = "fxFlaFb";
+    inline constexpr const char* fxFlaMix = "fxFlaMix";
+
+    inline constexpr const char* fxPhaRate = "fxPhaRate";
+    inline constexpr const char* fxPhaDepth = "fxPhaDepth";
+    inline constexpr const char* fxPhaFb = "fxPhaFb";
+    inline constexpr const char* fxPhaMix = "fxPhaMix";
+    inline constexpr const char* fxPhaCentre = "fxPhaCentre";
+
+    inline constexpr const char* fxRevSize = "fxRevSize";
+    inline constexpr const char* fxRevDamp = "fxRevDamp";
+    inline constexpr const char* fxRevMix = "fxRevMix";
+    inline constexpr const char* fxRevWidth = "fxRevWidth";
+}
+
+namespace tew
+{
+inline constexpr int fxCount = ParamID::fxCount;
+
+inline int fillDefaultFxOrder (int* types)
+{
+    if (types == nullptr)
+        return 0;
+    for (int i = 0; i < fxCount; ++i)
+        types[i] = i;
+    return fxCount;
+}
+
+inline int completeFxOrder (int* types, int n)
+{
+    if (types == nullptr)
+        return 0;
+    bool seen[fxCount] {};
+    int tmp[fxCount];
+    int m = 0;
+    n = n < 0 ? 0 : (n > fxCount ? fxCount : n);
+    for (int i = 0; i < n; ++i)
+    {
+        const int t = types[i];
+        if (t < 0 || t >= fxCount || seen[t])
+            continue;
+        seen[t] = true;
+        tmp[m++] = t;
+    }
+    for (int t = 0; t < fxCount; ++t)
+        if (! seen[t])
+            tmp[m++] = t;
+    for (int i = 0; i < m; ++i)
+        types[i] = tmp[i];
+    return m;
+}
+
+inline std::uint64_t packFxOrder (const int* types, int n)
+{
+    std::uint64_t packed = 0;
+    if (types == nullptr)
+        return 0;
+    n = n < 0 ? 0 : (n > fxCount ? fxCount : n);
+    for (int i = 0; i < n; ++i)
+    {
+        const int t = types[i];
+        if (t < 0 || t >= fxCount)
+            continue;
+        packed |= (std::uint64_t) ((t & 15) + 1) << (i * 4);
+    }
+    return packed;
+}
+
+inline int unpackFxOrder (std::uint64_t packed, int* types)
+{
+    if (types == nullptr)
+        return 0;
+    int n = 0;
+    bool seen[fxCount] {};
+    for (int i = 0; i < fxCount; ++i)
+    {
+        const int v = (int) ((packed >> (i * 4)) & 15);
+        if (v == 0)
+            break;
+        const int t = v - 1;
+        if (t < 0 || t >= fxCount || seen[t])
+            continue;
+        seen[t] = true;
+        types[n++] = t;
+    }
+    return n;
+}
+
+inline int parseFxOrder (const char* s, int* types)
+{
+    int n = 0;
+    if (s == nullptr || types == nullptr)
+        return 0;
+    bool seen[fxCount] {};
+    while (*s != 0 && n < fxCount)
+    {
+        if (*s < '0' || *s > '8')
+        {
+            ++s;
+            continue;
+        }
+        const int t = *s - '0';
+        ++s;
+        if (seen[t])
+            continue;
+        seen[t] = true;
+        types[n++] = t;
+    }
+    return n;
+}
+
+inline void formatFxOrder (std::uint64_t packed, char* buf, int bufSize)
+{
+    if (buf == nullptr || bufSize <= 0)
+        return;
+    int types[fxCount];
+    const int n = unpackFxOrder (packed, types);
+    int w = 0;
+    for (int i = 0; i < n && w + 2 < bufSize; ++i)
+    {
+        if (i > 0)
+            buf[w++] = ',';
+        buf[w++] = (char) ('0' + types[i]);
+    }
+    buf[w] = 0;
+}
 }
