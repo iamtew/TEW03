@@ -1226,6 +1226,7 @@ TEW03AudioProcessorEditor::LfoLane::LfoLane (TEW03AudioProcessorEditor& ed, int 
     };
     setupKnob (rateSlider, 44);
     setupKnob (smoothSlider, 40);
+    smoothSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 12);
 
     auto& st = editor.proc.apvts;
     modeAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
@@ -1258,8 +1259,11 @@ void TEW03AudioProcessorEditor::LfoLane::resized()
     rateSlider.setBounds (tempoR);
     divBox.setBounds (rateSlider.getBounds());
 
-    smoothLabel.setBounds (ctrls.removeFromTop (12));
-    smoothSlider.setBounds (ctrls);
+    auto smoothR = ctrls;
+    smoothSlider.setBounds (smoothR);
+    smoothSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false,
+                                  juce::jmax (40, smoothR.getWidth() - 40), 12);
+    smoothLabel.setBounds (smoothR.withTrimmedLeft (40).removeFromTop (12));
 
     auto head = r.removeFromTop (22);
     handle.setBounds (head.removeFromLeft (52));
