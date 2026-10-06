@@ -9,7 +9,7 @@ constexpr int kEditorH = 628;
 constexpr int kLfoH = 140;
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
-constexpr int kTitleH = 28;
+constexpr int kTitleH = 36;
 constexpr int kSeqW = 236;
 constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
@@ -1457,10 +1457,12 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 
     auto r = getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
+    auto nameCol = title.removeFromLeft (90);
     g.setColour (kInk);
     g.setFont (boldFont (16.f));
-    g.drawText ("TEW03", title.removeFromLeft (90), juce::Justification::centredLeft, false);
+    g.drawText ("TEW03", nameCol.removeFromTop (20), juce::Justification::centredLeft, false);
     g.setFont (boldFont (10.f));
+    g.drawText ("v" JucePlugin_VersionString, nameCol, juce::Justification::centredLeft, false);
     g.drawText ("STUPID SYSTEMS", title, juce::Justification::centredRight, false);
 
     auto header = [this, &g] (juce::Rectangle<int> area, const juce::String& name)
