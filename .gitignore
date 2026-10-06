@@ -24,3 +24,6 @@ Desktop.ini
 tests/*.exe
 tests/*.obj
 seq_check.obj
+
+# Affinity Studio lock files
+assets/*.af~lock~
