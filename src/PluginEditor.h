@@ -28,6 +28,7 @@ private:
     void openPatchMenu();
     void openBankMenu();
     void openPatternMenu();
+    void openPatternClipMenu();
     void cyclePatch (int delta);
     void cycleBank (int delta);
     void cyclePattern (int delta);
@@ -102,6 +103,7 @@ private:
         juce::String text;
         std::function<void (int)> onStep;
         std::function<void()> onOpen;
+        std::function<void()> onPopup;
     };
 
     struct ParamCell : public juce::Component,
@@ -195,6 +197,7 @@ private:
     juce::ComboBox keyBox, scaleBox, bankBox;
     juce::ToggleButton lockBtn { "Lock" };
     juce::ToggleButton x2Btn { "2x" };
+    juce::ToggleButton clearBtn { "Clear" };
     juce::ToggleButton runBtn { "Run" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt;

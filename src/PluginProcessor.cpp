@@ -722,6 +722,41 @@ void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
     writeStepToState (bank, pat, index, step);
 }
 
+void TEW03AudioProcessor::applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps])
+{
+    const int bank = currentBank();
+    const int pat = currentPattern();
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+        patterns[bank][pat][i].store (tew::Sequencer::pack (src[i]), std::memory_order_relaxed);
+    loadLiveFromSlot();
+    writeBanksToState();
+}
+
+void TEW03AudioProcessor::copyCurrentPattern()
+{
+    storeLiveToSlot();
+    const int bank = currentBank();
+    const int pat = currentPattern();
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+        patternClip[i] = tew::Sequencer::unpack (patterns[bank][pat][i].load (std::memory_order_relaxed));
+    patternClipValid = true;
+}
+
+void TEW03AudioProcessor::pasteCurrentPattern()
+{
+    if (! patternClipValid)
+        return;
+    applyCurrentPattern (patternClip);
+}
+
+void TEW03AudioProcessor::clearCurrentPattern()
+{
+    tew::Sequencer::Step empty[tew::Sequencer::maxSteps];
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+        empty[i] = { -1, false, false };
+    applyCurrentPattern (empty);
+}
+
 void TEW03AudioProcessor::syncSeqLength (bool doubled)
 {
     sequencer.reshapeTo (doubled ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);

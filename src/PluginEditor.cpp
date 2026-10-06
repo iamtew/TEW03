@@ -834,6 +834,13 @@ void TEW03AudioProcessorEditor::PanelLnF::drawToggleButton (juce::Graphics& g, j
     g.fillRoundedRectangle (bounds, 3.f);
     g.setFont (boldFont (10.f));
 
+    if (b.getComponentID() == "plain")
+    {
+        g.setColour (kCream);
+        g.drawText (b.getButtonText(), bounds.toNearestInt(), juce::Justification::centred, false);
+        return;
+    }
+
     if (b.getButtonText().length() <= 1)
     {
         g.setColour (b.getToggleState() ? kLedOn : kCream);
@@ -1075,6 +1082,12 @@ void TEW03AudioProcessorEditor::SlotBar::mouseUp (const juce::MouseEvent& e)
 {
     if (! e.mouseWasClicked())
         return;
+    if (e.mods.isPopupMenu())
+    {
+        if (onPopup)
+            onPopup();
+        return;
+    }
     const int w = getWidth();
     if (e.x < 20)
     {
@@ -1493,6 +1506,16 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         pianoRoll.repaint();
     };
 
+    clearBtn.setClickingTogglesState (false);
+    clearBtn.setComponentID ("plain");
+    clearBtn.setTooltip ("Clear the current pattern");
+    addAndMakeVisible (clearBtn);
+    clearBtn.onClick = [this]
+    {
+        proc.clearCurrentPattern();
+        syncSteps();
+    };
+
     static constexpr const char* kKeys[] = {
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     };
@@ -1529,6 +1552,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     bankLibBar.onOpen = [this] { openBankMenu(); };
     patBar.onStep = [this] (int d) { cyclePattern (d); };
     patBar.onOpen = [this] { openPatternMenu(); };
+    patBar.onPopup = [this] { openPatternClipMenu(); };
     addAndMakeVisible (patchBar);
     addAndMakeVisible (bankLibBar);
     addAndMakeVisible (patBar);
@@ -1634,6 +1658,7 @@ void TEW03AudioProcessorEditor::resized()
     lock.removeFromLeft (10);
     scaleLabel.setBounds (lock.removeFromLeft (40));
     scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
+    clearBtn.setBounds (lock.removeFromRight (56).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
     const int clusterW = 36 + 48 + 28 + 88;
@@ -1652,7 +1677,7 @@ void TEW03AudioProcessorEditor::resized()
     if (seqCells.size() >= 3)
     {
         auto playRow = seq.removeFromTop (36);
-        auto run = playRow.removeFromLeft (52);
+        auto run = playRow.removeFromLeft (68);
         run.removeFromTop (kLabelH);
         runBtn.setBounds (run.reduced (2, 2));
         seqCells[0]->setBounds (playRow);
@@ -1885,6 +1910,28 @@ void TEW03AudioProcessorEditor::openPatternMenu()
                          p->beginChangeGesture();
                          p->setValueNotifyingHost (p->convertTo0to1 ((float) (result - 1)));
                          p->endChangeGesture();
+                     });
+}
+
+void TEW03AudioProcessorEditor::openPatternClipMenu()
+{
+    juce::PopupMenu m;
+    m.addItem (1, "Copy");
+    m.addItem (2, "Paste", proc.hasPatternClip());
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (patBar),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         if (result == 1)
+                             safe->proc.copyCurrentPattern();
+                         else if (result == 2)
+                         {
+                             safe->proc.pasteCurrentPattern();
+                             safe->syncSteps();
+                         }
                      });
 }
 
