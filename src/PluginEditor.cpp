@@ -243,6 +243,47 @@ RollGeom makeGeom (juce::Rectangle<int> bounds, int rows, int cols)
     return g;
 }
 
+// +1 top (higher pitches), -1 bottom, 0 not on overlay
+int keyOverlayDir (const RollGeom& geo, juce::Point<int> p)
+{
+    if (p.x >= (int) geo.grid.getX() || p.x < (int) geo.keys.getX())
+        return 0;
+    const float y = (float) p.y;
+    if (y < geo.keys.getY() || y >= geo.keys.getBottom())
+        return 0;
+    if (y < geo.keys.getY() + geo.rowH)
+        return 1;
+    if (y >= geo.keys.getBottom() - geo.rowH)
+        return -1;
+    return 0;
+}
+
+void paintKeyOverlay (juce::Graphics& g, juce::Rectangle<float> band, bool up, bool held)
+{
+    g.setColour (juce::Colours::black.withAlpha (held ? 0.5f : 0.35f));
+    g.fillRect (band);
+
+    juce::Path chev;
+    const float cx = band.getCentreX();
+    const float cy = band.getCentreY();
+    if (up)
+    {
+        chev.startNewSubPath (cx - 7.f, cy + 3.f);
+        chev.lineTo (cx, cy - 4.f);
+        chev.lineTo (cx + 7.f, cy + 3.f);
+    }
+    else
+    {
+        chev.startNewSubPath (cx - 7.f, cy - 3.f);
+        chev.lineTo (cx, cy + 4.f);
+        chev.lineTo (cx + 7.f, cy - 3.f);
+    }
+
+    g.setColour (juce::Colours::black.withAlpha (0.75f));
+    g.strokePath (chev, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved,
+                                             juce::PathStrokeType::rounded));
+}
+
 int noteAtY (const RollGeom& g, float y, const RollView& v)
 {
     const int row = juce::jlimit (0, g.rows - 1,
@@ -326,6 +367,32 @@ TEW03AudioProcessorEditor::PianoRoll::PianoRoll (TEW03AudioProcessor& p)
 {
 }
 
+TEW03AudioProcessorEditor::PianoRoll::~PianoRoll()
+{
+    stopTimer();
+}
+
+void TEW03AudioProcessorEditor::PianoRoll::stopHold()
+{
+    if (holdDir == 0)
+        return;
+    holdDir = 0;
+    stopTimer();
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::PianoRoll::timerCallback()
+{
+    if (holdDir == 0)
+    {
+        stopTimer();
+        return;
+    }
+    if (getTimerInterval() != 80)
+        startTimer (80);
+    scrollBy (holdDir);
+}
+
 void TEW03AudioProcessorEditor::PianoRoll::setPlayhead (int step)
 {
     if (playhead == step)
@@ -339,9 +406,25 @@ int TEW03AudioProcessorEditor::PianoRoll::lockNote (int note) const
     return locked ? snapScale (note, keyRoot, minor) : juce::jlimit (kNoteMin, kNoteMax, note);
 }
 
-void TEW03AudioProcessorEditor::PianoRoll::scrollBy (int semitones)
+void TEW03AudioProcessorEditor::PianoRoll::scrollBy (int steps)
 {
-    const int next = clampViewLow (viewLow + semitones, locked, keyRoot, minor);
+    if (steps == 0)
+        return;
+
+    int next = viewLow;
+    if (locked)
+    {
+        const int dir = steps > 0 ? 1 : -1;
+        const int n = steps > 0 ? steps : -steps;
+        for (int i = 0; i < n; ++i)
+            next = stepScale (next, dir, keyRoot, minor);
+        next = clampViewLow (next, true, keyRoot, minor);
+    }
+    else
+    {
+        next = clampViewLow (viewLow + steps, false, keyRoot, minor);
+    }
+
     if (next == viewLow)
         return;
     viewLow = next;
@@ -397,6 +480,10 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
             g.drawText (juce::String (noteOctave (note)), label,
                         juce::Justification::centredRight, false);
     }
+
+    paintKeyOverlay (g, geo.keys.withHeight (geo.rowH), true, holdDir > 0);
+    paintKeyOverlay (g, geo.keys.withY (geo.keys.getBottom() - geo.rowH).withHeight (geo.rowH),
+                     false, holdDir < 0);
 
     if (playhead >= 0 && playhead < geo.cols)
     {
@@ -513,6 +600,19 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
     used.setHeight (visibleRows (v) * kRowH);
     const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
 
+    const int overlay = keyOverlayDir (geo, e.getPosition());
+    if (overlay != 0)
+    {
+        gutterDrag = false;
+        dragStep = -1;
+        dragged = false;
+        holdDir = overlay;
+        scrollBy (holdDir);
+        startTimer (350);
+        repaint();
+        return;
+    }
+
     gutterDrag = e.x < (int) geo.grid.getX();
     gutterStartY = e.y;
     gutterStartView = viewLow;
@@ -522,10 +622,17 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
 
 void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
 {
+    if (holdDir != 0)
+        return;
+
     if (gutterDrag)
     {
         const int delta = (gutterStartY - e.y) / kRowH;
-        scrollBy ((gutterStartView + delta) - viewLow);
+        viewLow = gutterStartView;
+        if (delta != 0)
+            scrollBy (delta);
+        else
+            repaint();
         return;
     }
 
@@ -549,6 +656,12 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
 
 void TEW03AudioProcessorEditor::PianoRoll::mouseUp (const juce::MouseEvent& e)
 {
+    if (holdDir != 0)
+    {
+        stopHold();
+        return;
+    }
+
     if (gutterDrag)
     {
         gutterDrag = false;

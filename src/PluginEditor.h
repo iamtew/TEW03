@@ -37,17 +37,21 @@ private:
 
     TEW03AudioProcessor& proc;
 
-    struct PianoRoll : public juce::Component
+    struct PianoRoll : public juce::Component,
+                       private juce::Timer
     {
         explicit PianoRoll (TEW03AudioProcessor& p);
+        ~PianoRoll() override;
         void paint (juce::Graphics& g) override;
         void mouseDown (const juce::MouseEvent& e) override;
         void mouseDrag (const juce::MouseEvent& e) override;
         void mouseUp (const juce::MouseEvent& e) override;
         void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w) override;
+        void timerCallback() override;
         void setPlayhead (int step);
         int lockNote (int note) const;
-        void scrollBy (int semitones);
+        void scrollBy (int steps);
+        void stopHold();
 
         TEW03AudioProcessor& proc;
         int playhead = -1;
@@ -56,6 +60,7 @@ private:
         int viewLow = 36; // C2, one octave window
         int gutterStartY = 0;
         int gutterStartView = 36;
+        int holdDir = 0; // +1 top overlay, -1 bottom, 0 idle
         bool minor = false;
         bool locked = true;
         bool dragged = false;
