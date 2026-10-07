@@ -145,6 +145,26 @@ private:
         p->endChangeGesture();
     }
 
+    void resetParamId (const char* id)
+    {
+        auto* p = proc.apvts.getParameter (id);
+        if (p == nullptr)
+            return;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (p->getDefaultValue());
+        p->endChangeGesture();
+    }
+
+    void resetBand (int b)
+    {
+        resetParamId (typeId (b));
+        resetParamId (freqId (b));
+        resetParamId (gainId (b));
+        resetParamId (qId (b));
+        inspector.bind();
+        curve.repaint();
+    }
+
     struct BandKnob : public juce::Component
     {
         BandKnob()
@@ -507,6 +527,12 @@ private:
             if (drag < 0)
                 return;
             owner.selectBand (drag);
+            if (e.getNumberOfClicks() >= 2)
+            {
+                owner.resetBand (drag);
+                drag = -1;
+                return;
+            }
             owner.beginParam (owner.freqId (drag));
             owner.beginParam (owner.gainId (drag));
             gesturing = true;
@@ -546,9 +572,7 @@ private:
             const int b = hitBand (e.position, params, bq);
             if (b < 0)
                 return;
-            owner.beginParam (owner.gainId (b));
-            owner.setParam (owner.gainId (b), 0.f);
-            owner.endParam (owner.gainId (b));
+            owner.resetBand (b);
         }
 
         void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override

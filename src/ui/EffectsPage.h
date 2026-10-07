@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../PluginProcessor.h"
+#include "../dsp/EqBiquad.h"
 
 #include <JuceHeader.h>
 
@@ -94,6 +95,8 @@ private:
     static const juce::Colour kLedOn;
     static const juce::Colour kLedOff;
     static const juce::Colour kLaneBlack;
+    static const juce::Colour kEqSum;
+    static const juce::Colour kEqBand[tew::eqBandCount];
 
     static juce::Font labelFont (float h)
     {
@@ -237,20 +240,8 @@ private:
                     add (ParamID::fxDstMix, "Mix");
                     break;
                 case 4:
-                    for (int b = 0; b < tew::eqBandCount; ++b)
-                    {
-                        auto* pick = eqPick.add (new juce::ToggleButton (juce::String (b + 1)));
-                        pick->setClickingTogglesState (true);
-                        pick->setRadioGroupId (40);
-                        pick->setComponentID ("plain");
-                        addAndMakeVisible (pick);
-                        pick->onClick = [this, b]
-                        {
-                            eqBand = b;
-                            bindEq();
-                        };
-                    }
-                    eqPick[0]->setToggleState (true, juce::dontSendNotification);
+                    eqPlot = std::make_unique<EqPlot> (*this);
+                    addAndMakeVisible (*eqPlot);
                     add (ParamID::fxEqType[0], "Type");
                     add (ParamID::fxEqFreq[0], "Freq");
                     add (ParamID::fxEqGain[0], "Gain");
@@ -294,7 +285,277 @@ private:
             knobs[1]->bind (ParamID::fxEqFreq[eqBand], "Freq");
             knobs[2]->bind (ParamID::fxEqGain[eqBand], "Gain");
             knobs[3]->bind (ParamID::fxEqQ[eqBand], "Q");
+            if (eqPlot != nullptr)
+                eqPlot->repaint();
         }
+
+        void setEqParam (const char* id, float v)
+        {
+            auto* p = dynamic_cast<juce::RangedAudioParameter*> (owner.proc.apvts.getParameter (id));
+            if (p == nullptr)
+                return;
+            p->setValueNotifyingHost (p->convertTo0to1 (p->getNormalisableRange().snapToLegalValue (v)));
+        }
+
+        void beginEq (const char* id)
+        {
+            if (auto* p = owner.proc.apvts.getParameter (id))
+                p->beginChangeGesture();
+        }
+        void endEq (const char* id)
+        {
+            if (auto* p = owner.proc.apvts.getParameter (id))
+                p->endChangeGesture();
+        }
+
+        float loadEq (const char* id) const
+        {
+            auto* v = owner.proc.apvts.getRawParameterValue (id);
+            return v != nullptr ? v->load() : 0.f;
+        }
+
+        void resetEqId (const char* id)
+        {
+            auto* p = owner.proc.apvts.getParameter (id);
+            if (p == nullptr)
+                return;
+            p->beginChangeGesture();
+            p->setValueNotifyingHost (p->getDefaultValue());
+            p->endChangeGesture();
+        }
+
+        void resetEqBand (int b)
+        {
+            resetEqId (ParamID::fxEqType[b]);
+            resetEqId (ParamID::fxEqFreq[b]);
+            resetEqId (ParamID::fxEqGain[b]);
+            resetEqId (ParamID::fxEqQ[b]);
+            bindEq();
+        }
+
+        struct EqPlot : public juce::Component
+        {
+            explicit EqPlot (FxRow& row) : fx (row)
+            {
+                setMouseCursor (juce::MouseCursor::CrosshairCursor);
+            }
+
+            float sr() const
+            {
+                const double s = fx.owner.proc.getSampleRate();
+                return s > 1.0 ? (float) s : 44100.f;
+            }
+
+            juce::Rectangle<float> plot() const { return getLocalBounds().toFloat().reduced (4.f, 6.f); }
+
+            static float xToHz (float x01)
+            {
+                return 20.f * std::pow (10.f, juce::jlimit (0.f, 1.f, x01) * 3.f);
+            }
+            static float hzToX (float hz)
+            {
+                return std::log10 (juce::jlimit (20.f, 20000.f, hz) / 20.f) / 3.f;
+            }
+            static float yToDb (float y01)
+            {
+                return (1.f - juce::jlimit (0.f, 1.f, y01)) * 36.f - 18.f;
+            }
+            static float dbToY (float db)
+            {
+                return 1.f - juce::jlimit (0.f, 1.f, (db + 18.f) / 36.f);
+            }
+
+            juce::Point<float> bandPos (const tew::EqBandParam& p, const tew::Biquad& bq) const
+            {
+                auto r = plot();
+                float db = p.gainDb;
+                if (p.type == tew::eqTypeHP || p.type == tew::eqTypeLP || p.type <= tew::eqTypeOff)
+                {
+                    if (p.type > tew::eqTypeOff)
+                    {
+                        tew::Biquad one[1] { bq };
+                        const float mag = tew::eqMagnitude (one, 1, sr(), p.hz);
+                        db = mag > 1.0e-8f ? 20.f * std::log10 (mag) : 0.f;
+                    }
+                    else
+                        db = 0.f;
+                }
+                return { r.getX() + hzToX (p.hz) * r.getWidth(),
+                         r.getY() + dbToY (db) * r.getHeight() };
+            }
+
+            int hitBand (juce::Point<float> pos, const tew::EqBandParam* params, const tew::Biquad* bq) const
+            {
+                int best = -1;
+                float bestD = 14.f * 14.f;
+                for (int b = 0; b < tew::eqBandCount; ++b)
+                {
+                    const auto pt = bandPos (params[b], bq[b]);
+                    const float d = pos.getDistanceSquaredFrom (pt);
+                    if (d < bestD)
+                    {
+                        bestD = d;
+                        best = b;
+                    }
+                }
+                return best;
+            }
+
+            void readBands (tew::EqBandParam* params, tew::Biquad* bq) const
+            {
+                tew::readEqBands (fx.owner.proc.apvts, ParamID::fxEqType, ParamID::fxEqFreq,
+                                  ParamID::fxEqGain, ParamID::fxEqQ, params);
+                for (int b = 0; b < tew::eqBandCount; ++b)
+                    bq[b] = tew::eqBiquad (params[b].type, sr(), params[b].hz, params[b].q, params[b].gainDb);
+            }
+
+            void paint (juce::Graphics& g) override
+            {
+                auto bounds = getLocalBounds().toFloat();
+                g.setColour (juce::Colour (0xff12151a));
+                g.fillRoundedRectangle (bounds, 3.f);
+
+                auto r = plot();
+                const float zeroY = r.getY() + dbToY (0.f) * r.getHeight();
+                g.setColour (juce::Colour (0xff2a2e32));
+                g.drawHorizontalLine ((int) zeroY, r.getX(), r.getRight());
+                for (float hz : { 100.f, 1000.f, 10000.f })
+                    g.drawVerticalLine ((int) (r.getX() + hzToX (hz) * r.getWidth()), r.getY(), r.getBottom());
+
+                tew::EqBandParam params[tew::eqBandCount];
+                tew::Biquad bq[tew::eqBandCount];
+                readBands (params, bq);
+                const int n = juce::jmax (2, (int) r.getWidth());
+
+                for (int b = 0; b < tew::eqBandCount; ++b)
+                {
+                    if (params[b].type <= tew::eqTypeOff)
+                        continue;
+                    tew::Biquad one[1] { bq[b] };
+                    juce::Path path;
+                    for (int i = 0; i < n; ++i)
+                    {
+                        const float x01 = (float) i / (float) (n - 1);
+                        const float mag = tew::eqMagnitude (one, 1, sr(), xToHz (x01));
+                        const float db = mag > 1.0e-8f ? 20.f * std::log10 (mag) : -80.f;
+                        const juce::Point<float> pt (r.getX() + x01 * r.getWidth(),
+                                                     r.getY() + dbToY (db) * r.getHeight());
+                        if (i == 0)
+                            path.startNewSubPath (pt);
+                        else
+                            path.lineTo (pt);
+                    }
+                    g.setColour (kEqBand[b].withAlpha (b == fx.eqBand ? 0.9f : 0.4f));
+                    g.strokePath (path, juce::PathStrokeType (b == fx.eqBand ? 1.6f : 1.1f));
+                }
+
+                juce::Path sum;
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    const float mag = tew::eqMagnitude (bq, tew::eqBandCount, sr(), xToHz (x01));
+                    const float db = mag > 1.0e-8f ? 20.f * std::log10 (mag) : -80.f;
+                    const juce::Point<float> pt (r.getX() + x01 * r.getWidth(),
+                                                 r.getY() + dbToY (db) * r.getHeight());
+                    if (i == 0)
+                        sum.startNewSubPath (pt);
+                    else
+                        sum.lineTo (pt);
+                }
+                g.setColour (kEqSum);
+                g.strokePath (sum, juce::PathStrokeType (1.8f));
+
+                for (int b = 0; b < tew::eqBandCount; ++b)
+                {
+                    const auto pt = bandPos (params[b], bq[b]);
+                    const bool on = params[b].type > tew::eqTypeOff;
+                    const bool sel = fx.eqBand == b;
+                    g.setColour (kEqBand[b].withAlpha (on ? 1.f : 0.35f));
+                    g.fillEllipse (pt.x - 4.5f, pt.y - 4.5f, 9.f, 9.f);
+                    if (sel)
+                    {
+                        g.setColour (kCream);
+                        g.drawEllipse (pt.x - 6.f, pt.y - 6.f, 12.f, 12.f, 1.2f);
+                    }
+                }
+            }
+
+            void mouseDown (const juce::MouseEvent& e) override
+            {
+                tew::EqBandParam params[tew::eqBandCount];
+                tew::Biquad bq[tew::eqBandCount];
+                readBands (params, bq);
+                drag = hitBand (e.position, params, bq);
+                if (drag < 0)
+                    return;
+                fx.eqBand = drag;
+                fx.bindEq();
+                if (e.getNumberOfClicks() >= 2)
+                {
+                    fx.resetEqBand (drag);
+                    drag = -1;
+                    return;
+                }
+                fx.beginEq (ParamID::fxEqFreq[drag]);
+                fx.beginEq (ParamID::fxEqGain[drag]);
+                gesturing = true;
+            }
+
+            void mouseDoubleClick (const juce::MouseEvent& e) override
+            {
+                tew::EqBandParam params[tew::eqBandCount];
+                tew::Biquad bq[tew::eqBandCount];
+                readBands (params, bq);
+                const int b = hitBand (e.position, params, bq);
+                if (b < 0)
+                    return;
+                fx.eqBand = b;
+                fx.resetEqBand (b);
+            }
+
+            void mouseDrag (const juce::MouseEvent& e) override
+            {
+                if (drag < 0)
+                    return;
+                auto r = plot();
+                const float x01 = r.getWidth() > 1.f ? (e.position.x - r.getX()) / r.getWidth() : 0.f;
+                const float y01 = r.getHeight() > 1.f ? (e.position.y - r.getY()) / r.getHeight() : 0.f;
+                fx.setEqParam (ParamID::fxEqFreq[drag], xToHz (x01));
+                fx.setEqParam (ParamID::fxEqGain[drag], yToDb (y01));
+                repaint();
+            }
+
+            void mouseUp (const juce::MouseEvent&) override
+            {
+                if (! gesturing)
+                    return;
+                fx.endEq (ParamID::fxEqFreq[drag]);
+                fx.endEq (ParamID::fxEqGain[drag]);
+                gesturing = false;
+                drag = -1;
+                fx.bindEq();
+            }
+
+            void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override
+            {
+                tew::EqBandParam params[tew::eqBandCount];
+                tew::Biquad bq[tew::eqBandCount];
+                readBands (params, bq);
+                int b = hitBand (e.position, params, bq);
+                if (b < 0)
+                    b = fx.eqBand;
+                fx.eqBand = b;
+                const char* id = ParamID::fxEqQ[b];
+                fx.beginEq (id);
+                fx.setEqParam (id, fx.loadEq (id) * (1.f + w.deltaY * 0.25f) + w.deltaY * 0.05f);
+                fx.endEq (id);
+                fx.bindEq();
+            }
+
+            FxRow& fx;
+            int drag = -1;
+            bool gesturing = false;
+        };
 
         void syncDelay()
         {
@@ -328,13 +589,11 @@ private:
         {
             auto r = getLocalBounds().reduced (4, 4);
             r.removeFromLeft (kStripW);
-            if (type == 4 && eqPick.size() == tew::eqBandCount)
+            if (type == 4 && eqPlot != nullptr)
             {
-                auto picks = r.removeFromLeft (150);
-                const int pw = picks.getWidth() / tew::eqBandCount;
-                for (int b = 0; b < tew::eqBandCount; ++b)
-                    eqPick[b]->setBounds (picks.removeFromLeft (b == tew::eqBandCount - 1 ? picks.getWidth() : pw)
-                                               .reduced (2, 18));
+                auto knobArea = r.removeFromRight (280);
+                eqPlot->setBounds (r.reduced (2, 2));
+                r = knobArea;
             }
             int vis = 0;
             for (auto* k : knobs)
@@ -356,7 +615,7 @@ private:
         EffectsPage& owner;
         int type = 0;
         int eqBand = 0;
-        juce::OwnedArray<juce::ToggleButton> eqPick;
+        std::unique_ptr<EqPlot> eqPlot;
         juce::OwnedArray<FxKnob> knobs;
     };
 
@@ -533,3 +792,11 @@ inline const juce::Colour EffectsPage::kKnob { 0xff1a1a1a };
 inline const juce::Colour EffectsPage::kLedOn { 0xffff2200 };
 inline const juce::Colour EffectsPage::kLedOff { 0xff5a1808 };
 inline const juce::Colour EffectsPage::kLaneBlack { 0xff2a2a2a };
+inline const juce::Colour EffectsPage::kEqSum { 0xffe8b84a };
+inline const juce::Colour EffectsPage::kEqBand[tew::eqBandCount] {
+    juce::Colour (0xffe07a2e),
+    juce::Colour (0xff4aa3ff),
+    juce::Colour (0xffc86ad8),
+    juce::Colour (0xff3dcc8c),
+    juce::Colour (0xffe8c200)
+};
