@@ -198,5 +198,34 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addUnit (ParamID::fxRevMix, "Reverb Mix", 0.25f);
     addUnit (ParamID::fxRevWidth, "Reverb Width", 0.8f);
 
+    const float eqHzDef[ParamID::eqBandCount] = { 80.f, 250.f, 1000.f, 4000.f, 10000.f };
+    auto eqHz = NormalisableRange<float> (20.f, 20000.f, 0.01f, 0.3f);
+    auto eqQ = NormalisableRange<float> (0.1f, 10.f, 0.01f, 0.4f);
+    auto eqGain = NormalisableRange<float> (-12.f, 12.f);
+    auto eqTypes = StringArray { "Off", "Peak", "Low S", "High S", "HP", "LP" };
+    auto addParamEq = [&] (const char* onId, const char* onName,
+                           const char* const* typeIds, const char* const* freqIds,
+                           const char* const* gainIds, const char* const* qIds,
+                           const char* prefix)
+    {
+        addOn (onId, onName);
+        for (int b = 0; b < ParamID::eqBandCount; ++b)
+        {
+            const String n = String (prefix) + " " + String (b + 1);
+            layout.add (std::make_unique<AudioParameterChoice> (
+                ParameterID { typeIds[b], 1 }, n + " Type", eqTypes, 1));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { freqIds[b], 1 }, n + " Freq", eqHz, eqHzDef[b]));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { gainIds[b], 1 }, n + " Gain", eqGain, 0.f));
+            layout.add (std::make_unique<AudioParameterFloat> (
+                ParameterID { qIds[b], 1 }, n + " Q", eqQ, 0.7f));
+        }
+    };
+    addParamEq (ParamID::preEqOn, "Pre EQ On",
+                ParamID::preEqType, ParamID::preEqFreq, ParamID::preEqGain, ParamID::preEqQ, "Pre EQ");
+    addParamEq (ParamID::postEqOn, "Post EQ On",
+                ParamID::postEqType, ParamID::postEqFreq, ParamID::postEqGain, ParamID::postEqQ, "Post EQ");
+
     return layout;
 }

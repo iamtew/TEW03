@@ -1,3 +1,4 @@
+#include "dsp/EqBiquad.h"
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "parameters/Library.h"
@@ -244,6 +245,16 @@ int main()
     partial[1] = 0;
     assert (tew::completeFxOrder (partial, 2) == tew::fxCount);
     assert (partial[0] == 3 && partial[1] == 0 && partial[2] == 1);
+
+    {
+        const auto peak = tew::eqBiquad (tew::eqTypePeak, 44100.f, 1000.f, 0.7f, 6.f);
+        tew::Biquad one[1] { peak };
+        assert (tew::eqMagnitude (one, 1, 44100.f, 1000.f) > 1.5f);
+        const auto off = tew::eqBiquad (tew::eqTypeOff, 44100.f, 1000.f, 0.7f, 6.f);
+        tew::Biquad flat[1] { off };
+        const float mag = tew::eqMagnitude (flat, 1, 44100.f, 1000.f);
+        assert (mag > 0.99f && mag < 1.01f);
+    }
 
     std::puts ("seq_check ok");
     return 0;

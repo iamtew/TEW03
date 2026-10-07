@@ -264,7 +264,11 @@ void TEW03AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     sequencer.prepare (sampleRate);
     for (int i = 0; i < tew::numLfos; ++i)
         lfo[i].prepare (sampleRate);
-    fx.prepare (sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+    const int ch = getTotalNumOutputChannels();
+    preEq.prepare (sampleRate, samplesPerBlock, ch);
+    fx.prepare (sampleRate, samplesPerBlock, ch);
+    postEq.prepare (sampleRate, samplesPerBlock, ch);
+    eqScope.prepare (sampleRate);
 }
 
 void TEW03AudioProcessor::releaseResources() {}
@@ -358,6 +362,17 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             lfoPhaseUi[i].store (lfo[i].phase, std::memory_order_relaxed);
     };
 
+    auto processInserts = [this, &buffer, bpm] ()
+    {
+        tew::EqBandParam bands[tew::eqBandCount];
+        tew::readEqBands (apvts, false, bands);
+        preEq.process (buffer, tew::eqEnabled (apvts, false), bands);
+        fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
+        tew::readEqBands (apvts, true, bands);
+        postEq.process (buffer, tew::eqEnabled (apvts, true), bands);
+        eqScope.push (buffer);
+    };
+
     if (! playing)
     {
         tew::SeqEvent stopped[1];
@@ -387,7 +402,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             }
         }
         render (0, numSamples);
-        fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
+        processInserts();
         return;
     }
 
@@ -421,7 +436,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     if (rendered < numSamples)
         render (rendered, numSamples - rendered);
 
-    fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
+    processInserts();
 }
 
 juce::AudioProcessorEditor* TEW03AudioProcessor::createEditor()

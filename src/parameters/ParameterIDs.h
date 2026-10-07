@@ -130,6 +130,34 @@ namespace ParamID
     inline constexpr const char* fxRevDamp = "fxRevDamp";
     inline constexpr const char* fxRevMix = "fxRevMix";
     inline constexpr const char* fxRevWidth = "fxRevWidth";
+
+    inline constexpr int eqBandCount = 5;
+    inline constexpr const char* preEqOn = "preEqOn";
+    inline constexpr const char* postEqOn = "postEqOn";
+    inline constexpr const char* preEqType[eqBandCount] = {
+        "preEq1Type", "preEq2Type", "preEq3Type", "preEq4Type", "preEq5Type"
+    };
+    inline constexpr const char* preEqFreq[eqBandCount] = {
+        "preEq1Freq", "preEq2Freq", "preEq3Freq", "preEq4Freq", "preEq5Freq"
+    };
+    inline constexpr const char* preEqGain[eqBandCount] = {
+        "preEq1Gain", "preEq2Gain", "preEq3Gain", "preEq4Gain", "preEq5Gain"
+    };
+    inline constexpr const char* preEqQ[eqBandCount] = {
+        "preEq1Q", "preEq2Q", "preEq3Q", "preEq4Q", "preEq5Q"
+    };
+    inline constexpr const char* postEqType[eqBandCount] = {
+        "postEq1Type", "postEq2Type", "postEq3Type", "postEq4Type", "postEq5Type"
+    };
+    inline constexpr const char* postEqFreq[eqBandCount] = {
+        "postEq1Freq", "postEq2Freq", "postEq3Freq", "postEq4Freq", "postEq5Freq"
+    };
+    inline constexpr const char* postEqGain[eqBandCount] = {
+        "postEq1Gain", "postEq2Gain", "postEq3Gain", "postEq4Gain", "postEq5Gain"
+    };
+    inline constexpr const char* postEqQ[eqBandCount] = {
+        "postEq1Q", "postEq2Q", "postEq3Q", "postEq4Q", "postEq5Q"
+    };
 }
 
 namespace tew

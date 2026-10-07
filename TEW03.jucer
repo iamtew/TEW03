@@ -26,6 +26,9 @@
         <FILE id="engH001" name="SynthEngine.h" compile="0" resource="0" file="src/dsp/SynthEngine.h"/>
         <FILE id="seqH001" name="Sequencer.h" compile="0" resource="0" file="src/dsp/Sequencer.h"/>
         <FILE id="fxcH001" name="FxChain.h" compile="0" resource="0" file="src/dsp/FxChain.h"/>
+        <FILE id="eqbH001" name="EqBiquad.h" compile="0" resource="0" file="src/dsp/EqBiquad.h"/>
+        <FILE id="peqH001" name="ParametricEq.h" compile="0" resource="0" file="src/dsp/ParametricEq.h"/>
+        <FILE id="eqaH001" name="EqAnalyser.h" compile="0" resource="0" file="src/dsp/EqAnalyser.h"/>
         <FILE id="lfoH001" name="Lfo.h" compile="0" resource="0" file="src/dsp/Lfo.h"/>
       </GROUP>
       <GROUP id="midGrp01" name="midi">
@@ -39,6 +42,7 @@
       </GROUP>
       <GROUP id="uiGrp01" name="ui">
         <FILE id="fxpH001" name="EffectsPage.h" compile="0" resource="0" file="src/ui/EffectsPage.h"/>
+        <FILE id="eqpH001" name="EqPage.h" compile="0" resource="0" file="src/ui/EqPage.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

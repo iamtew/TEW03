@@ -18,12 +18,14 @@ Data flow (audio thread):
 2. Sequencer (if running) generates note / accent / slide events
 3. Events → Voice (for sound) **and** → MIDI Output buffer (for DAW / other plugins)
 4. Voice: Osc → (pre-drive) → Filter (env + accent) → Amp Env → Output
-5. Post-voice FX chain (insert, user order) → master out
+5. Pre-FX parametric EQ (optional, default off) → FX chain (insert, user order) → Post-FX parametric EQ (optional, default off) → master out
 
 FX chain (Effects page):
 - One instance each of chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb.
 - Enable from the left rail; drag rows to reorder. Bypass is APVTS; order is `FX_ORDER` on `apvts.state` (also in `.tew3p`).
 - Default all off. DSP is `juce::dsp` in `src/dsp/FxChain.h`, allocation-free after `prepareToPlay`.
+- The insert Equalizer in that list is separate from the Pre/Post parametric EQs on the EQ page (`src/dsp/ParametricEq.h`). Pre/Post sit around the chain and are not reorderable.
+- EQ page draws a post-FX FFT behind the response curve (`src/dsp/EqAnalyser.h`). Hop is 2048, lock-free double buffer.
 
 Play modes (`playMode`):
 - Keyboard: host MIDI notes play the voice.

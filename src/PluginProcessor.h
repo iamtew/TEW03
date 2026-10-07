@@ -1,6 +1,8 @@
 #pragma once
 
 #include "dsp/FxChain.h"
+#include "dsp/EqAnalyser.h"
+#include "dsp/ParametricEq.h"
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "dsp/SynthEngine.h"
@@ -65,6 +67,7 @@ public:
     void moveFx (int fromType, int beforeType);
     void getFxOrder (int* types, int& n) const;
     std::uint64_t fxOrderPacked() const { return fxOrder.load (std::memory_order_relaxed); }
+    tew::EqAnalyser& eqAnalyser() { return eqScope; }
 
     juce::File patchesDir() const;
     juce::File banksDir() const;
@@ -119,7 +122,10 @@ private:
     float lfoRateHz (int index) const;
 
     tew::SynthEngine engine;
+    tew::ParametricEq preEq;
     tew::FxChain fx;
+    tew::ParametricEq postEq;
+    tew::EqAnalyser eqScope;
     tew::Sequencer sequencer;
     tew::Lfo lfo[tew::numLfos];
     tew::LfoShape uiLfo[tew::numLfos];

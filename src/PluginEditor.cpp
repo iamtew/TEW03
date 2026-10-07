@@ -1425,7 +1425,7 @@ void TEW03AudioProcessorEditor::LfoLane::cyclePreset (int delta)
 }
 
 TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
-    : juce::AudioProcessorEditor (p), proc (p), effectsPage (p), pianoRoll (p)
+    : juce::AudioProcessorEditor (p), proc (p), effectsPage (p), eqPage (p), pianoRoll (p)
 {
     setLookAndFeel (&panelLnF);
     setOpaque (true);
@@ -1546,7 +1546,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     patchBar.setTooltip ("Patch: sound knobs. Click for save / load.");
     bankLibBar.setTooltip ("Bank: all 36 patterns. Click for save / load.");
     patBar.setTooltip ("Pattern in the current bank (1-12)");
-    pageBar.setTooltip ("Main synth view or Effects chain");
+    pageBar.setTooltip ("Main synth view, Effects chain, or EQ");
     pageBar.setText ("Main");
     pageBar.onStep = [this] (int d) { cyclePage (d); };
     pageBar.onOpen = [this] { openPageMenu(); };
@@ -1563,6 +1563,8 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     addAndMakeVisible (patBar);
     addAndMakeVisible (effectsPage);
     effectsPage.setVisible (false);
+    addAndMakeVisible (eqPage);
+    eqPage.setVisible (false);
     refreshLibraryNames();
     patBar.setText (juce::String (proc.currentPattern() + 1));
 
@@ -1664,6 +1666,7 @@ void TEW03AudioProcessorEditor::resized()
 
     const auto body = r;
     effectsPage.setBounds (body);
+    eqPage.setBounds (body);
 
     lfoArea = r.removeFromBottom (kLfoH);
     auto strip = r.removeFromBottom (kStripH);
@@ -1739,8 +1742,10 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshSlot();
     refreshLibraryNames();
     refreshLfo();
-    if (editorPage != 0)
+    if (editorPage == 1)
         effectsPage.refresh();
+    else if (editorPage == 2)
+        eqPage.repaint();
 }
 
 void TEW03AudioProcessorEditor::syncSteps()
@@ -1986,8 +1991,8 @@ void fillLibraryMenu (juce::PopupMenu& m, const juce::StringArray& names,
 
 void TEW03AudioProcessorEditor::setEditorPage (int page)
 {
-    editorPage = page != 0 ? 1 : 0;
-    pageBar.setText (editorPage == 0 ? "Main" : "Effects");
+    editorPage = juce::jlimit (0, 2, page);
+    pageBar.setText (editorPage == 0 ? "Main" : (editorPage == 1 ? "Effects" : "EQ"));
     applyPageVisibility();
     resized();
     repaint();
@@ -1995,29 +2000,31 @@ void TEW03AudioProcessorEditor::setEditorPage (int page)
 
 void TEW03AudioProcessorEditor::cyclePage (int delta)
 {
-    setEditorPage ((editorPage + delta + 2) % 2);
+    setEditorPage ((editorPage + delta + 3) % 3);
 }
 
 void TEW03AudioProcessorEditor::openPageMenu()
 {
     juce::PopupMenu m;
     m.addItem (1, "Main", true, editorPage == 0);
-    m.addItem (2, "Effects", true, editorPage != 0);
+    m.addItem (2, "Effects", true, editorPage == 1);
+    m.addItem (3, "EQ", true, editorPage == 2);
     juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (pageBar),
                      [safe] (int result)
                      {
                          if (safe == nullptr || result <= 0)
                              return;
-                         safe->setEditorPage (result == 2 ? 1 : 0);
+                         safe->setEditorPage (result - 1);
                      });
 }
 
 void TEW03AudioProcessorEditor::applyPageVisibility()
 {
     const bool main = editorPage == 0;
-    effectsPage.setVisible (! main);
-    if (! main)
+    effectsPage.setVisible (editorPage == 1);
+    eqPage.setVisible (editorPage == 2);
+    if (editorPage == 1)
         effectsPage.refresh();
 
     auto vis = [main] (juce::Component& c) { c.setVisible (main); };

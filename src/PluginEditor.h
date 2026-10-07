@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "ui/EffectsPage.h"
+#include "ui/EqPage.h"
 
 #include <functional>
 
@@ -208,6 +209,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar;
     EffectsPage effectsPage;
+    EqPage eqPage;
     int editorPage = 0;
     std::unique_ptr<juce::FileChooser> chooser;
     PianoRoll pianoRoll;
