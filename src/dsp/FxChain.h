@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ParametricEq.h"
 #include "../parameters/ParameterIDs.h"
 
 #include <JuceHeader.h>
@@ -27,9 +28,7 @@ struct FxChain
         delay.setMaximumDelayInSamples ((int) std::ceil (sr * 2.0) + 8);
         delay.reset();
         lp.prepare (spec);
-        lowShelf.prepare (spec);
-        midPeak.prepare (spec);
-        highShelf.prepare (spec);
+        insertEq.prepare (sampleRate, samplesPerBlock, ch);
         scratch.setSize (ch, n);
         prepared = true;
     }
@@ -126,15 +125,10 @@ private:
             }
             case 4:
             {
-                const float lowG = p (apvts, ParamID::fxEqLow);
-                const float midG = p (apvts, ParamID::fxEqMid);
-                const float highG = p (apvts, ParamID::fxEqHigh);
-                *lowShelf.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf (sr, 120.f, 0.7f, juce::Decibels::decibelsToGain (lowG));
-                *midPeak.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter (sr, 1000.f, 0.8f, juce::Decibels::decibelsToGain (midG));
-                *highShelf.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf (sr, 4000.f, 0.7f, juce::Decibels::decibelsToGain (highG));
-                lowShelf.process (ctx);
-                midPeak.process (ctx);
-                highShelf.process (ctx);
+                EqBandParam bands[eqBandCount];
+                readEqBands (apvts, ParamID::fxEqType, ParamID::fxEqFreq,
+                             ParamID::fxEqGain, ParamID::fxEqQ, bands);
+                insertEq.process (buffer, true, bands);
                 break;
             }
             case 5:
@@ -266,7 +260,8 @@ private:
     juce::dsp::Reverb reverb;
     juce::dsp::StateVariableTPTFilter<float> svf;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delay { 192000 };
-    DupIIR lp, lowShelf, midPeak, highShelf;
+    DupIIR lp;
+    ParametricEq insertEq;
     juce::AudioBuffer<float> scratch;
     double sr = 44100.0;
     bool prepared = false;

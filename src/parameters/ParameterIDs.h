@@ -106,10 +106,6 @@ namespace ParamID
     inline constexpr const char* fxDstDrive = "fxDstDrive";
     inline constexpr const char* fxDstMix = "fxDstMix";
 
-    inline constexpr const char* fxEqLow = "fxEqLow";
-    inline constexpr const char* fxEqMid = "fxEqMid";
-    inline constexpr const char* fxEqHigh = "fxEqHigh";
-
     inline constexpr const char* fxFltCut = "fxFltCut";
     inline constexpr const char* fxFltRes = "fxFltRes";
     inline constexpr const char* fxFltMix = "fxFltMix";
@@ -132,6 +128,18 @@ namespace ParamID
     inline constexpr const char* fxRevWidth = "fxRevWidth";
 
     inline constexpr int eqBandCount = 5;
+    inline constexpr const char* fxEqType[eqBandCount] = {
+        "fxEq1Type", "fxEq2Type", "fxEq3Type", "fxEq4Type", "fxEq5Type"
+    };
+    inline constexpr const char* fxEqFreq[eqBandCount] = {
+        "fxEq1Freq", "fxEq2Freq", "fxEq3Freq", "fxEq4Freq", "fxEq5Freq"
+    };
+    inline constexpr const char* fxEqGain[eqBandCount] = {
+        "fxEq1Gain", "fxEq2Gain", "fxEq3Gain", "fxEq4Gain", "fxEq5Gain"
+    };
+    inline constexpr const char* fxEqQ[eqBandCount] = {
+        "fxEq1Q", "fxEq2Q", "fxEq3Q", "fxEq4Q", "fxEq5Q"
+    };
     inline constexpr const char* preEqOn = "preEqOn";
     inline constexpr const char* postEqOn = "postEqOn";
     inline constexpr const char* preEqType[eqBandCount] = {

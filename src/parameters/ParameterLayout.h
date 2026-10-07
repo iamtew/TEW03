@@ -157,15 +157,6 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addUnit (ParamID::fxDstMix, "Dist Mix", 0.5f);
 
     addOn (ParamID::fxOnIds[4], "EQ On");
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::fxEqLow, 1 }, "EQ Low",
-        NormalisableRange<float> (-12.f, 12.f), 0.f));
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::fxEqMid, 1 }, "EQ Mid",
-        NormalisableRange<float> (-12.f, 12.f), 0.f));
-    layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::fxEqHigh, 1 }, "EQ High",
-        NormalisableRange<float> (-12.f, 12.f), 0.f));
 
     addOn (ParamID::fxOnIds[5], "FX Filter On");
     layout.add (std::make_unique<AudioParameterFloat> (
@@ -203,12 +194,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     auto eqQ = NormalisableRange<float> (0.1f, 10.f, 0.01f, 0.4f);
     auto eqGain = NormalisableRange<float> (-12.f, 12.f);
     auto eqTypes = StringArray { "Off", "Peak", "Low S", "High S", "HP", "LP" };
-    auto addParamEq = [&] (const char* onId, const char* onName,
-                           const char* const* typeIds, const char* const* freqIds,
+    auto addEqBands = [&] (const char* const* typeIds, const char* const* freqIds,
                            const char* const* gainIds, const char* const* qIds,
                            const char* prefix)
     {
-        addOn (onId, onName);
         for (int b = 0; b < ParamID::eqBandCount; ++b)
         {
             const String n = String (prefix) + " " + String (b + 1);
@@ -221,6 +210,15 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             layout.add (std::make_unique<AudioParameterFloat> (
                 ParameterID { qIds[b], 1 }, n + " Q", eqQ, 0.7f));
         }
+    };
+    addEqBands (ParamID::fxEqType, ParamID::fxEqFreq, ParamID::fxEqGain, ParamID::fxEqQ, "FX EQ");
+    auto addParamEq = [&] (const char* onId, const char* onName,
+                           const char* const* typeIds, const char* const* freqIds,
+                           const char* const* gainIds, const char* const* qIds,
+                           const char* prefix)
+    {
+        addOn (onId, onName);
+        addEqBands (typeIds, freqIds, gainIds, qIds, prefix);
     };
     addParamEq (ParamID::preEqOn, "Pre EQ On",
                 ParamID::preEqType, ParamID::preEqFreq, ParamID::preEqGain, ParamID::preEqQ, "Pre EQ");

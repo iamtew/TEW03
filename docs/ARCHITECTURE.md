@@ -24,7 +24,7 @@ FX chain (Effects page):
 - One instance each of chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb.
 - Enable from the left rail; drag rows to reorder. Bypass is APVTS; order is `FX_ORDER` on `apvts.state` (also in `.tew3p`).
 - Default all off. DSP is `juce::dsp` in `src/dsp/FxChain.h`, allocation-free after `prepareToPlay`.
-- The insert Equalizer in that list is separate from the Pre/Post parametric EQs on the EQ page (`src/dsp/ParametricEq.h`). Pre/Post sit around the chain and are not reorderable.
+- The insert Equalizer is the same 5-band parametric (`ParametricEq`) as Pre/Post, still reorderable in the chain. Pre/Post sit around the chain and are not reorderable.
 - EQ page draws a post-FX FFT behind the response curve (`src/dsp/EqAnalyser.h`). Hop is 2048, lock-free double buffer.
 
 Play modes (`playMode`):

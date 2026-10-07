@@ -102,51 +102,72 @@ private:
 
     struct FxKnob : public juce::Component
     {
-        FxKnob (TEW03AudioProcessor& p, const char* id, const juce::String& name)
+        FxKnob (TEW03AudioProcessor& p, const char* id, const juce::String& name) : proc (p)
         {
-            label.setText (name, juce::dontSendNotification);
             label.setJustificationType (juce::Justification::centred);
             label.setFont (labelFont (11.f));
             label.setColour (juce::Label::textColourId, kCream);
             label.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
             addAndMakeVisible (label);
+            combo.setColour (juce::ComboBox::textColourId, kCream);
+            combo.setColour (juce::ComboBox::arrowColourId, kCream);
+            slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+            slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 12);
+            slider.setColour (juce::Slider::textBoxTextColourId, kCream);
+            slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+            slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+            bind (id, name);
+        }
 
-            auto* param = p.apvts.getParameter (id);
+        void bind (const char* id, const juce::String& name)
+        {
+            label.setText (name, juce::dontSendNotification);
+            sliderAtt.reset();
+            btnAtt.reset();
+            comboAtt.reset();
+
+            auto* param = proc.apvts.getParameter (id);
             auto* choice = dynamic_cast<juce::AudioParameterChoice*> (param);
             auto* boolean = dynamic_cast<juce::AudioParameterBool*> (param);
+
+            button.setVisible (false);
+            combo.setVisible (false);
+            slider.setVisible (false);
 
             if (boolean != nullptr)
             {
                 isBool = true;
+                isChoice = false;
                 button.setButtonText (name);
                 button.setComponentID ("led");
+                button.setVisible (true);
                 addAndMakeVisible (button);
                 btnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-                    p.apvts, id, button);
+                    proc.apvts, id, button);
             }
             else if (choice != nullptr)
             {
+                isBool = false;
                 isChoice = true;
-                combo.setColour (juce::ComboBox::textColourId, kCream);
-                combo.setColour (juce::ComboBox::arrowColourId, kCream);
+                combo.clear (juce::dontSendNotification);
                 for (int i = 0; i < choice->choices.size(); ++i)
                     combo.addItem (choice->choices[i], i + 1);
+                combo.setVisible (true);
                 addAndMakeVisible (combo);
                 comboAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-                    p.apvts, id, combo);
+                    proc.apvts, id, combo);
             }
             else if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
             {
-                slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-                slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 12);
-                slider.setColour (juce::Slider::textBoxTextColourId, kCream);
-                slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-                slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+                isBool = false;
+                isChoice = false;
                 slider.setDoubleClickReturnValue (true, ranged->convertFrom0to1 (ranged->getDefaultValue()));
+                slider.setVisible (true);
                 addAndMakeVisible (slider);
                 sliderAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-                    p.apvts, id, slider);
+                    proc.apvts, id, slider);
             }
+            resized();
         }
 
         void resized() override
@@ -161,6 +182,7 @@ private:
                 slider.setBounds (r);
         }
 
+        TEW03AudioProcessor& proc;
         juce::Label label;
         juce::Slider slider;
         juce::ToggleButton button;
@@ -215,9 +237,24 @@ private:
                     add (ParamID::fxDstMix, "Mix");
                     break;
                 case 4:
-                    add (ParamID::fxEqLow, "Low");
-                    add (ParamID::fxEqMid, "Mid");
-                    add (ParamID::fxEqHigh, "High");
+                    for (int b = 0; b < tew::eqBandCount; ++b)
+                    {
+                        auto* pick = eqPick.add (new juce::ToggleButton (juce::String (b + 1)));
+                        pick->setClickingTogglesState (true);
+                        pick->setRadioGroupId (40);
+                        pick->setComponentID ("plain");
+                        addAndMakeVisible (pick);
+                        pick->onClick = [this, b]
+                        {
+                            eqBand = b;
+                            bindEq();
+                        };
+                    }
+                    eqPick[0]->setToggleState (true, juce::dontSendNotification);
+                    add (ParamID::fxEqType[0], "Type");
+                    add (ParamID::fxEqFreq[0], "Freq");
+                    add (ParamID::fxEqGain[0], "Gain");
+                    add (ParamID::fxEqQ[0], "Q");
                     break;
                 case 5:
                     add (ParamID::fxFltType, "Type");
@@ -247,6 +284,16 @@ private:
                 default:
                     break;
             }
+        }
+
+        void bindEq()
+        {
+            if (type != 4 || knobs.size() < 4)
+                return;
+            knobs[0]->bind (ParamID::fxEqType[eqBand], "Type");
+            knobs[1]->bind (ParamID::fxEqFreq[eqBand], "Freq");
+            knobs[2]->bind (ParamID::fxEqGain[eqBand], "Gain");
+            knobs[3]->bind (ParamID::fxEqQ[eqBand], "Q");
         }
 
         void syncDelay()
@@ -281,6 +328,14 @@ private:
         {
             auto r = getLocalBounds().reduced (4, 4);
             r.removeFromLeft (kStripW);
+            if (type == 4 && eqPick.size() == tew::eqBandCount)
+            {
+                auto picks = r.removeFromLeft (150);
+                const int pw = picks.getWidth() / tew::eqBandCount;
+                for (int b = 0; b < tew::eqBandCount; ++b)
+                    eqPick[b]->setBounds (picks.removeFromLeft (b == tew::eqBandCount - 1 ? picks.getWidth() : pw)
+                                               .reduced (2, 18));
+            }
             int vis = 0;
             for (auto* k : knobs)
                 if (k->isVisible())
@@ -300,6 +355,8 @@ private:
 
         EffectsPage& owner;
         int type = 0;
+        int eqBand = 0;
+        juce::OwnedArray<juce::ToggleButton> eqPick;
         juce::OwnedArray<FxKnob> knobs;
     };
 
