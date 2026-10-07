@@ -21,10 +21,12 @@ struct Voice
         osc.prepare (sr);
         env.prepare (sr);
         filter.prepare (sr);
+        // ~10 ms so the header fader does not zipper.
+        gainSlew = 1.f / std::max (1.f, 0.01f * (float) sr);
     }
 
     void setDecaySeconds (float seconds) { env.setDecaySeconds (seconds); }
-    void setGain (float g) { gain = std::clamp (g, 0.f, 1.f); }
+    void setGain (float g) { gainTarget = std::clamp (g, 0.f, 1.f); }
     void setAccentAmount (float amount) { accentAmount = std::clamp (amount, 0.f, 1.f); }
 
     void setGlideSeconds (float seconds)
@@ -116,6 +118,10 @@ struct Voice
             const float resAmt = sample01 (destResonance, lfoY, resonance);
             const float driveAmt = sample01 (destDrive, lfoY, drive);
             const float envAmt = sample01 (destEnvMod, lfoY, envMod);
+            if (gain < gainTarget)
+                gain = std::min (gainTarget, gain + gainSlew);
+            else if (gain > gainTarget)
+                gain = std::max (gainTarget, gain - gainSlew);
             const float gainNow = sample01 (destVolume, lfoY, gain);
 
             // drive 0 is unity. drive 1 is a hard tanh shove.
@@ -164,6 +170,8 @@ private:
     float accentAmount = 0.f;
     float accentGain = 1.f;
     float gain = 0.25f;
+    float gainTarget = 0.25f;
+    float gainSlew = 1.f / 441.f;
     float cutoff = 800.f;
     float resonance = 0.3f;
     float drive = 0.f;

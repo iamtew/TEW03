@@ -148,6 +148,45 @@ private:
         bool isChoice = false;
     };
 
+    struct VolumeStrip : public juce::Component,
+                         public juce::DragAndDropTarget,
+                         public juce::SettableTooltipClient
+    {
+        explicit VolumeStrip (TEW03AudioProcessorEditor& ed);
+        ~VolumeStrip() override;
+        void resized() override;
+        void paint (juce::Graphics& g) override;
+        void paintOverChildren (juce::Graphics& g) override;
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseUp (const juce::MouseEvent&) override;
+        bool isInterestedInDragSource (const SourceDetails&) override;
+        void itemDropped (const SourceDetails&) override;
+        void refresh();
+        juce::Rectangle<int> badgeBounds() const;
+        juce::Rectangle<float> faderArea() const;
+        juce::Rectangle<float> scopeArea() const;
+
+        struct LnF : public juce::LookAndFeel_V4
+        {
+            void drawLinearSlider (juce::Graphics&, int, int, int, int, float pos,
+                                   float, float, juce::Slider::SliderStyle, juce::Slider&) override;
+        };
+
+        TEW03AudioProcessorEditor& editor;
+        LnF lnf;
+        juce::Slider slider;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sliderAtt;
+        int dest = tew::destVolume;
+        int lfoSrc = 0;
+        float lfoAmt = 0.f;
+        float amtDragStart = 0.f;
+        int amtDragY = 0;
+        bool amtDragging = false;
+        bool clipped = false;
+        juce::uint32 clipUntil = 0;
+    };
+
     struct LfoHandle : public juce::Component
     {
         LfoHandle (TEW03AudioProcessorEditor& ed, int i);
@@ -209,6 +248,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar;
+    VolumeStrip volumeStrip { *this };
     EffectsPage effectsPage;
     EqPage eqPage;
     int editorPage = 0;

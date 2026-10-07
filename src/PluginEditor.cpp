@@ -1037,6 +1037,193 @@ void TEW03AudioProcessorEditor::ParamCell::itemDropped (const SourceDetails& d)
         editor.assignDest (dest, src);
 }
 
+TEW03AudioProcessorEditor::VolumeStrip::VolumeStrip (TEW03AudioProcessorEditor& ed)
+    : editor (ed)
+{
+    slider.setLookAndFeel (&lnf);
+    slider.setSliderStyle (juce::Slider::LinearHorizontal);
+    slider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
+    slider.setOpaque (false);
+    slider.setColour (juce::Slider::backgroundColourId, juce::Colours::transparentBlack);
+    slider.setColour (juce::Slider::trackColourId, juce::Colours::transparentBlack);
+    slider.setColour (juce::Slider::thumbColourId, kInk);
+    auto* p = dynamic_cast<juce::RangedAudioParameter*> (editor.proc.apvts.getParameter (ParamID::volume));
+    if (p != nullptr)
+        slider.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
+    sliderAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        editor.proc.apvts, ParamID::volume, slider);
+    slider.addMouseListener (this, false);
+    addAndMakeVisible (slider);
+    setTooltip ("Volume");
+}
+
+TEW03AudioProcessorEditor::VolumeStrip::~VolumeStrip()
+{
+    slider.setLookAndFeel (nullptr);
+}
+
+juce::Rectangle<float> TEW03AudioProcessorEditor::VolumeStrip::faderArea() const
+{
+    auto r = getLocalBounds().toFloat();
+    return r.removeFromLeft (r.getWidth() * 5.f / 9.f);
+}
+
+juce::Rectangle<float> TEW03AudioProcessorEditor::VolumeStrip::scopeArea() const
+{
+    auto r = getLocalBounds().toFloat();
+    r.removeFromLeft (r.getWidth() * 5.f / 9.f + 4.f);
+    return r;
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::resized()
+{
+    slider.setBounds (faderArea().toNearestInt());
+}
+
+juce::Rectangle<int> TEW03AudioProcessorEditor::VolumeStrip::badgeBounds() const
+{
+    auto f = faderArea().toNearestInt();
+    return { f.getRight() - 16, f.getY(), 14, 12 };
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::LnF::drawLinearSlider (juce::Graphics& g, int, int y, int, int h,
+                                                                   float pos, float, float,
+                                                                   juce::Slider::SliderStyle, juce::Slider&)
+{
+    const float by = (float) (y + h);
+    juce::Path p;
+    p.addTriangle (pos - 5.f, by, pos + 5.f, by, pos, by - 7.f);
+    g.setColour (kInk);
+    g.fillPath (p);
+    g.setColour (kCream);
+    g.strokePath (p, juce::PathStrokeType (1.f));
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::paint (juce::Graphics& g)
+{
+    auto fader = faderArea();
+    auto scope = scopeArea();
+
+    g.setColour (kLaneBlack);
+    g.fillRoundedRectangle (fader, 3.f);
+    g.fillRoundedRectangle (scope, 3.f);
+
+    const float pos = (float) slider.valueToProportionOfLength (slider.getValue());
+    auto fill = fader.withWidth (std::max (2.f, fader.getWidth() * pos));
+    g.setColour (clipped ? kLedOn : kChassisDark);
+    g.fillRoundedRectangle (fill, 3.f);
+
+    g.setColour (kCream.withAlpha (0.35f));
+    for (int i = 1; i < 8; ++i)
+    {
+        const float x = fader.getX() + fader.getWidth() * (float) i / 8.f;
+        const float tickH = (i == 4) ? 6.f : 3.f;
+        g.drawLine (x, fader.getBottom() - 2.f, x, fader.getBottom() - 2.f - tickH, 1.f);
+    }
+
+    const int n = juce::jlimit (2, 256, (int) scope.getWidth());
+    float specDb[256];
+    editor.proc.eqAnalyser().copyLogDb (specDb, n);
+    juce::Path spec;
+    spec.startNewSubPath (scope.getX(), scope.getBottom());
+    for (int i = 0; i < n; ++i)
+    {
+        const float x01 = (float) i / (float) (n - 1);
+        // Same floor as the EQ page: 0 dB at the top, -72 at the bottom.
+        const float y01 = 1.f - juce::jlimit (0.f, 1.f, (specDb[i] + 72.f) / 72.f);
+        spec.lineTo (scope.getX() + x01 * scope.getWidth(),
+                     scope.getY() + y01 * scope.getHeight());
+    }
+    spec.lineTo (scope.getRight(), scope.getBottom());
+    spec.closeSubPath();
+    g.setColour ((clipped ? kLedOn : kCream).withAlpha (0.7f));
+    g.fillPath (spec);
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::paintOverChildren (juce::Graphics& g)
+{
+    if (lfoSrc <= 0)
+        return;
+    auto b = badgeBounds().toFloat();
+    const auto col = lfoCol (lfoSrc);
+    g.setColour (kKnob);
+    g.fillRoundedRectangle (b, 3.f);
+    g.setColour (col);
+    g.drawRoundedRectangle (b, 3.f, 1.2f);
+    g.setFont (boldFont (10.f));
+    g.setColour (col);
+    g.drawText (juce::String (lfoSrc), b.toNearestInt(), juce::Justification::centred, false);
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::refresh()
+{
+    if (editor.proc.outputMeter().takeClip())
+        clipUntil = juce::Time::getMillisecondCounter() + 800;
+    clipped = juce::Time::getMillisecondCounter() < clipUntil;
+
+    lfoSrc = juce::roundToInt (editor.proc.apvts.getRawParameterValue (ParamID::destLfoIds[dest])->load());
+    lfoAmt = editor.proc.apvts.getRawParameterValue (ParamID::destAmtIds[dest])->load();
+
+    const int pct = juce::roundToInt (slider.valueToProportionOfLength (slider.getValue()) * 100.f);
+    setTooltip ("Volume " + juce::String (pct) + "%");
+    slider.setTooltip (getTooltip());
+    repaint();
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::mouseDown (const juce::MouseEvent& e)
+{
+    const auto pos = e.getEventRelativeTo (this).getPosition();
+    if (lfoSrc > 0 && badgeBounds().contains (pos))
+    {
+        amtDragging = true;
+        amtDragStart = lfoAmt;
+        amtDragY = pos.y;
+        return;
+    }
+
+    if (! e.mods.isPopupMenu())
+        return;
+
+    juce::PopupMenu m;
+    m.addItem (1, "LFO 1", true, lfoSrc == 1);
+    m.addItem (2, "LFO 2", true, lfoSrc == 2);
+    m.addItem (3, "None", true, lfoSrc == 0);
+    juce::Component::SafePointer<VolumeStrip> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         safe->editor.assignDest (safe->dest, result == 3 ? 0 : result);
+                     });
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::mouseDrag (const juce::MouseEvent& e)
+{
+    if (! amtDragging)
+        return;
+    const auto pos = e.getEventRelativeTo (this).getPosition();
+    const float next = juce::jlimit (-1.f, 1.f, amtDragStart - (float) (pos.y - amtDragY) / 80.f);
+    editor.setDestAmt (dest, next);
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::mouseUp (const juce::MouseEvent&)
+{
+    amtDragging = false;
+}
+
+bool TEW03AudioProcessorEditor::VolumeStrip::isInterestedInDragSource (const SourceDetails& d)
+{
+    return d.description.toString().startsWith ("lfo:");
+}
+
+void TEW03AudioProcessorEditor::VolumeStrip::itemDropped (const SourceDetails& d)
+{
+    const int src = d.description.toString().fromFirstOccurrenceOf (":", false, false).getIntValue();
+    if (src >= 1 && src <= tew::numLfos)
+        editor.assignDest (dest, src);
+}
+
 void TEW03AudioProcessorEditor::SlotBar::setText (const juce::String& t)
 {
     if (text == t)
@@ -1438,7 +1625,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         ParamID::cutoff, ParamID::resonance, ParamID::envMod, ParamID::decay, ParamID::accent
     };
     static constexpr const char* kMaster[] = {
-        ParamID::drive, ParamID::glide, ParamID::volume
+        ParamID::drive, ParamID::glide
     };
 
     auto add = [this] (juce::OwnedArray<ParamCell>& dest, const char* id)
@@ -1557,6 +1744,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     addAndMakeVisible (patchBar);
     addAndMakeVisible (bankLibBar);
     addAndMakeVisible (patBar);
+    addAndMakeVisible (volumeStrip);
     addAndMakeVisible (effectsPage);
     effectsPage.setVisible (false);
     addAndMakeVisible (eqPage);
@@ -1607,7 +1795,6 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText ("TEW03", nameCol.removeFromTop (20), juce::Justification::centredLeft, false);
     g.setFont (boldFont (10.f));
     g.drawText ("v" JucePlugin_VersionString, nameCol, juce::Justification::centredLeft, false);
-    g.drawText ("STUPID SYSTEMS", title, juce::Justification::centredRight, false);
 
     if (editorPage != 0)
     {
@@ -1652,7 +1839,7 @@ void TEW03AudioProcessorEditor::resized()
     auto r = getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
     title.removeFromLeft (90);
-    title.removeFromRight (110);
+    volumeStrip.setBounds (title.removeFromRight (240).reduced (2, 4));
     pageBar.setBounds (title.removeFromLeft (80).reduced (4, 2));
     const int barW = title.getWidth() / 2;
     patchBar.setBounds (title.removeFromLeft (barW).reduced (6, 2));
@@ -1750,6 +1937,7 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshSlot();
     refreshLibraryNames();
     refreshLfo();
+    volumeStrip.refresh();
     if (editorPage == 1)
         effectsPage.refresh();
     else if (editorPage == 2)

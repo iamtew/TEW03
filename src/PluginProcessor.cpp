@@ -269,6 +269,7 @@ void TEW03AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     fx.prepare (sampleRate, samplesPerBlock, ch);
     postEq.prepare (sampleRate, samplesPerBlock, ch);
     eqScope.prepare (sampleRate);
+    outMeter.prepare (sampleRate);
 }
 
 void TEW03AudioProcessor::releaseResources() {}
@@ -374,6 +375,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         tew::readEqBands (apvts, true, bands);
         postEq.process (buffer, tew::eqEnabled (apvts, true), bands);
         eqScope.push (buffer);
+        outMeter.push (buffer);
     };
 
     if (! playing)

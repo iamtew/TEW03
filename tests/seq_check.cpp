@@ -1,3 +1,4 @@
+#include "dsp/Envelope.h"
 #include "dsp/EqBiquad.h"
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
@@ -271,6 +272,24 @@ int main()
     partial[1] = 0;
     assert (tew::completeFxOrder (partial, 2) == tew::fxCount);
     assert (partial[0] == 3 && partial[1] == 0 && partial[2] == 1);
+
+    {
+        tew::Envelope env;
+        env.prepare (44100.0);
+        env.noteOn();
+        const float attack0 = env.process();
+        assert (attack0 > 0.f && attack0 < 1.f);
+        float last = attack0;
+        for (int i = 0; i < 80; ++i)
+            last = env.process();
+        assert (last > 0.9f);
+        env.noteOff();
+        const float rel0 = env.process();
+        assert (rel0 > 0.5f);
+        for (int i = 0; i < (int) (0.012f * 44100.f); ++i)
+            last = env.process();
+        assert (last < 0.01f);
+    }
 
     {
         const auto peak = tew::eqBiquad (tew::eqTypePeak, 44100.f, 1000.f, 0.7f, 6.f);

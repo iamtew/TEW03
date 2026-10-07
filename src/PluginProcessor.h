@@ -68,6 +68,7 @@ public:
     void getFxOrder (int* types, int& n) const;
     std::uint64_t fxOrderPacked() const { return fxOrder.load (std::memory_order_relaxed); }
     tew::EqAnalyser& eqAnalyser() { return eqScope; }
+    tew::OutputMeter& outputMeter() { return outMeter; }
 
     juce::File patchesDir() const;
     juce::File banksDir() const;
@@ -126,6 +127,7 @@ private:
     tew::FxChain fx;
     tew::ParametricEq postEq;
     tew::EqAnalyser eqScope;
+    tew::OutputMeter outMeter;
     tew::Sequencer sequencer;
     tew::Lfo lfo[tew::numLfos];
     tew::LfoShape uiLfo[tew::numLfos];
