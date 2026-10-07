@@ -8,6 +8,14 @@
 namespace tew
 {
 
+inline bool inScale (int note, int root, bool minor)
+{
+    const int pc = ((note % 12) - root + 12) % 12;
+    if (minor)
+        return pc == 0 || pc == 2 || pc == 3 || pc == 5 || pc == 7 || pc == 8 || pc == 10;
+    return pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7 || pc == 9 || pc == 11;
+}
+
 struct SeqEvent
 {
     int offset = 0;
@@ -149,6 +157,13 @@ struct Sequencer
             dest[i].store (packed[i].load (std::memory_order_relaxed), std::memory_order_relaxed);
     }
 
+    void setKeyFilter (bool lock, int root, bool minor)
+    {
+        keyLock.store (lock, std::memory_order_relaxed);
+        keyRoot.store (root, std::memory_order_relaxed);
+        keyMinor.store (minor, std::memory_order_relaxed);
+    }
+
     // Length only. Use reshapeTo when 2x toggles so the grid splits instead of appending.
     void setLength (int n)
     {
@@ -235,7 +250,11 @@ struct Sequencer
             if (nextEdge <= clock)
             {
                 const Step s = unpack (packed[step].load (std::memory_order_relaxed));
-                const bool rest = s.note < 0;
+                const bool rest = s.note < 0
+                    || (keyLock.load (std::memory_order_relaxed)
+                        && ! inScale (s.note,
+                                      keyRoot.load (std::memory_order_relaxed),
+                                      keyMinor.load (std::memory_order_relaxed)));
                 const bool slideIn = pendingSlide && gate;
                 const int need = rest ? (gate ? 1 : 0)
                                       : (gate ? 2 : 1);
@@ -312,6 +331,9 @@ private:
     std::atomic<uint32_t> packed[maxSteps] {};
     std::atomic<int> lengthSteps { numSteps };
     std::atomic<int> playheadIndex { -1 };
+    std::atomic<bool> keyLock { false };
+    std::atomic<int> keyRoot { 0 };
+    std::atomic<bool> keyMinor { false };
     double sampleRate = 44100.0;
     double clock = 0.0;
     double nextEdge = 0.0;

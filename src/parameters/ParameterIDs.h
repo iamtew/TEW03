@@ -20,6 +20,9 @@ namespace ParamID
     inline constexpr const char* seq2x       = "seq2x";
     inline constexpr const char* seqBank     = "seqBank";
     inline constexpr const char* seqPattern  = "seqPattern";
+    inline constexpr const char* seqKeyLock  = "seqKeyLock";
+    inline constexpr const char* seqKey      = "seqKey";
+    inline constexpr const char* seqScale    = "seqScale";
 
     inline constexpr const char* lfo1Rate    = "lfo1Rate";
     inline constexpr const char* lfo1Sync    = "lfo1Sync";

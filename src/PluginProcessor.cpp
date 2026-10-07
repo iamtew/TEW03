@@ -337,6 +337,9 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
     sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
                                                      : tew::Sequencer::numSteps);
+    sequencer.setKeyFilter (raw (ParamID::seqKeyLock) >= 0.5f,
+                            juce::roundToInt (raw (ParamID::seqKey)),
+                            juce::roundToInt (raw (ParamID::seqScale)) == 1);
 
     const int mode = juce::roundToInt (raw (ParamID::playMode));
     const float bpm = tempoBpm();

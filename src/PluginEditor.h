@@ -41,6 +41,7 @@ private:
     void openPageMenu();
     void cyclePage (int delta);
     void applyPageVisibility();
+    void applyLock();
 
     TEW03AudioProcessor& proc;
 
@@ -69,7 +70,7 @@ private:
         int gutterStartView = 36;
         int holdDir = 0; // +1 top overlay, -1 bottom, 0 idle
         bool minor = false;
-        bool locked = true;
+        bool locked = false;
         bool dragged = false;
         bool gutterDrag = false;
     };
@@ -205,8 +206,8 @@ private:
     juce::ToggleButton x2Btn { "2x" };
     juce::ToggleButton clearBtn { "Clear" };
     juce::ToggleButton runBtn { "Run" };
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar;
     EffectsPage effectsPage;
     EqPage eqPage;

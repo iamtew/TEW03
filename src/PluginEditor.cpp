@@ -70,10 +70,7 @@ int nudgeNote (int note, int delta)
 
 bool inScale (int note, int root, bool minor)
 {
-    const int pc = ((note % 12) - root + 12) % 12;
-    if (minor)
-        return pc == 0 || pc == 2 || pc == 3 || pc == 5 || pc == 7 || pc == 8 || pc == 10;
-    return pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7 || pc == 9 || pc == 11;
+    return tew::inScale (note, root, minor);
 }
 
 int snapScale (int note, int root, bool minor)
@@ -1481,9 +1478,10 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     addAndMakeVisible (patternLabel);
 
     lockBtn.setClickingTogglesState (true);
-    lockBtn.setToggleState (true, juce::dontSendNotification);
     lockBtn.setTooltip ("Lock sequencer notes to the selected key and scale");
     addAndMakeVisible (lockBtn);
+    lockAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        proc.apvts, ParamID::seqKeyLock, lockBtn);
 
     runBtn.setClickingTogglesState (true);
     runBtn.setComponentID ("led");
@@ -1521,10 +1519,8 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     };
     for (int i = 0; i < 12; ++i)
         keyBox.addItem (kKeys[i], i + 1);
-    keyBox.setSelectedId (1, juce::dontSendNotification);
     scaleBox.addItem ("Major", 1);
     scaleBox.addItem ("Minor", 2);
-    scaleBox.setSelectedId (1, juce::dontSendNotification);
 
     auto colourBox = [] (juce::ComboBox& b)
     {
@@ -1568,18 +1564,16 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     refreshLibraryNames();
     patBar.setText (juce::String (proc.currentPattern() + 1));
 
-    auto applyLock = [this]
-    {
-        pianoRoll.locked = lockBtn.getToggleState();
-        pianoRoll.keyRoot = keyBox.getSelectedId() - 1;
-        pianoRoll.minor = scaleBox.getSelectedId() == 2;
-        pianoRoll.repaint();
-    };
-    lockBtn.onClick = applyLock;
-    keyBox.onChange = applyLock;
-    scaleBox.onChange = applyLock;
+    lockBtn.onClick = [this] { applyLock(); };
+    keyBox.onChange = [this] { applyLock(); };
+    scaleBox.onChange = [this] { applyLock(); };
+    keyAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::seqKey, keyBox);
+    scaleAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::seqScale, scaleBox);
     addAndMakeVisible (keyBox);
     addAndMakeVisible (scaleBox);
+    applyLock();
 
     for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
     {
@@ -1735,8 +1729,22 @@ void TEW03AudioProcessorEditor::resized()
     applyPageVisibility();
 }
 
+void TEW03AudioProcessorEditor::applyLock()
+{
+    const bool lock = lockBtn.getToggleState();
+    const int root = juce::jlimit (0, 11, keyBox.getSelectedId() - 1);
+    const bool min = scaleBox.getSelectedId() == 2;
+    if (pianoRoll.locked == lock && pianoRoll.keyRoot == root && pianoRoll.minor == min)
+        return;
+    pianoRoll.locked = lock;
+    pianoRoll.keyRoot = root;
+    pianoRoll.minor = min;
+    pianoRoll.repaint();
+}
+
 void TEW03AudioProcessorEditor::timerCallback()
 {
+    applyLock();
     refreshPlayhead();
     refreshHostTempo();
     refreshSlot();

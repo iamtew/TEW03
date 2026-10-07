@@ -78,6 +78,17 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                       "Bank", 0, 2, 0));
     layout.add (std::make_unique<AudioParameterInt> (ParameterID { ParamID::seqPattern, 1 },
                                                       "Pattern", 0, 11, 0));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqKeyLock, 1 },
+                                                       "Key Lock", false));
+    layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::seqKey, 1 },
+                                                         "Key",
+                                                         StringArray { "C", "C#", "D", "D#", "E", "F",
+                                                                       "F#", "G", "G#", "A", "A#", "B" },
+                                                         0));
+    layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::seqScale, 1 },
+                                                         "Scale",
+                                                         StringArray { "Major", "Minor" },
+                                                         0));
 
     auto addLfo = [&] (int i)
     {

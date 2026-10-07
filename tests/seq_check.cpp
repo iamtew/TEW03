@@ -59,6 +59,32 @@ int main()
     assert (ev[1].note == 36);
     assert (seq.playhead() == 1);
 
+    assert (tew::inScale (40, 0, false));
+    assert (! tew::inScale (42, 0, false));
+
+    Sequencer::Step lockedSteps[Sequencer::maxSteps];
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+        lockedSteps[i] = { -1, false, false };
+    lockedSteps[0] = { 40, false, false }; // E, in C major
+    lockedSteps[1] = { 42, false, false }; // F#, hidden when locked
+
+    Sequencer lockedSeq;
+    lockedSeq.prepare (44100.0);
+    lockedSeq.loadAll (lockedSteps);
+    lockedSeq.setKeyFilter (true, 0, false);
+
+    SeqEvent lockEv[8];
+    const int ln0 = lockedSeq.advance (1, 120.f, true, lockEv, 8);
+    assert (ln0 == 1);
+    assert (lockEv[0].on);
+    assert (lockEv[0].note == 40);
+
+    const int ln1 = lockedSeq.advance (stepSamples, 120.f, true, lockEv, 8);
+    assert (ln1 == 1);
+    assert (! lockEv[0].on);
+    assert (lockEv[0].note == 40);
+    assert (lockedSeq.getStep (1).note == 42);
+
     int bank = -1, pat = -1;
     assert (Sequencer::mapKeyToSlot (24, bank, pat) && bank == 0 && pat == 0);  // C1
     assert (Sequencer::mapKeyToSlot (28, bank, pat) && bank == 0 && pat == 4);  // E1 = bank 1 pat 5
