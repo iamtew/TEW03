@@ -105,6 +105,26 @@ h1, h2 { color: var(--yellow); margin: 0 0 0.4rem; }
 
 h1 { font-size: 2rem; }
 
+blockquote {
+  margin: 0.6rem 0 1.2rem;
+  padding: 0 0 0 0.9rem;
+  border-left: 3px solid var(--yellow);
+  color: var(--cream);
+}
+
+blockquote p {
+  margin: 0;
+  font-size: 1.25rem;
+  font-style: italic;
+}
+
+blockquote footer {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  font-style: normal;
+  opacity: 0.8;
+}
+
 .actions { display: flex; align-items: center; gap: 1rem; }
 
 .download {
