@@ -132,6 +132,8 @@ blockquote footer {
   opacity: 0.8;
 }
 
+.demo audio { width: 100%; max-width: 22rem; display: block; margin: 0 0 0.6rem; }
+
 .actions { display: flex; align-items: center; gap: 1rem; }
 
 .download {
