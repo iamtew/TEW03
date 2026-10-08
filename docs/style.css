@@ -99,14 +99,21 @@ main {
   padding: 2rem 1.2rem 4rem;
 }
 
-.hero { display: block; }
+.lead {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.hero { display: block; flex-shrink: 0; }
 
 h1, h2 { color: var(--yellow); margin: 0 0 0.4rem; }
 
 h1 { font-size: 2rem; }
 
 blockquote {
-  margin: 0.6rem 0 1.2rem;
+  margin: 0.4rem 0 0;
   padding: 0 0 0 0.9rem;
   border-left: 3px solid var(--yellow);
   color: var(--cream);
@@ -165,3 +172,17 @@ section { margin-top: 1.6rem; }
 #notes a { display: block; margin: 0.35rem 0; }
 
 strong { color: var(--yellow); }
+
+.md h1, .md h2, .md h3 { color: var(--yellow); margin: 1.2rem 0 0.35rem; }
+.md h1 { margin-top: 0; font-size: 1.7rem; }
+.md h2 { font-size: 1.2rem; }
+.md h3 { font-size: 1.05rem; }
+.md p { margin: 0.45rem 0; }
+.md ul, .md ol { padding-left: 1.25rem; margin: 0.35rem 0; }
+.md li { margin: 0.2rem 0; }
+.md code {
+  background: var(--lane);
+  padding: 0.05rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.9em;
+}

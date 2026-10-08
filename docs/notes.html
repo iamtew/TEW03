@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes | TEW03</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-note>
+  <div id="fx" aria-hidden="true"></div>
+  <header>
+    <a class="brand" href="index.html"><img src="icon.png" alt="" width="36" height="36">TEW03</a>
+    <nav>
+      <a href="index.html#main">Main</a>
+      <a href="index.html#effects">Effects</a>
+      <a href="index.html#eq">EQ</a>
+      <a href="index.html#notes">Notes</a>
+    </nav>
+  </header>
+
+  <main>
+    <p class="meta"><a href="index.html#notes">← Notes</a></p>
+    <article id="md" class="md card"></article>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <script src="site.js"></script>
+  <script>
+    const allow = {
+      "PRD.md": "Product requirements",
+      "ARCHITECTURE.md": "Architecture",
+      "DSP_NOTES.md": "DSP notes"
+    };
+    const file = new URLSearchParams(location.search).get("doc");
+    const doc = allow[file] ? file : "PRD.md";
+    document.title = allow[doc] + " | TEW03";
+    fetch(doc)
+      .then((r) => r.ok ? r.text() : Promise.reject())
+      .then((t) => { document.getElementById("md").innerHTML = marked.parse(t); })
+      .catch(() => { document.getElementById("md").textContent = "Could not load that note."; });
+  </script>
+</body>
+</html>

@@ -13,6 +13,8 @@ const watch = new IntersectionObserver((entries) => {
 }, { rootMargin: "-40% 0px -50% 0px" });
 
 sections.forEach((section) => watch.observe(section));
+if (document.body.dataset.note !== undefined)
+  document.querySelector('nav a[href$="#notes"]')?.classList.add("on");
 
 const fx = document.getElementById("fx");
 const rand = (a, b) => a + Math.random() * (b - a);
