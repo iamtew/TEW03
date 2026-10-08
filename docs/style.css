@@ -1,0 +1,147 @@
+:root {
+  --ink: #111111;
+  --knob: #1a1a1a;
+  --lane: #2a2a2a;
+  --yellow: #e8c200;
+  --yellow-dim: #c9a400;
+  --cream: #f4ead0;
+  --lfo1: #3dcc8c;
+  --lfo2: #ff6a00;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--cream);
+  font: 18px/1.5 system-ui, sans-serif;
+}
+
+#fx {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.smile {
+  position: absolute;
+  left: var(--x);
+  bottom: -12vmin;
+  width: var(--s);
+  height: var(--s);
+  filter: blur(var(--b));
+  animation:
+    fly var(--t) linear var(--d) infinite,
+    blink var(--k) ease-in-out infinite;
+}
+
+@keyframes fly {
+  to { transform: translateY(-120vh) rotate(var(--turn)); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.06; }
+  50% { opacity: 0.42; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #fx { display: none; }
+}
+
+a { color: var(--yellow); }
+a:hover { color: var(--yellow-dim); }
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--ink);
+  border-bottom: 1px solid var(--lane);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--yellow);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+nav { display: flex; gap: 0.4rem; }
+
+nav a {
+  color: var(--yellow);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.1rem 0.45rem;
+  border-radius: 2px;
+}
+
+nav a.on {
+  color: var(--ink);
+  background: var(--yellow);
+}
+
+main {
+  position: relative;
+  z-index: 1;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2rem 1.2rem 4rem;
+}
+
+.hero { display: block; }
+
+h1, h2 { color: var(--yellow); margin: 0 0 0.4rem; }
+
+h1 { font-size: 2rem; }
+
+.actions { display: flex; align-items: center; gap: 1rem; }
+
+.download {
+  display: inline-block;
+  background: var(--yellow);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.35rem 0.9rem;
+  border-radius: 2px;
+}
+
+.download:hover { background: var(--yellow-dim); color: var(--ink); }
+
+.meta { color: var(--cream); opacity: 0.8; }
+
+section { margin-top: 1.6rem; }
+
+.card {
+  background: var(--knob);
+  border: 1px solid var(--lane);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+}
+
+.shot {
+  display: block;
+  width: 100%;
+  margin-top: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--lane);
+}
+
+.lfos { font-weight: 700; }
+.lfo1 { color: var(--lfo1); }
+.lfo2 { color: var(--lfo2); margin-left: 0.8rem; }
+
+#notes a { display: block; margin: 0.35rem 0; }
+
+strong { color: var(--yellow); }

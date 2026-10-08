@@ -6,6 +6,10 @@
 - Drive: soft saturation before and/or after filter
 - Keep everything real-time safe
 
+# Signal path
+- Osc → drive → diode-ladder filter. Accent raises level, cutoff, and resonance.
+- Then the amp envelope, pre-EQ (off by default), the FX chain, post-EQ (off by default), and the master.
+
 # Sequencer Notes
 - Classic 303-style step sequencer (monophonic)
 - Per step: pitch, accent flag, slide/tie flag

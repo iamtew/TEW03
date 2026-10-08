@@ -16,7 +16,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 - Slide / portamento
 - Drive / overdrive
 - Master volume + soft limiting
-- Two assignable LFOs with custom breakpoint shapes (not BPM)
+- Two assignable LFOs with custom breakpoint shapes, free-running or synced to the host tempo
 
 ### MIDI & Performance
 - Full MIDI note input + pitch bend
@@ -33,7 +33,10 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 - All MIDI I/O must be real-time safe
 
 ### Plugin
-- APVTS + basic GUI (GenericEditor is fine at start)
+- APVTS
+- Editor pages: Main (synth, sequencer, LFOs), Effects, EQ
+- Effects chain: chorus, compressor, delay, distortion, equalizer, filter, flanger, phaser, reverb. Off until enabled. Drag to reorder.
+- Pre-FX and post-FX five-band parametric EQ, both off by default
 - VST3 + Standalone
 
 ## Non-goals

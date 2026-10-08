@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TEW03</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="fx" aria-hidden="true"></div>
+  <header>
+    <a class="brand" href="#top"><img src="icon.png" alt="" width="36" height="36">TEW03</a>
+    <nav>
+      <a href="#main">Main</a>
+      <a href="#effects">Effects</a>
+      <a href="#eq">EQ</a>
+      <a href="#notes">Notes</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <img class="hero" src="icon.png" alt="TEW03" width="160" height="160">
+    <h1>TEW03</h1>
+    <p>A monophonic acid synth. Classic 303 squelch (saw/square, resonant filter, accent, slide, drive) plus extra nastiness.</p>
+    <p class="actions">
+      <a class="download" href="https://github.com/iamtew/TEW03/releases/latest">Download</a>
+      <a href="https://github.com/iamtew/TEW03">GitHub</a>
+    </p>
+    <p class="meta">VST3 and standalone.</p>
+
+    <section id="main" class="card">
+      <h2>Main</h2>
+      <p>The synth, a 3×12 step sequencer (16 or 32 steps, accent and slide, key lock), and two drawn LFOs you can drop on any knob. Patterns play the voice and go out as MIDI.</p>
+      <p class="lfos"><span class="lfo1">LFO 1</span> <span class="lfo2">LFO 2</span></p>
+      <ul>
+        <li><strong>Keyboard</strong> — play it from MIDI.</li>
+        <li><strong>Pattern</strong> — loop the selected slot.</li>
+        <li><strong>Key</strong> — hold a key to trigger a pattern.</li>
+      </ul>
+      <img class="shot" src="screenshot1.png" alt="Main page: synth, sequencer, and LFOs">
+    </section>
+
+    <section id="effects" class="card">
+      <h2>Effects</h2>
+      <p>Chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb. Click to add, drag to reorder. All off until you turn them on.</p>
+      <img class="shot" src="screenshot2.png" alt="Effects page">
+    </section>
+
+    <section id="eq" class="card">
+      <h2>EQ</h2>
+      <p>Five-band parametric before and after the effects, with the spectrum behind the curve.</p>
+      <img class="shot" src="screenshot3.png" alt="EQ page">
+    </section>
+
+    <section id="notes">
+      <h2>Notes</h2>
+      <a href="PRD.md">Product requirements</a>
+      <a href="ARCHITECTURE.md">Architecture</a>
+      <a href="DSP_NOTES.md">DSP notes</a>
+    </section>
+  </main>
+
+  <script src="site.js"></script>
+</body>
+</html>
