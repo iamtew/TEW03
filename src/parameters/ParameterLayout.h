@@ -64,12 +64,15 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                        "Square", false));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::glide, 1 },
                                                         "Glide", glideR, 0.f, pct (glideR)));
+    // Shared Code is one lib for VST3 + Standalone; wrapper is set before the processor exists.
+    const bool standalone = PluginHostType::getPluginLoadedAs()
+                            == AudioProcessor::wrapperType_Standalone;
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqPlay, 1 },
-                                                       "Run", false));
+                                                       "Run", ! standalone));
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::playMode, 1 },
                                                          "Play",
                                                          StringArray { "Keyboard", "Pattern", "Key" },
-                                                         0));
+                                                         standalone ? 1 : 2));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqTempo, 1 },
                                                         "Seq Tempo",
                                                         NormalisableRange<float> (40.f, 300.f, 0.1f),
@@ -99,7 +102,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             ParameterID { ParamID::lfoRateIds[i], 1 }, n + " Rate",
             NormalisableRange<float> (0.05f, 30.f, 0.01f, 0.4f), 1.f));
         layout.add (std::make_unique<AudioParameterBool> (
-            ParameterID { ParamID::lfoSyncIds[i], 1 }, n + " Sync", false));
+            ParameterID { ParamID::lfoSyncIds[i], 1 }, n + " Sync", i == 0));
         layout.add (std::make_unique<AudioParameterChoice> (
             ParameterID { ParamID::lfoDivIds[i], 1 }, n + " Div",
             StringArray { "1/16", "1/8", "1/4", "1/2", "1", "2" }, 2));

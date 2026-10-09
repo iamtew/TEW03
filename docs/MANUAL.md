@@ -52,6 +52,8 @@ Three modes:
 - **Pattern** — loops the selected bank/pattern while **Run** is on. In a DAW it follows host transport: Run on *and* the host playing. Standalone uses Run as the clock.
 - **Key** — MIDI notes **C1–B3** (MIDI 24–59) map chromatically onto the 36 slots (3 banks × 12 patterns). Hold a key to play that slot. Note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when the host provides it; does **not** require the host transport to be playing.
 
+Factory default: Standalone opens in **Pattern** with **Run** off; in a DAW it opens in **Key** with **Run** on.
+
 ### Transport and slots
 
 - **Run** — play / pause the sequencer.
@@ -112,7 +114,7 @@ The name bar cycles presets: **Triangle**, **Sin**, **Saw Up**, **Saw Down**, **
 - **Mode — Free** — runs continuously.
 - **Mode — Trigger** — resets to the start of the shape on each note-on (keyboard or sequencer).
 - **Sync** off — **Rate** is 0.05–30 Hz.
-- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo).
+- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo). **LFO 1** Sync is on by default (1/4); **LFO 2** Sync is off.
 - **Smooth** — lags the shape. 0 is raw breakpoints; 100% is a ~250 ms lag.
 
 ### Assigning
