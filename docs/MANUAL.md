@@ -38,6 +38,8 @@ The bar at the top left is the page switcher: **Main**, **Effects**, **EQ**. Cli
 
 **Volume** lives in the title strip on every page. Drag the fader. It can take an LFO like the Main knobs. A clip LED flashes when the output hits the limiter.
 
+Click **TEW03** or the version number for About. **Check for update** looks at GitHub tags; if a newer build exists, **Open releases** opens the download page in your browser.
+
 ## Main — sequencer
 
 Left column is transport and pattern. Centre is the piano roll.

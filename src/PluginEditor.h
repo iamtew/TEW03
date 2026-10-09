@@ -4,6 +4,7 @@
 #include "ui/EffectsPage.h"
 #include "ui/EqPage.h"
 
+#include <atomic>
 #include <functional>
 
 class TEW03AudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -16,6 +17,8 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void mouseUp (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
 
 private:
     void timerCallback() override;
@@ -42,6 +45,8 @@ private:
     void cyclePage (int delta);
     void applyPageVisibility();
     void applyLock();
+    juce::Rectangle<int> titleHitBounds() const;
+    void openAbout();
 
     TEW03AudioProcessor& proc;
 
@@ -148,6 +153,26 @@ private:
         bool isChoice = false;
     };
 
+    struct AboutBox : public juce::Component
+    {
+        AboutBox();
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseUp (const juce::MouseEvent& e) override;
+        void checkForUpdate();
+        void applyResult (const juce::String& text, bool hasUpdate);
+        juce::Rectangle<int> cardBounds() const;
+
+        juce::Label status;
+        juce::ToggleButton checkBtn { "Check for update" };
+        juce::HyperlinkButton releasesBtn {
+            "Open releases",
+            juce::URL ("https://github.com/iamtew/TEW03/releases/latest")
+        };
+        juce::ToggleButton closeBtn { "Close" };
+        std::atomic<bool> fetching { false };
+    };
+
     struct VolumeStrip : public juce::Component,
                          public juce::DragAndDropTarget,
                          public juce::SettableTooltipClient
@@ -249,6 +274,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar;
     VolumeStrip volumeStrip { *this };
+    AboutBox aboutBox;
     EffectsPage effectsPage;
     EqPage eqPage;
     int editorPage = 0;

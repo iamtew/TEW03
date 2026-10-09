@@ -43,6 +43,8 @@
       <GROUP id="uiGrp01" name="ui">
         <FILE id="fxpH001" name="EffectsPage.h" compile="0" resource="0" file="src/ui/EffectsPage.h"/>
         <FILE id="eqpH001" name="EqPage.h" compile="0" resource="0" file="src/ui/EqPage.h"/>
+        <FILE id="verH001" name="VersionCompare.h" compile="0" resource="0"
+              file="src/ui/VersionCompare.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

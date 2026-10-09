@@ -1,6 +1,9 @@
 #include "PluginEditor.h"
+#include "ui/VersionCompare.h"
 
 #include <cmath>
+#include <thread>
+#include <vector>
 
 namespace
 {
@@ -10,6 +13,7 @@ constexpr int kLfoH = 140;
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
 constexpr int kTitleH = 36;
+constexpr int kTitleHitW = 90;
 constexpr int kSeqW = 236;
 constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
@@ -1288,6 +1292,129 @@ void TEW03AudioProcessorEditor::SlotBar::mouseUp (const juce::MouseEvent& e)
         onOpen();
 }
 
+TEW03AudioProcessorEditor::AboutBox::AboutBox()
+{
+    status.setJustificationType (juce::Justification::centred);
+    status.setColour (juce::Label::textColourId, kCream);
+    status.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible (status);
+
+    auto setupPlain = [] (juce::ToggleButton& b)
+    {
+        b.setClickingTogglesState (false);
+        b.setComponentID ("plain");
+    };
+    setupPlain (checkBtn);
+    setupPlain (closeBtn);
+    checkBtn.onClick = [this] { checkForUpdate(); };
+    closeBtn.onClick = [this] { setVisible (false); };
+    addAndMakeVisible (checkBtn);
+    addAndMakeVisible (closeBtn);
+
+    releasesBtn.setColour (juce::HyperlinkButton::textColourId, kCream);
+    releasesBtn.setVisible (false);
+    addAndMakeVisible (releasesBtn);
+}
+
+void TEW03AudioProcessorEditor::AboutBox::paint (juce::Graphics& g)
+{
+    g.fillAll (juce::Colours::black.withAlpha (0.55f));
+    auto card = cardBounds().toFloat();
+    g.setColour (kLaneBlack);
+    g.fillRoundedRectangle (card, 6.f);
+    g.setColour (kCream.withAlpha (0.35f));
+    g.drawRoundedRectangle (card.reduced (0.5f), 6.f, 1.f);
+
+    auto r = cardBounds().reduced (16, 14);
+    g.setColour (kCream);
+    g.setFont (boldFont (20.f));
+    g.drawText ("TEW03", r.removeFromTop (26), juce::Justification::centred, false);
+    g.setFont (boldFont (12.f));
+    g.drawText ("v" JucePlugin_VersionString, r.removeFromTop (18), juce::Justification::centred, false);
+    g.setFont (boldFont (11.f));
+    g.setColour (kCream.withAlpha (0.8f));
+    g.drawText ("Stupid Systems LLC", r.removeFromTop (16), juce::Justification::centred, false);
+    g.drawText ("MIT", r.removeFromTop (16), juce::Justification::centred, false);
+}
+
+void TEW03AudioProcessorEditor::AboutBox::resized()
+{
+    auto r = cardBounds().reduced (16, 14);
+    r.removeFromTop (26 + 18 + 16 + 16 + 8);
+    checkBtn.setBounds (r.removeFromTop (22).withSizeKeepingCentre (160, 22));
+    r.removeFromTop (6);
+    status.setBounds (r.removeFromTop (22));
+    r.removeFromTop (4);
+    releasesBtn.setBounds (r.removeFromTop (20).withSizeKeepingCentre (140, 20));
+    closeBtn.setBounds (cardBounds().removeFromBottom (36).reduced (90, 8));
+}
+
+void TEW03AudioProcessorEditor::AboutBox::mouseUp (const juce::MouseEvent& e)
+{
+    if (e.mouseWasClicked() && ! cardBounds().contains (e.getPosition()))
+        setVisible (false);
+}
+
+juce::Rectangle<int> TEW03AudioProcessorEditor::AboutBox::cardBounds() const
+{
+    return getLocalBounds().withSizeKeepingCentre (320, 240);
+}
+
+void TEW03AudioProcessorEditor::AboutBox::applyResult (const juce::String& text, bool hasUpdate)
+{
+    fetching.store (false);
+    status.setText (text, juce::dontSendNotification);
+    releasesBtn.setVisible (hasUpdate);
+}
+
+void TEW03AudioProcessorEditor::AboutBox::checkForUpdate()
+{
+    if (fetching.exchange (true))
+        return;
+    status.setText ("Checking...", juce::dontSendNotification);
+    releasesBtn.setVisible (false);
+    juce::Component::SafePointer<AboutBox> safe (this);
+    std::thread ([safe]
+    {
+        juce::String text;
+        bool hasUpdate = false;
+        juce::URL url ("https://api.github.com/repos/iamtew/TEW03/tags");
+        const auto opts = juce::URL::InputStreamOptions (juce::URL::ParameterHandling::inAddress)
+                              .withExtraHeaders ("User-Agent: TEW03\nAccept: application/vnd.github+json")
+                              .withConnectionTimeoutMs (8000);
+        if (auto stream = url.createInputStream (opts))
+        {
+            const auto parsed = juce::JSON::parse (stream->readEntireStreamAsString());
+            if (auto* arr = parsed.getArray())
+            {
+                std::vector<std::string> names;
+                names.reserve ((size_t) arr->size());
+                for (const auto& v : *arr)
+                    if (auto* obj = v.getDynamicObject())
+                        names.push_back (obj->getProperty ("name").toString().toStdString());
+                const auto newest = tew::newestNewerTag (names, JucePlugin_VersionString);
+                if (newest.empty())
+                    text = "You are up to date.";
+                else
+                {
+                    text = "Newer version available: " + juce::String (newest);
+                    hasUpdate = true;
+                }
+            }
+            else
+                text = "Could not reach GitHub.";
+        }
+        else
+            text = "Could not reach GitHub.";
+
+        juce::MessageManager::callAsync ([safe, text, hasUpdate]
+        {
+            if (safe != nullptr)
+                safe->applyResult (text, hasUpdate);
+        });
+    }).detach();
+}
+
 TEW03AudioProcessorEditor::LfoHandle::LfoHandle (TEW03AudioProcessorEditor& ed, int i)
     : editor (ed), index (i)
 {
@@ -1774,6 +1901,9 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     addAndMakeVisible (lfoLane1);
     refreshLfo();
 
+    addAndMakeVisible (aboutBox);
+    aboutBox.setVisible (false);
+
     setSize (kEditorW, kEditorH);
     startTimerHz (15);
 }
@@ -1790,7 +1920,7 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 
     auto r = getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
-    auto nameCol = title.removeFromLeft (90);
+    auto nameCol = title.removeFromLeft (kTitleHitW);
     g.setColour (kInk);
     g.setFont (boldFont (16.f));
     g.drawText ("TEW03", nameCol.removeFromTop (20), juce::Justification::centredLeft, false);
@@ -1839,7 +1969,7 @@ void TEW03AudioProcessorEditor::resized()
 {
     auto r = getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
-    title.removeFromLeft (90);
+    title.removeFromLeft (kTitleHitW);
     volumeStrip.setBounds (title.removeFromRight (240).reduced (2, 4));
     pageBar.setBounds (title.removeFromLeft (80).reduced (4, 2));
     const int barW = title.getWidth() / 2;
@@ -1927,7 +2057,35 @@ void TEW03AudioProcessorEditor::resized()
     const int half = lfo.getWidth() / 2;
     lfoLane0.setBounds (lfo.removeFromLeft (half));
     lfoLane1.setBounds (lfo);
+    aboutBox.setBounds (getLocalBounds());
     applyPageVisibility();
+    if (aboutBox.isVisible())
+        aboutBox.toFront (false);
+}
+
+juce::Rectangle<int> TEW03AudioProcessorEditor::titleHitBounds() const
+{
+    auto r = getLocalBounds().reduced (kPad);
+    return r.removeFromTop (kTitleH).removeFromLeft (kTitleHitW);
+}
+
+void TEW03AudioProcessorEditor::openAbout()
+{
+    aboutBox.setVisible (true);
+    aboutBox.toFront (true);
+}
+
+void TEW03AudioProcessorEditor::mouseUp (const juce::MouseEvent& e)
+{
+    if (e.mouseWasClicked() && titleHitBounds().contains (e.getPosition()))
+        openAbout();
+}
+
+void TEW03AudioProcessorEditor::mouseMove (const juce::MouseEvent& e)
+{
+    setMouseCursor (titleHitBounds().contains (e.getPosition())
+                        ? juce::MouseCursor::PointingHandCursor
+                        : juce::MouseCursor::NormalCursor);
 }
 
 void TEW03AudioProcessorEditor::applyLock()

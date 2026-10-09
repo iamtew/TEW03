@@ -3,6 +3,7 @@
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
 #include "parameters/Library.h"
+#include "ui/VersionCompare.h"
 
 #include <atomic>
 #include <cassert>
@@ -300,6 +301,16 @@ int main()
         const float mag = tew::eqMagnitude (flat, 1, 44100.f, 1000.f);
         assert (mag > 0.99f && mag < 1.01f);
     }
+
+    assert (! tew::versionNewer ("0.0.4", "0.0.4"));
+    assert (! tew::versionNewer ("v0.0.4", "0.0.4"));
+    assert (tew::versionNewer ("0.0.5", "0.0.4"));
+    assert (tew::versionNewer ("v0.1.0", "0.0.9"));
+    assert (! tew::versionNewer ("0.0.3", "0.0.4"));
+    assert (! tew::versionNewer ("nope", "0.0.4"));
+    assert (tew::versionNewer ("0.0.4.1", "0.0.4"));
+    assert (tew::newestNewerTag ({ "v0.0.3", "0.0.5", "v0.1.0" }, "0.0.4") == "v0.1.0");
+    assert (tew::newestNewerTag ({ "v0.0.4", "v0.0.3" }, "0.0.4").empty());
 
     std::puts ("seq_check ok");
     return 0;
