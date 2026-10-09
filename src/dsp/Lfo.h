@@ -16,6 +16,7 @@ enum LfoDest
     destDrive,
     destGlide,
     destVolume,
+    destNasty,
     destCount
 };
 

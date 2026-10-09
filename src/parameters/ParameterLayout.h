@@ -56,6 +56,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                         "Accent", unit, 0.5f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::drive, 1 },
                                                         "Drive", unit, 0.f, pct (unit)));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::nasty, 1 },
+                                                        "Nasty", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::volume, 1 },
                                                         "Volume", unit, 0.25f, pct (unit)));
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::waveform, 1 },
@@ -111,7 +113,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addLfo (1);
 
     auto amtR = NormalisableRange<float> (-1.f, 1.f);
-    for (int d = 0; d < 8; ++d)
+    for (int d = 0; d < ParamID::destCount; ++d)
     {
         layout.add (std::make_unique<AudioParameterInt> (
             ParameterID { ParamID::destLfoIds[d], 1 },

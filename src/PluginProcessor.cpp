@@ -5,6 +5,8 @@
 
 #include <cstring>
 
+static_assert (tew::destCount == ParamID::destCount);
+
 namespace
 {
 constexpr int kMidiBytes = 512;
@@ -327,7 +329,8 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     engine.setFilter (raw (ParamID::cutoff),
                       raw (ParamID::resonance),
                       raw (ParamID::drive),
-                      raw (ParamID::envMod));
+                      raw (ParamID::envMod),
+                      raw (ParamID::nasty));
 
     const int numSamples = buffer.getNumSamples();
     if (numSamples <= 0)

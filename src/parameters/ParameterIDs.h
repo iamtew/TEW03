@@ -11,6 +11,7 @@ namespace ParamID
     inline constexpr const char* accent      = "accent";
     inline constexpr const char* envMod      = "envMod";
     inline constexpr const char* drive       = "drive";
+    inline constexpr const char* nasty       = "nasty";
     inline constexpr const char* volume      = "volume";
     inline constexpr const char* waveform    = "waveform";
     inline constexpr const char* glide       = "glide";
@@ -51,17 +52,20 @@ namespace ParamID
     inline constexpr const char* glideLfoAmt    = "glideLfoAmt";
     inline constexpr const char* volumeLfo      = "volumeLfo";
     inline constexpr const char* volumeLfoAmt   = "volumeLfoAmt";
+    inline constexpr const char* nastyLfo       = "nastyLfo";
+    inline constexpr const char* nastyLfoAmt    = "nastyLfoAmt";
 
     inline constexpr const char* destIds[] = {
-        cutoff, resonance, envMod, decay, accent, drive, glide, volume
+        cutoff, resonance, envMod, decay, accent, drive, glide, volume, nasty
     };
     inline constexpr const char* destLfoIds[] = {
-        cutoffLfo, resonanceLfo, envModLfo, decayLfo, accentLfo, driveLfo, glideLfo, volumeLfo
+        cutoffLfo, resonanceLfo, envModLfo, decayLfo, accentLfo, driveLfo, glideLfo, volumeLfo, nastyLfo
     };
     inline constexpr const char* destAmtIds[] = {
         cutoffLfoAmt, resonanceLfoAmt, envModLfoAmt, decayLfoAmt,
-        accentLfoAmt, driveLfoAmt, glideLfoAmt, volumeLfoAmt
+        accentLfoAmt, driveLfoAmt, glideLfoAmt, volumeLfoAmt, nastyLfoAmt
     };
+    inline constexpr int destCount = (int) (sizeof destIds / sizeof destIds[0]);
     inline constexpr const char* lfoRateIds[]   = { lfo1Rate, lfo2Rate };
     inline constexpr const char* lfoSyncIds[]   = { lfo1Sync, lfo2Sync };
     inline constexpr const char* lfoDivIds[]    = { lfo1Div, lfo2Div };
@@ -70,7 +74,7 @@ namespace ParamID
 
     inline int destIndexForId (const char* id)
     {
-        for (int i = 0; i < 8; ++i)
+        for (int i = 0; i < destCount; ++i)
             if (std::strcmp (destIds[i], id) == 0)
                 return i;
         return -1;

@@ -3,11 +3,12 @@
 - Oscillator: band-limited saw/square (PolyBLEP preferred)
 - Filter: diode-ladder inspired, stable at high resonance, accent raises cutoff + resonance
 - Envelope: fast attack, adjustable decay, Env Mod sets how far the envelope opens the filter, accent intensifies
-- Drive: soft saturation before and/or after filter
+- Drive: osc gain into the ladder tanh (0 ≈ 0.35, 1 ≈ 8.35). Ladder diodes do the clip.
+- Nasty: post-filter mix of tanh on the squelch peak. 0 is dry filter out.
 - Keep everything real-time safe
 
 # Signal path
-- Osc → drive → diode-ladder filter. Accent raises level, cutoff, and resonance.
+- Osc → Drive gain → diode-ladder filter → Nasty mix → amp env. Accent raises level, cutoff, and resonance.
 - Then the amp envelope, pre-EQ (off by default), the FX chain, post-EQ (off by default), and the master.
 
 # Sequencer Notes

@@ -11,7 +11,7 @@
 namespace tew
 {
 
-// One note. Osc -> tanh drive -> diode ladder -> amp env.
+// One note. Osc -> Drive gain -> diode ladder -> Nasty mix -> amp env -> tanh.
 // The same decay envelope opens the filter. Accent bumps level, cutoff, and resonance.
 struct Voice
 {
@@ -40,12 +40,14 @@ struct Voice
         osc.setSquare (wantSquare);
     }
 
-    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount, float envModAmount)
+    void setFilter (float cutoffHz, float resonanceAmount, float driveAmount,
+                    float envModAmount, float nastyAmount)
     {
         cutoff = cutoffHz;
         resonance = std::clamp (resonanceAmount, 0.f, 1.f);
         drive = std::clamp (driveAmount, 0.f, 1.f);
         envMod = std::clamp (envModAmount, 0.f, 1.f);
+        nasty = std::clamp (nastyAmount, 0.f, 1.f);
     }
 
     // value is the 14-bit MIDI pitch wheel. ±2 semitones, centre 8192.
@@ -117,6 +119,7 @@ struct Voice
                 sample01 (destCutoff, lfoY, destTo01 (destCutoff, cutoff)));
             const float resAmt = sample01 (destResonance, lfoY, resonance);
             const float driveAmt = sample01 (destDrive, lfoY, drive);
+            const float nastyAmt = sample01 (destNasty, lfoY, nasty);
             const float envAmt = sample01 (destEnvMod, lfoY, envMod);
             if (gain < gainTarget)
                 gain = std::min (gainTarget, gain + gainSlew);
@@ -124,8 +127,8 @@ struct Voice
                 gain = std::max (gainTarget, gain - gainSlew);
             const float gainNow = sample01 (destVolume, lfoY, gain);
 
-            // drive 0 is unity. drive 1 is a hard tanh shove.
-            const float driveGain = 1.f + driveAmt * 8.f;
+            // drive 0 ≈ 0.35 into the ladder (mostly clean). drive 1 ≈ 8.35 (diodes slam).
+            const float inGain = 0.35f + driveAmt * 8.f;
             const float resNow = std::clamp (resAmt + (accented ? 0.25f * accentAmount : 0.f), 0.f, 1.f);
 
             if (glideSamples > 0)
@@ -144,9 +147,10 @@ struct Voice
             const float fc = cutoffNow * std::pow (2.f, e * octaves);
             filter.set (fc, resNow);
 
-            float s = osc.process();
-            s = std::tanh (s * driveGain);
+            float s = osc.process() * inGain;
             s = filter.process (s);
+            // nasty 0 = filter output unchanged. nasty 1 = tanh(s * 5) on the squelch peak.
+            s += nastyAmt * (std::tanh (s * (1.f + nastyAmt * 4.f)) - s);
             s *= e * accentGain * gainNow;
             out[i] = std::tanh (s);
         }
@@ -175,6 +179,7 @@ private:
     float cutoff = 800.f;
     float resonance = 0.3f;
     float drive = 0.f;
+    float nasty = 0.f;
     float envMod = 0.7f;
     int glideSamples = 0;
     int heldNote = -1;

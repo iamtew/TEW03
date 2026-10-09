@@ -343,6 +343,7 @@ juce::String uiLabel (const juce::String& id)
     if (id == ParamID::envMod)      return "Env Mod";
     if (id == ParamID::accent)      return "Accent";
     if (id == ParamID::drive)       return "Drive";
+    if (id == ParamID::nasty)       return "Nasty";
     if (id == ParamID::volume)      return "Volume";
     if (id == ParamID::waveform)    return "Waveform";
     if (id == ParamID::glide)       return "Glide";
@@ -1625,7 +1626,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         ParamID::cutoff, ParamID::resonance, ParamID::envMod, ParamID::decay, ParamID::accent
     };
     static constexpr const char* kMaster[] = {
-        ParamID::drive, ParamID::glide
+        ParamID::drive, ParamID::glide, ParamID::nasty
     };
 
     auto add = [this] (juce::OwnedArray<ParamCell>& dest, const char* id)
@@ -1899,7 +1900,20 @@ void TEW03AudioProcessorEditor::resized()
             cells[i]->setBounds (area.removeFromLeft (i == cells.size() - 1 ? area.getWidth() : w));
     };
     place (filterCells, filterArea);
-    place (masterCells, masterArea);
+    // Dice 4: Drive Glide / Nasty empty. Bottom-right reserved for a future knob.
+    {
+        auto area = masterArea;
+        area.removeFromTop (kSectionH);
+        const int colW = area.getWidth() / 2;
+        const int rowH = area.getHeight() / 2;
+        auto top = area.removeFromTop (rowH);
+        if (masterCells.size() >= 1)
+            masterCells[0]->setBounds (top.removeFromLeft (colW));
+        if (masterCells.size() >= 2)
+            masterCells[1]->setBounds (top);
+        if (masterCells.size() >= 3)
+            masterCells[2]->setBounds (area.removeFromLeft (colW));
+    }
 
     strip.removeFromLeft (kKeyW);
     const int n = gridSteps (proc);
