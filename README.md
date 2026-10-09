@@ -10,4 +10,4 @@
 
 **EQ** — five-band parametric before and after the effects, with the spectrum behind the curve.
 
-VST3 and standalone. Stupid Systems LLC. [MIT](LICENSE). Site: [docs/](docs/index.html).
+VST3 and standalone. Stupid Systems LLC. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/MANUAL.md](docs/MANUAL.md).
