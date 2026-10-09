@@ -201,8 +201,8 @@ inline std::string writeBankXml (
                 const auto s = steps[b][p][i];
                 char line[128];
                 std::snprintf (line, sizeof (line),
-                               "  <STEP b=\"%d\" p=\"%d\" i=\"%d\" note=\"%d\" accent=\"%d\" slide=\"%d\"/>\n",
-                               b, p, i, s.note, s.accent ? 1 : 0, s.slide ? 1 : 0);
+                               "  <STEP b=\"%d\" p=\"%d\" i=\"%d\" note=\"%d\" accent=\"%d\" slide=\"%d\" super=\"%d\"/>\n",
+                               b, p, i, s.note, s.accent ? 1 : 0, s.slide ? 1 : 0, s.superSlide ? 1 : 0);
                 o += line;
             }
     o += "</TEW03BANK>\n";
@@ -219,7 +219,7 @@ inline bool readBankXml (
     for (int b = 0; b < Sequencer::numBanks; ++b)
         for (int p = 0; p < Sequencer::patternsPerBank; ++p)
             for (int i = 0; i < Sequencer::maxSteps; ++i)
-                steps[b][p][i] = { -1, false, false };
+                steps[b][p][i] = { -1, false, false, false };
 
     std::size_t pos = 0;
     while ((pos = xml.find ("<STEP", pos)) != std::string::npos)
@@ -230,7 +230,7 @@ inline bool readBankXml (
         const auto tag = xml.substr (pos, end - pos);
         pos = end + 1;
 
-        std::string b, p, i, note, acc, sld;
+        std::string b, p, i, note, acc, sld, sup;
         if (! readXmlAttr (tag, "b", b) || ! readXmlAttr (tag, "p", p)
             || ! readXmlAttr (tag, "i", i) || ! readXmlAttr (tag, "note", note))
             continue;
@@ -245,7 +245,8 @@ inline bool readBankXml (
 
         readXmlAttr (tag, "accent", acc);
         readXmlAttr (tag, "slide", sld);
-        steps[bi][pi][ii] = { std::atoi (note.c_str()), acc == "1", sld == "1" };
+        readXmlAttr (tag, "super", sup);
+        steps[bi][pi][ii] = { std::atoi (note.c_str()), acc == "1", sld == "1", sup == "1" };
     }
     return true;
 }

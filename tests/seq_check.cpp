@@ -22,12 +22,19 @@ int main()
     assert (rest.note < 0);
     assert (rest.accent);
     assert (rest.slide);
+    assert (! rest.superSlide);
 
     const auto packedNote = Sequencer::pack ({ 40, false, false });
     const auto note = Sequencer::unpack (packedNote);
     assert (note.note == 40);
     assert (! note.accent);
     assert (! note.slide);
+
+    const auto packedSuper = Sequencer::pack ({ 36, false, false, true });
+    const auto super = Sequencer::unpack (packedSuper);
+    assert (super.note == 36);
+    assert (super.slide);
+    assert (super.superSlide);
 
     Sequencer::Step steps[Sequencer::maxSteps];
     for (int i = 0; i < Sequencer::maxSteps; ++i)
@@ -60,6 +67,34 @@ int main()
     assert (! ev[1].on);
     assert (ev[1].note == 36);
     assert (seq.playhead() == 1);
+
+    Sequencer::Step superSteps[Sequencer::maxSteps];
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+        superSteps[i] = { -1, false, false, false };
+    superSteps[0] = { 36, false, true, true };
+    superSteps[2] = { 48, false, false, false };
+
+    Sequencer superSeq;
+    superSeq.prepare (44100.0);
+    superSeq.loadAll (superSteps);
+    SeqEvent sev[8];
+    const int sn0 = superSeq.advance (1, 120.f, true, sev, 8);
+    assert (sn0 == 1);
+    assert (sev[0].on);
+    assert (sev[0].note == 36);
+    assert (! sev[0].slide);
+
+    const int sn1 = superSeq.advance (stepSamples, 120.f, true, sev, 8);
+    assert (sn1 == 0);
+    assert (superSeq.playhead() == 1);
+
+    const int sn2 = superSeq.advance (stepSamples, 120.f, true, sev, 8);
+    assert (sn2 == 2);
+    assert (sev[0].on);
+    assert (sev[0].note == 48);
+    assert (sev[0].slide);
+    assert (! sev[1].on);
+    assert (sev[1].note == 36);
 
     assert (tew::inScale (40, 0, false));
     assert (! tew::inScale (42, 0, false));
@@ -203,7 +238,7 @@ int main()
     for (int b = 0; b < Sequencer::numBanks; ++b)
         for (int p = 0; p < Sequencer::patternsPerBank; ++p)
             Sequencer::fillSlot (banks[b][p], b, p);
-    banks[2][11][31] = { 48, true, true };
+    banks[2][11][31] = { 48, true, true, true };
 
     const auto bankXml = tew::writeBankXml (banks);
     assert (bankXml.find ("TEW03BANK") != std::string::npos);
@@ -215,6 +250,7 @@ int main()
     assert (bankLoaded[2][11][31].note == 48);
     assert (bankLoaded[2][11][31].accent);
     assert (bankLoaded[2][11][31].slide);
+    assert (bankLoaded[2][11][31].superSlide);
     assert (! tew::readBankXml (patchXml, bankLoaded));
 
     tew::LfoShape tri;

@@ -30,7 +30,7 @@ flowchart LR
 - **Amp envelope** — fast attack, **Decay** sets the fall. Then optional **Pre EQ**, the **FX chain**, optional **Post EQ**, then **Volume**.
 - **Pitch bend** — ±2 semitones from MIDI.
 
-**Slide vs Glide.** Per-step **S** ties into the next note and always ramps pitch. **Glide** also ramps when you play overlapping notes without slide. If Glide is at zero, a slide still gets a short default ramp (~50 ms) so the tie is audible.
+**Slide vs Glide.** Per-step **S** ties into the next note and always ramps pitch. Second click is super slide: the gate holds through rests until the next playing note, then ramps as usual. **Glide** also ramps when you play overlapping notes without slide. If Glide is at zero, a slide still gets a short default ramp (~50 ms) so the tie is audible.
 
 ## The three pages
 
@@ -76,7 +76,7 @@ Range is **C1–C4**. One octave of rows is visible; scroll for the rest.
 - **Mouse wheel** on a note nudges pitch (scale steps when Lock is on).
 - **Left gutter** — drag or wheel to scroll the view. Hold the top/bottom key overlays to keep scrolling.
 - **A** under a column — accent that step.
-- **S** under a column — slide / tie into the next step. A chevron and a line to the next note show the slide.
+- **S** under a column — click once for slide / tie into the next step, twice for **super slide** (holds through rests until the next playing note, LFO1 green chevron).
 - **Playhead** — red column while the sequencer runs.
 - **LFO overlay** — when an LFO is assigned to a knob, its shape is drawn across the bar (phase, not pitch).
 

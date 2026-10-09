@@ -51,23 +51,29 @@ struct Sequencer
         int note = 36; // < 0 is a rest
         bool accent = false;
         bool slide = false;
+        bool superSlide = false; // slide that holds through rests
     };
 
     static uint32_t pack (Step s)
     {
+        if (s.superSlide)
+            s.slide = true;
         const uint32_t note = s.note < 0 ? (uint32_t) restCode
                                          : (uint32_t) std::clamp (s.note, 0, 127);
         return note
-             | (s.accent ? 0x100u : 0u)
-             | (s.slide  ? 0x200u : 0u);
+             | (s.accent     ? 0x100u : 0u)
+             | (s.slide      ? 0x200u : 0u)
+             | (s.superSlide ? 0x400u : 0u);
     }
 
     static Step unpack (uint32_t bits)
     {
         const int noteByte = (int) (bits & 0xffu);
+        const bool super = (bits & 0x400u) != 0;
         return { noteByte == restCode ? -1 : noteByte,
                  (bits & 0x100u) != 0,
-                 (bits & 0x200u) != 0 };
+                 (bits & 0x200u) != 0 || super,
+                 super };
     }
 
     static void fillDefault (Step out[maxSteps]) { fillSlot (out, 0, 0); }
@@ -204,10 +210,15 @@ struct Sequencer
             {
                 out[i] = cur[2 * i];
                 if (out[i].note >= 0)
+                {
                     out[i].slide = cur[2 * i + 1].slide;
+                    out[i].superSlide = cur[2 * i + 1].superSlide;
+                    if (out[i].superSlide)
+                        out[i].slide = true;
+                }
             }
             for (int i = numSteps; i < maxSteps; ++i)
-                out[i] = { -1, false, false };
+                out[i] = { -1, false, false, false };
         }
 
         loadAll (out);
@@ -231,6 +242,7 @@ struct Sequencer
             clock = 0.0;
             nextEdge = 0.0;
             pendingSlide = false;
+            pendingSuper = false;
         }
 
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
@@ -256,7 +268,8 @@ struct Sequencer
                                       keyRoot.load (std::memory_order_relaxed),
                                       keyMinor.load (std::memory_order_relaxed)));
                 const bool slideIn = pendingSlide && gate;
-                const int need = rest ? (gate ? 1 : 0)
+                const bool holdRest = rest && pendingSuper && gate;
+                const int need = rest ? (holdRest ? 0 : (gate ? 1 : 0))
                                       : (gate ? 2 : 1);
 
                 if (produced + need > maxEvents)
@@ -269,10 +282,14 @@ struct Sequencer
 
                 if (rest)
                 {
-                    if (gate)
-                        out[produced++] = { consumed, lastNote, false, false, false };
-                    gate = false;
-                    pendingSlide = false;
+                    if (! holdRest)
+                    {
+                        if (gate)
+                            out[produced++] = { consumed, lastNote, false, false, false };
+                        gate = false;
+                        pendingSlide = false;
+                        pendingSuper = false;
+                    }
                 }
                 else
                 {
@@ -288,6 +305,7 @@ struct Sequencer
                     lastNote = s.note;
                     gate = true;
                     pendingSlide = s.slide;
+                    pendingSuper = s.superSlide;
                 }
 
                 step = (step + 1) % len;
@@ -315,6 +333,7 @@ private:
         clock = 0.0;
         nextEdge = 0.0;
         pendingSlide = false;
+        pendingSuper = false;
         playheadIndex.store (-1, std::memory_order_relaxed);
 
         if (! gate || maxEvents < 1)
@@ -342,6 +361,7 @@ private:
     bool running = false;
     bool gate = false;
     bool pendingSlide = false;
+    bool pendingSuper = false;
 };
 
 } // namespace tew

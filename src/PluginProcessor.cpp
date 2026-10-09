@@ -23,6 +23,7 @@ const juce::Identifier kIndex { "index" };
 const juce::Identifier kNote { "note" };
 const juce::Identifier kAccent { "accent" };
 const juce::Identifier kSlide { "slide" };
+const juce::Identifier kSuperSlide { "superSlide" };
 const juce::Identifier kPatchName { "PATCH_NAME" };
 const juce::Identifier kBankName { "BANK_NAME" };
 const juce::Identifier kLfos { "LFOS" };
@@ -93,7 +94,8 @@ tew::Sequencer::Step stepFromTree (const juce::ValueTree& t)
 {
     return { (int) t.getProperty (kNote, 36),
              (bool) t.getProperty (kAccent, false),
-             (bool) t.getProperty (kSlide, false) };
+             (bool) t.getProperty (kSlide, false),
+             (bool) t.getProperty (kSuperSlide, false) };
 }
 
 juce::ValueTree makeStepTree (int index, tew::Sequencer::Step s)
@@ -103,6 +105,7 @@ juce::ValueTree makeStepTree (int index, tew::Sequencer::Step s)
     t.setProperty (kNote, s.note, nullptr);
     t.setProperty (kAccent, s.accent, nullptr);
     t.setProperty (kSlide, s.slide, nullptr);
+    t.setProperty (kSuperSlide, s.superSlide, nullptr);
     return t;
 }
 
@@ -740,6 +743,7 @@ void TEW03AudioProcessor::loadBanksFromState()
                     dest.setProperty (kNote, step.note, nullptr);
                     dest.setProperty (kAccent, step.accent, nullptr);
                     dest.setProperty (kSlide, step.slide, nullptr);
+                    dest.setProperty (kSuperSlide, step.superSlide, nullptr);
                 }
                 patterns[b][p][i].store (tew::Sequencer::pack (step), std::memory_order_relaxed);
             }
@@ -803,6 +807,7 @@ void TEW03AudioProcessor::writeBanksToState()
                     child.setProperty (kNote, step.note, nullptr);
                     child.setProperty (kAccent, step.accent, nullptr);
                     child.setProperty (kSlide, step.slide, nullptr);
+                    child.setProperty (kSuperSlide, step.superSlide, nullptr);
                 }
             }
         }
@@ -836,6 +841,7 @@ void TEW03AudioProcessor::writeStepToState (int bank, int pat, int index, tew::S
     child.setProperty (kNote, step.note, nullptr);
     child.setProperty (kAccent, step.accent, nullptr);
     child.setProperty (kSlide, step.slide, nullptr);
+    child.setProperty (kSuperSlide, step.superSlide, nullptr);
 }
 
 void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)

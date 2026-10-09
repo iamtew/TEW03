@@ -362,6 +362,14 @@ juce::String uiButton (const juce::String& id)
     return uiLabel (id);
 }
 
+void applySlideBtn (juce::ToggleButton& b, const tew::Sequencer::Step& s)
+{
+    b.setToggleState (s.slide, juce::dontSendNotification);
+    b.getProperties().set ("super", s.superSlide);
+    b.setTooltip (s.superSlide ? "Super slide (holds through rests)"
+                               : "Step slide — click again for super");
+}
+
 } // namespace
 
 TEW03AudioProcessorEditor::PianoRoll::PianoRoll (TEW03AudioProcessor& p)
@@ -532,26 +540,39 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
             chev.addTriangle (cell.getRight() - 2.f, y0 - 3.5f,
                               tipX, y0,
                               cell.getRight() - 2.f, y0 + 3.5f);
-            g.setColour (s.accent ? kCream : juce::Colour (0xff1a1a1a));
+            g.setColour (s.superSlide ? kLfoCol[0]
+                                      : (s.accent ? kCream : juce::Colour (0xff1a1a1a)));
             g.fillPath (chev);
         }
 
-        const int next = i + 1;
-        if (next >= geo.cols)
+        int dest = -1;
+        if (s.superSlide)
+        {
+            for (int j = i + 1; j < geo.cols; ++j)
+                if (seq.getStep (j).note >= 0)
+                {
+                    dest = j;
+                    break;
+                }
+        }
+        else if (i + 1 < geo.cols && seq.getStep (i + 1).note >= 0)
+        {
+            dest = i + 1;
+        }
+
+        if (dest < 0)
             continue;
 
-        const auto ns = seq.getStep (next);
-        if (ns.note < 0)
-            continue;
-
+        const auto ns = seq.getStep (dest);
         const float x0 = geo.grid.getX() + (float) (i + 1) * geo.colW;
-        const float x1 = geo.grid.getX() + (float) next * geo.colW + 1.f;
+        const float x1 = geo.grid.getX() + (float) dest * geo.colW + 1.f;
         const float y1 = pitchY (geo, ns.note, v);
         g.saveState();
         g.reduceClipRegion (juce::Rectangle<float> (geo.grid.getX(), geo.grid.getY(),
                                                     geo.grid.getWidth(),
                                                     geo.rowH * (float) geo.rows).toNearestInt());
-        g.setColour ((s.accent ? kLedOn : kCream).withAlpha (0.55f));
+        g.setColour ((s.superSlide ? kLfoCol[0]
+                                   : (s.accent ? kLedOn : kCream)).withAlpha (0.55f));
         g.drawLine (x0, y0, x1, y1, 1.6f);
         g.restoreState();
     }
@@ -723,11 +744,10 @@ TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int s
 
     const auto s = p.getSequencer().getStep (index);
     accent.setToggleState (s.accent, juce::dontSendNotification);
-    slide.setToggleState (s.slide, juce::dontSendNotification);
+    applySlideBtn (slide, s);
     accent.setComponentID ("led");
     slide.setComponentID ("led");
     accent.setTooltip ("Step accent");
-    slide.setTooltip ("Step slide");
 
     accent.onClick = [this, &p]
     {
@@ -739,9 +759,23 @@ TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int s
     slide.onClick = [this, &p]
     {
         auto step = p.getSequencer().getStep (index);
-        step.slide = slide.getToggleState();
+        if (step.superSlide)
+        {
+            step.slide = false;
+            step.superSlide = false;
+        }
+        else if (step.slide)
+        {
+            step.superSlide = true;
+        }
+        else
+        {
+            step.slide = true;
+        }
+        applySlideBtn (slide, step);
         p.setPatternStep (index, step);
         roll.repaint();
+        slide.repaint();
     };
 }
 
@@ -772,7 +806,7 @@ void TEW03AudioProcessorEditor::StepColumn::syncFrom (TEW03AudioProcessor& p)
 {
     const auto s = p.getSequencer().getStep (index);
     accent.setToggleState (s.accent, juce::dontSendNotification);
-    slide.setToggleState (s.slide, juce::dontSendNotification);
+    applySlideBtn (slide, s);
 }
 
 void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
@@ -845,7 +879,8 @@ void TEW03AudioProcessorEditor::PanelLnF::drawToggleButton (juce::Graphics& g, j
 
     if (b.getButtonText().length() <= 1)
     {
-        g.setColour (b.getToggleState() ? kLedOn : kCream);
+        const bool super = (bool) b.getProperties().getWithDefault ("super", false);
+        g.setColour (b.getToggleState() ? (super ? kLfoCol[0] : kLedOn) : kCream);
         g.drawText (b.getButtonText(), bounds.toNearestInt(), juce::Justification::centred, false);
         return;
     }
