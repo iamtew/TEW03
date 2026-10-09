@@ -1,4 +1,4 @@
-# TEW03 – Product Requirements
+# TEW03 – Brief
 
 ## Vision
 A software synthesizer that delivers the classic TB-303 acid squelch and then goes further into aggressive, mean, modern acid lines.

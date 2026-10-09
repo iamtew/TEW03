@@ -213,6 +213,6 @@ VST3 and standalone.
 
 ## More notes
 
-- [Product requirements](notes.html?doc=PRD.md)
+- [Brief](notes.html?doc=PRD.md)
 - [Architecture](notes.html?doc=ARCHITECTURE.md)
 - [DSP notes](notes.html?doc=DSP_NOTES.md)
