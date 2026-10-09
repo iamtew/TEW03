@@ -52,7 +52,8 @@ public:
         editPre.setBounds (top.removeFromLeft (88).reduced (2, 2));
         editPost.setBounds (top.removeFromLeft (96).reduced (2, 2));
         curve.setBounds (r);
-        auto dock = r.removeFromBottom (108).reduced (12, 6);
+        // Sit on the plot, above the Hz labels (plot() has 18px bottom pad + 12px text).
+        auto dock = r.removeFromBottom (108).reduced (12, 6).translated (0, -20);
         inspector.setBounds (dock.withSizeKeepingCentre (juce::jmin (560, dock.getWidth()), dock.getHeight()));
     }
 
