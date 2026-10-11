@@ -24,10 +24,10 @@ icon:
     magick assets/icon.png -define icon:auto-resize=256,128,64,48,32,16 Builds\VisualStudio2022\icon.ico
     Get-ChildItem Builds\VisualStudio2022 -Recurse -Filter resources.res | Remove-Item -Force
 
-build-debug:
+build-debug: resave
     & '{{MSBUILD}}' {{SOLUTION}} /p:Configuration=Debug /p:Platform=x64 /m
 
-build-release:
+build-release: resave
     & '{{MSBUILD}}' {{SOLUTION}} /p:Configuration=Release /p:Platform=x64 /m
 
 build-dist: build-release
