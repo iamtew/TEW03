@@ -243,5 +243,15 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addParamEq (ParamID::postEqOn, "Post EQ On",
                 ParamID::postEqType, ParamID::postEqFreq, ParamID::postEqGain, ParamID::postEqQ, "Post EQ");
 
+    for (int i = 0; i < ParamID::fxModCount; ++i)
+    {
+        const auto& m = ParamID::fxMods[i];
+        const String n = String (m.target) + " LFO";
+        layout.add (std::make_unique<AudioParameterInt> (
+            ParameterID { m.lfo, 1 }, n, 0, tew::numLfos, 0));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { m.amt, 1 }, n + " Amt", amtR, 0.f));
+    }
+
     return layout;
 }

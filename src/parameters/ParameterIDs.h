@@ -183,6 +183,46 @@ namespace ParamID
     inline constexpr const char* postEqQ[eqBandCount] = {
         "postEq1Q", "postEq2Q", "postEq3Q", "postEq4Q", "postEq5Q"
     };
+
+    // Continuous effect knobs only. Switches and type menus are not here.
+    struct FxModSlot
+    {
+        const char* target;
+        const char* lfo;
+        const char* amt;
+    };
+
+#define TEW_FXMOD(lit) { lit, lit "Lfo", lit "LfoAmt" }
+    inline constexpr FxModSlot fxMods[] = {
+        TEW_FXMOD ("fxChoRate"), TEW_FXMOD ("fxChoDepth"), TEW_FXMOD ("fxChoFb"), TEW_FXMOD ("fxChoMix"),
+        TEW_FXMOD ("fxCmpThr"), TEW_FXMOD ("fxCmpRat"), TEW_FXMOD ("fxCmpAtk"), TEW_FXMOD ("fxCmpRel"),
+        TEW_FXMOD ("fxCmpMix"),
+        TEW_FXMOD ("fxDlyTime"), TEW_FXMOD ("fxDlyFb"), TEW_FXMOD ("fxDlyCut"), TEW_FXMOD ("fxDlyMix"),
+        TEW_FXMOD ("fxDstDrive"), TEW_FXMOD ("fxDstMix"),
+        TEW_FXMOD ("fxEq1Freq"), TEW_FXMOD ("fxEq1Gain"), TEW_FXMOD ("fxEq1Q"),
+        TEW_FXMOD ("fxEq2Freq"), TEW_FXMOD ("fxEq2Gain"), TEW_FXMOD ("fxEq2Q"),
+        TEW_FXMOD ("fxEq3Freq"), TEW_FXMOD ("fxEq3Gain"), TEW_FXMOD ("fxEq3Q"),
+        TEW_FXMOD ("fxEq4Freq"), TEW_FXMOD ("fxEq4Gain"), TEW_FXMOD ("fxEq4Q"),
+        TEW_FXMOD ("fxEq5Freq"), TEW_FXMOD ("fxEq5Gain"), TEW_FXMOD ("fxEq5Q"),
+        TEW_FXMOD ("fxFltCut"), TEW_FXMOD ("fxFltRes"), TEW_FXMOD ("fxFltMix"),
+        TEW_FXMOD ("fxFlaRate"), TEW_FXMOD ("fxFlaDepth"), TEW_FXMOD ("fxFlaFb"), TEW_FXMOD ("fxFlaMix"),
+        TEW_FXMOD ("fxPhaRate"), TEW_FXMOD ("fxPhaDepth"), TEW_FXMOD ("fxPhaFb"),
+        TEW_FXMOD ("fxPhaCentre"), TEW_FXMOD ("fxPhaMix"),
+        TEW_FXMOD ("fxRevSize"), TEW_FXMOD ("fxRevDamp"), TEW_FXMOD ("fxRevWidth"), TEW_FXMOD ("fxRevMix"),
+    };
+#undef TEW_FXMOD
+
+    inline constexpr int fxModCount = (int) (sizeof fxMods / sizeof fxMods[0]);
+
+    inline const FxModSlot* fxModFor (const char* id)
+    {
+        if (id == nullptr)
+            return nullptr;
+        for (int i = 0; i < fxModCount; ++i)
+            if (std::strcmp (fxMods[i].target, id) == 0)
+                return &fxMods[i];
+        return nullptr;
+    }
 }
 
 namespace tew
