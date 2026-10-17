@@ -24,7 +24,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
   - 3 banks × 12 patterns (36 slots)
   - Pattern length 16 or 32 (2x splits each step in half, global)
   - Per-step: note, accent, slide/tie
-  - Play/pause (Run) plus play modes: Keyboard (MIDI → voice), Pattern (loop selected slot), Key (hold C1–B3 to play the mapped slot)
+  - Play/pause (Run) plus play modes: Keyboard (MIDI → voice), Standalone (loop selected slot; hidden in DAW UI), Pattern (hold C1–B3 to play the mapped slot)
   - Tempo sync with host transport when available; free-running fallback
 - Sequencer drives the internal Voice **and** emits MIDI Output
 - MIDI Output purpose:

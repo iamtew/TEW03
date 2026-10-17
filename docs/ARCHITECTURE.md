@@ -29,9 +29,9 @@ FX chain (Effects page):
 
 Play modes (`playMode`):
 - Keyboard: host MIDI notes play the voice.
-- Pattern: loops the selected bank/pattern when Run is on. Follows host transport in a DAW.
-- Key: MIDI C1–B3 (24–59) maps chromatically onto the 3×12 bank. Hold plays that slot while Run is on; note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when present, does not require host `isPlaying`.
-- Factory defaults: Standalone = Pattern + Run off; DAW = Key + Run on. Both LFO Sync on.
+- Standalone: loops the selected bank/pattern when Run is on. Follows host transport in a DAW. Hidden from the Play combo in a DAW (index still 1).
+- Pattern: MIDI C1–B3 (24–59) maps chromatically onto the 3×12 bank. Hold plays that slot while Run is on; note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when present, does not require host `isPlaying`.
+- Factory defaults: standalone app = Standalone + Run off; DAW = Pattern + Run on. Both LFO Sync on.
 
 Pattern bank:
 - 3 banks × 12 patterns stored as packed atomics (audio-thread safe) and in APVTS `BANKS` state.

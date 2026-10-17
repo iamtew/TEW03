@@ -71,7 +71,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                        "Run", ! standalone));
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::playMode, 1 },
                                                          "Play",
-                                                         StringArray { "Keyboard", "Pattern", "Key" },
+                                                         StringArray { "Keyboard", "Standalone", "Pattern" },
                                                          standalone ? 1 : 2));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqTempo, 1 },
                                                         "Seq Tempo",

@@ -955,10 +955,22 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (TEW03AudioProcessorEditor& ed,
         combo.setColour (juce::ComboBox::textColourId, kCream);
         combo.setColour (juce::ComboBox::arrowColourId, kCream);
         if (choice != nullptr)
+        {
+            const bool daw = editor.proc.wrapperType != juce::AudioProcessor::wrapperType_Standalone;
             for (int i = 0; i < choice->choices.size(); ++i)
+            {
+                // Hide Standalone (index 1) in a DAW. Keep item IDs = index + 1.
+                if (id == ParamID::playMode && daw && i == 1)
+                    continue;
                 combo.addItem (choice->choices[i], i + 1);
+            }
+        }
         if (id == ParamID::playMode)
-            combo.setTooltip ("Keyboard plays notes. Pattern loops the selected slot. Key holds C1-B3 to play bank patterns.");
+        {
+            combo.setTooltip (editor.proc.wrapperType == juce::AudioProcessor::wrapperType_Standalone
+                ? "Keyboard plays notes. Standalone loops the selected slot. Pattern holds C1-B3 to play bank patterns."
+                : "Keyboard plays notes. Pattern holds C1-B3 to play bank patterns.");
+        }
         comboAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, id, combo);
     }
     else

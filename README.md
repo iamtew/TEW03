@@ -4,7 +4,7 @@
 
 **TEW03** is a monophonic acid synth. Classic 303 squelch (saw/square, resonant filter, accent, slide, drive) plus extra nastiness.
 
-**Main** — the synth, a 3×12 step sequencer (16 or 32 steps, accent and slide, key lock), and two drawn LFOs you can drop on any knob. Patterns play the voice and go out as MIDI. Run modes: **Keyboard** (play it from MIDI), **Pattern** (loop the selected slot), **Key** (hold a key to trigger a pattern).
+**Main** — the synth, a 3×12 step sequencer (16 or 32 steps, accent and slide, key lock), and two drawn LFOs you can drop on any knob. Patterns play the voice and go out as MIDI. Run modes: **Keyboard** (play it from MIDI), **Standalone** (loop the selected slot; DAW UI hides this), **Pattern** (hold a key to trigger a pattern).
 
 **Effects** — chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb. Click to add, drag to reorder. All off until you turn them on.
 

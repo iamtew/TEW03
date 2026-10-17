@@ -12,8 +12,8 @@ namespace
 constexpr int kMidiBytes = 512;
 constexpr int kMaxEvents = 32;
 constexpr int kPlayKeyboard = 0;
-constexpr int kPlayPattern = 1;
-constexpr int kPlayKey = 2;
+constexpr int kPlayStandalone = 1;
+constexpr int kPlayPattern = 2;
 
 const juce::Identifier kBanks { "BANKS" };
 const juce::Identifier kBank { "BANK" };
@@ -351,15 +351,15 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     const int mode = juce::roundToInt (raw (ParamID::playMode));
     const float bpm = tempoBpm();
 
-    if (mode != kPlayKey)
+    if (mode != kPlayPattern)
         heldKey.store (-1, std::memory_order_relaxed);
     if (mode != kPlayKeyboard)
         keyboardSounding.store (false, std::memory_order_relaxed);
 
     bool playing = false;
-    if (mode == kPlayPattern)
+    if (mode == kPlayStandalone)
         playing = patternShouldRun();
-    else if (mode == kPlayKey)
+    else if (mode == kPlayPattern)
         playing = handleKeyTriggers (midi) && raw (ParamID::seqPlay) >= 0.5f;
 
     if (mode != kPlayKeyboard)
@@ -498,9 +498,9 @@ float TEW03AudioProcessor::lfoPhase (int index) const
 bool TEW03AudioProcessor::lfoPlayheadOn() const
 {
     const int mode = juce::roundToInt (raw (ParamID::playMode));
-    if (mode == kPlayPattern)
+    if (mode == kPlayStandalone)
         return patternShouldRun();
-    if (mode == kPlayKey)
+    if (mode == kPlayPattern)
         return raw (ParamID::seqPlay) >= 0.5f && heldKey.load (std::memory_order_relaxed) >= 0;
     return keyboardSounding.load (std::memory_order_relaxed);
 }
