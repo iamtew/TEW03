@@ -860,11 +860,11 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
     {
         // Same bipolar law as VoiceMod::sample01. Pointer stays the set value.
         const float amt = (float) slider.getProperties().getWithDefault ("lfoAmt", 0.f);
-        const float y = (float) slider.getProperties().getWithDefault ("lfoY", 0.5f);
+        const float lfoY = (float) slider.getProperties().getWithDefault ("lfoY", 0.5f);
         const float sweep = std::abs (amt);
         const float lo = juce::jlimit (0.f, 1.f, pos - sweep);
         const float hi = juce::jlimit (0.f, 1.f, pos + sweep);
-        const float now = juce::jlimit (0.f, 1.f, pos + amt * (y * 2.f - 1.f));
+        const float now = juce::jlimit (0.f, 1.f, pos + amt * (lfoY * 2.f - 1.f));
         const float span = endAngle - startAngle;
         const float radius = d * 0.5f + 1.5f;
         const auto centre = rc.getCentre();
