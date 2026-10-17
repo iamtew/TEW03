@@ -7,9 +7,9 @@
 
 namespace
 {
-constexpr int kEditorW = 900;
-constexpr int kEditorH = 820; // chrome from the 628 layout, plus a 24-row roll
-constexpr int kLfoH = 140;
+constexpr int kLfoW = 340;
+constexpr int kEditorW = 900 + kLfoW;
+constexpr int kEditorH = 680; // chrome from the 628 layout, plus a 24-row roll, no bottom LFO strip
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
 constexpr int kTitleH = 36;
@@ -39,12 +39,27 @@ const juce::Colour kLedOn { 0xffff2200 };
 const juce::Colour kLedOff { 0xff5a1808 };
 const juce::Colour kLaneWhite { 0xff3c3c3c };
 const juce::Colour kLaneBlack { 0xff2a2a2a };
-const juce::Colour kLfoCol[2] { juce::Colour (0xff3dcc8c), juce::Colour (0xffff6a00) };
+const juce::Colour kLfoCol[tew::numLfos] {
+    juce::Colour (0xff3dcc8c), juce::Colour (0xffff6a00),
+    juce::Colour (0xff4c8dff), juce::Colour (0xffff4fa3)
+};
 const juce::Colour kLfoIdle { 0xff7a7a7a };
 
 juce::Colour lfoCol (int src)
 {
-    return kLfoCol[src == 2 ? 1 : 0];
+    return kLfoCol[juce::jlimit (0, tew::numLfos - 1, src - 1)];
+}
+
+void addLfoMenu (juce::PopupMenu& m, int lfoSrc)
+{
+    for (int i = 1; i <= tew::numLfos; ++i)
+        m.addItem (i, "LFO " + juce::String (i), true, lfoSrc == i);
+    m.addItem (tew::numLfos + 1, "None", true, lfoSrc == 0);
+}
+
+int lfoMenuChoice (int result)
+{
+    return result == tew::numLfos + 1 ? 0 : result;
 }
 
 bool lfoAssigned (TEW03AudioProcessor& proc, int index)
@@ -1056,16 +1071,14 @@ void TEW03AudioProcessorEditor::ParamCell::mouseDown (const juce::MouseEvent& e)
         return;
 
     juce::PopupMenu m;
-    m.addItem (1, "LFO 1", true, lfoSrc == 1);
-    m.addItem (2, "LFO 2", true, lfoSrc == 2);
-    m.addItem (3, "None", true, lfoSrc == 0);
+    addLfoMenu (m, lfoSrc);
     juce::Component::SafePointer<ParamCell> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                      [safe] (int result)
                      {
                          if (safe == nullptr || result <= 0)
                              return;
-                         safe->editor.assignDest (safe->dest, result == 3 ? 0 : result);
+                         safe->editor.assignDest (safe->dest, lfoMenuChoice (result));
                      });
 }
 
@@ -1243,16 +1256,14 @@ void TEW03AudioProcessorEditor::VolumeStrip::mouseDown (const juce::MouseEvent& 
         return;
 
     juce::PopupMenu m;
-    m.addItem (1, "LFO 1", true, lfoSrc == 1);
-    m.addItem (2, "LFO 2", true, lfoSrc == 2);
-    m.addItem (3, "None", true, lfoSrc == 0);
+    addLfoMenu (m, lfoSrc);
     juce::Component::SafePointer<VolumeStrip> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                      [safe] (int result)
                      {
                          if (safe == nullptr || result <= 0)
                              return;
-                         safe->editor.assignDest (safe->dest, result == 3 ? 0 : result);
+                         safe->editor.assignDest (safe->dest, lfoMenuChoice (result));
                      });
 }
 
@@ -1964,8 +1975,8 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         addAndMakeVisible (col);
     }
 
-    addAndMakeVisible (lfoLane0);
-    addAndMakeVisible (lfoLane1);
+    for (int i = 0; i < tew::numLfos; ++i)
+        addAndMakeVisible (lfoLanes.add (new LfoLane (*this, i)));
     refreshLfo();
 
     addAndMakeVisible (aboutBox);
@@ -2047,7 +2058,8 @@ void TEW03AudioProcessorEditor::resized()
     effectsPage.setBounds (body);
     eqPage.setBounds (body);
 
-    lfoArea = r.removeFromBottom (kLfoH);
+    lfoArea = r.removeFromRight (kLfoW);
+    r.removeFromRight (4);
     auto strip = r.removeFromBottom (kStripH);
     pianoRoll.setBounds (r.removeFromBottom (kRollH));
     auto lock = r.removeFromBottom (kLockH);
@@ -2124,9 +2136,10 @@ void TEW03AudioProcessorEditor::resized()
         steps[i]->setBounds (strip.removeFromLeft (i == n - 1 ? strip.getWidth() : stepW));
 
     auto lfo = lfoArea.reduced (4, 4);
-    const int half = lfo.getWidth() / 2;
-    lfoLane0.setBounds (lfo.removeFromLeft (half));
-    lfoLane1.setBounds (lfo);
+    const int nLfo = juce::jmax (1, lfoLanes.size());
+    const int lfoH = lfo.getHeight() / nLfo;
+    for (int i = 0; i < lfoLanes.size(); ++i)
+        lfoLanes[i]->setBounds (lfo.removeFromTop (i == nLfo - 1 ? lfo.getHeight() : lfoH));
     aboutBox.setBounds (getLocalBounds());
     applyPageVisibility();
     if (aboutBox.isVisible())
@@ -2306,14 +2319,14 @@ void TEW03AudioProcessorEditor::refreshPlayhead()
         pianoRoll.setPlayhead (now);
         lastPlayhead = now;
     }
-    lfoLane0.view.repaint();
-    lfoLane1.view.repaint();
+    for (auto* lane : lfoLanes)
+        lane->view.repaint();
 }
 
 void TEW03AudioProcessorEditor::refreshLfo()
 {
-    lfoLane0.refresh();
-    lfoLane1.refresh();
+    for (auto* lane : lfoLanes)
+        lane->refresh();
     pianoRoll.repaint();
 
     auto refreshCells = [] (juce::OwnedArray<ParamCell>& cells)
@@ -2532,8 +2545,8 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (clearBtn);
     vis (runBtn);
     vis (patBar);
-    vis (lfoLane0);
-    vis (lfoLane1);
+    for (auto* lane : lfoLanes)
+        vis (*lane);
     for (auto* c : seqCells)
         vis (*c);
     for (auto* c : filterCells)

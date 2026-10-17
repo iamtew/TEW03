@@ -107,7 +107,9 @@ struct Voice
 
         for (int i = 0; i < numSamples; ++i)
         {
-            float lfoY[numLfos] { 0.5f, 0.5f };
+            float lfoY[numLfos];
+            for (int l = 0; l < numLfos; ++l)
+                lfoY[l] = 0.5f;
             if (mod != nullptr)
             {
                 for (int l = 0; l < numLfos; ++l)

@@ -35,6 +35,16 @@ namespace ParamID
     inline constexpr const char* lfo2Div     = "lfo2Div";
     inline constexpr const char* lfo2Mode    = "lfo2Mode";
     inline constexpr const char* lfo2Smooth  = "lfo2Smooth";
+    inline constexpr const char* lfo3Rate    = "lfo3Rate";
+    inline constexpr const char* lfo3Sync    = "lfo3Sync";
+    inline constexpr const char* lfo3Div     = "lfo3Div";
+    inline constexpr const char* lfo3Mode    = "lfo3Mode";
+    inline constexpr const char* lfo3Smooth  = "lfo3Smooth";
+    inline constexpr const char* lfo4Rate    = "lfo4Rate";
+    inline constexpr const char* lfo4Sync    = "lfo4Sync";
+    inline constexpr const char* lfo4Div     = "lfo4Div";
+    inline constexpr const char* lfo4Mode    = "lfo4Mode";
+    inline constexpr const char* lfo4Smooth  = "lfo4Smooth";
 
     inline constexpr const char* cutoffLfo      = "cutoffLfo";
     inline constexpr const char* cutoffLfoAmt   = "cutoffLfoAmt";
@@ -66,11 +76,11 @@ namespace ParamID
         accentLfoAmt, driveLfoAmt, glideLfoAmt, volumeLfoAmt, nastyLfoAmt
     };
     inline constexpr int destCount = (int) (sizeof destIds / sizeof destIds[0]);
-    inline constexpr const char* lfoRateIds[]   = { lfo1Rate, lfo2Rate };
-    inline constexpr const char* lfoSyncIds[]   = { lfo1Sync, lfo2Sync };
-    inline constexpr const char* lfoDivIds[]    = { lfo1Div, lfo2Div };
-    inline constexpr const char* lfoModeIds[]   = { lfo1Mode, lfo2Mode };
-    inline constexpr const char* lfoSmoothIds[] = { lfo1Smooth, lfo2Smooth };
+    inline constexpr const char* lfoRateIds[]   = { lfo1Rate, lfo2Rate, lfo3Rate, lfo4Rate };
+    inline constexpr const char* lfoSyncIds[]   = { lfo1Sync, lfo2Sync, lfo3Sync, lfo4Sync };
+    inline constexpr const char* lfoDivIds[]    = { lfo1Div, lfo2Div, lfo3Div, lfo4Div };
+    inline constexpr const char* lfoModeIds[]   = { lfo1Mode, lfo2Mode, lfo3Mode, lfo4Mode };
+    inline constexpr const char* lfoSmoothIds[] = { lfo1Smooth, lfo2Smooth, lfo3Smooth, lfo4Smooth };
 
     inline int destIndexForId (const char* id)
     {

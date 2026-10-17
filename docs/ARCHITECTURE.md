@@ -44,7 +44,7 @@ Patch vs bank files (message thread only):
 - Current names live as `PATCH_NAME` / `BANK_NAME` on `apvts.state` for DAW recall.
 - Loading one library does not overwrite the other. `Init Patch` / `Init Bank` restore defaults / factory fills.
 
-Two LFOs sit at the bottom of the editor. Shapes are editable breakpoints stored in `LFOS` on APVTS state (and in `.tew3p`). Rate / sync / mode / smooth / routing amounts are APVTS params. Each rotary (except BPM) can take one LFO plus a bipolar amount. Audio thread copies the published shape bank and runs the LFO per sample onto cutoff / resonance / envMod / drive / nasty / volume. Decay / accent / glide take the LFO at block rate.
+Four LFOs stack on the right of the editor. Shapes are editable breakpoints stored in `LFOS` on APVTS state (and in `.tew3p`). Rate / sync / mode / smooth / routing amounts are APVTS params. Each rotary (except BPM) can take one LFO plus a bipolar amount. Audio thread copies the published shape bank and runs the LFO per sample onto cutoff / resonance / envMod / drive / nasty / volume. Decay / accent / glide take the LFO at block rate.
 
 Key design points:
 - Sequencer is the primary performance engine (303-style).

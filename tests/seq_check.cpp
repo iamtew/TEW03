@@ -281,6 +281,7 @@ int main()
     const auto lfoXml = tew::writePatchXml (withLfo, shapes);
     assert (lfoXml.find ("<LFO i=\"0\"") != std::string::npos);
     assert (lfoXml.find ("<LFO i=\"1\"") != std::string::npos);
+    assert (lfoXml.find ("<LFO i=\"3\"") != std::string::npos);
     tew::LfoShape lfoLoaded[tew::numLfos];
     std::vector<tew::PatchParam> lfoParams;
     assert (tew::readPatchXml (lfoXml, lfoParams, lfoLoaded));

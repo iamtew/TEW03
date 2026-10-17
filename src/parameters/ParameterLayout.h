@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParameterIDs.h"
+#include "../dsp/Lfo.h"
 
 #include <JuceHeader.h>
 
@@ -112,15 +113,16 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { ParamID::lfoSmoothIds[i], 1 }, n + " Smooth", unit, 0.f, pct (unit)));
     };
-    addLfo (0);
-    addLfo (1);
+    static_assert ((int) (sizeof (ParamID::lfoRateIds) / sizeof (ParamID::lfoRateIds[0])) == tew::numLfos);
+    for (int i = 0; i < tew::numLfos; ++i)
+        addLfo (i);
 
     auto amtR = NormalisableRange<float> (-1.f, 1.f);
     for (int d = 0; d < ParamID::destCount; ++d)
     {
         layout.add (std::make_unique<AudioParameterInt> (
             ParameterID { ParamID::destLfoIds[d], 1 },
-            String (ParamID::destIds[d]) + " LFO", 0, 2, 0));
+            String (ParamID::destIds[d]) + " LFO", 0, tew::numLfos, 0));
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { ParamID::destAmtIds[d], 1 },
             String (ParamID::destIds[d]) + " LFO Amt", amtR, 0.f));

@@ -99,7 +99,7 @@ Double-click a knob to reset it to the default.
 
 ## Main — LFOs
 
-Two lanes at the bottom. **LFO 1** is green, **LFO 2** is orange. Each has a drawable breakpoint shape (up to 8 points).
+Four lanes stacked on the right of the sequencer. **LFO 1** is green, **LFO 2** is orange, **LFO 3** is blue, **LFO 4** is pink. Each has a drawable breakpoint shape (up to 8 points).
 
 ### Shape
 
@@ -115,12 +115,12 @@ The name bar cycles presets: **Triangle**, **Sin**, **Saw Up**, **Saw Down**, **
 - **Mode — Free** — runs continuously.
 - **Mode — Trigger** — resets to the start of the shape on each note-on (keyboard or sequencer).
 - **Sync** off — **Rate** is 0.05–30 Hz.
-- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo). Both LFOs default to Sync on (1/4).
+- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo). All four LFOs default to Sync on (1/4).
 - **Smooth** — lags the shape. 0 is raw breakpoints; 100% is a ~250 ms lag.
 
 ### Assigning
 
-Drag the **LFO 1** / **LFO 2** handle onto a knob (or the volume fader). Right-click a knob and pick LFO 1, LFO 2, or None.
+Drag an **LFO 1–4** handle onto a knob (or the volume fader). Right-click a knob and pick one of the four LFOs, or None.
 
 A numbered badge appears on the control. Drag that badge vertically for **amount** (−100% to +100%). The LFO is bipolar around the knob’s current value.
 

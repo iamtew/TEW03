@@ -306,8 +306,7 @@ private:
     int lastBank = -1;
     int lastPattern = -1;
 
-    LfoLane lfoLane0 { *this, 0 };
-    LfoLane lfoLane1 { *this, 1 };
+    juce::OwnedArray<LfoLane> lfoLanes;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TEW03AudioProcessorEditor)
 };

@@ -20,7 +20,7 @@ enum LfoDest
     destCount
 };
 
-inline constexpr int numLfos = 2;
+inline constexpr int numLfos = 4;
 inline constexpr int lfoMaxPoints = 8;
 
 // Matches ParameterLayout ranges so modulation stays in the same 0-1 space as the knobs.
