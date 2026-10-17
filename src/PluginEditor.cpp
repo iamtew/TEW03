@@ -2005,6 +2005,12 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
     g.setFont (boldFont (10.f));
     g.drawText ("v" JucePlugin_VersionString, nameCol, juce::Justification::centredLeft, false);
 
+    if (editorPage == 1 && ! lfoArea.isEmpty())
+    {
+        g.setColour (kLaneBlack);
+        g.fillRoundedRectangle (lfoArea.toFloat(), 4.f);
+    }
+
     if (editorPage != 0)
     {
         auto bevel = getLocalBounds().toFloat().reduced (1.5f);
@@ -2055,11 +2061,11 @@ void TEW03AudioProcessorEditor::resized()
     bankLibBar.setBounds (title.reduced (6, 2));
 
     const auto body = r;
-    effectsPage.setBounds (body);
     eqPage.setBounds (body);
 
     lfoArea = r.removeFromRight (kLfoW);
     r.removeFromRight (4);
+    effectsPage.setBounds (r);
     auto strip = r.removeFromBottom (kStripH);
     pianoRoll.setBounds (r.removeFromBottom (kRollH));
     auto lock = r.removeFromBottom (kLockH);
@@ -2327,6 +2333,7 @@ void TEW03AudioProcessorEditor::refreshLfo()
 {
     for (auto* lane : lfoLanes)
         lane->refresh();
+    effectsPage.refreshMods();
     pianoRoll.repaint();
 
     auto refreshCells = [] (juce::OwnedArray<ParamCell>& cells)
@@ -2543,10 +2550,13 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (bankBox);
     vis (x2Btn);
     vis (clearBtn);
+    vis (shiftUpBtn);
+    vis (shiftDnBtn);
     vis (runBtn);
     vis (patBar);
+    const bool showLfo = editorPage != 2;
     for (auto* lane : lfoLanes)
-        vis (*lane);
+        lane->setVisible (showLfo);
     for (auto* c : seqCells)
         vis (*c);
     for (auto* c : filterCells)

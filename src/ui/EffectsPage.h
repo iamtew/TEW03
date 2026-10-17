@@ -55,6 +55,12 @@ public:
         layoutStack();
     }
 
+    void refreshMods()
+    {
+        for (auto* row : rows)
+            row->refreshMods();
+    }
+
     void refresh()
     {
         proc.getFxOrder (railOrder, nRail);
@@ -103,7 +109,8 @@ private:
         return juce::Font (juce::FontOptions (h).withStyle ("Bold"));
     }
 
-    struct FxKnob : public juce::Component
+    struct FxKnob : public juce::Component,
+                     public juce::DragAndDropTarget
     {
         FxKnob (TEW03AudioProcessor& p, const char* id, const juce::String& name) : proc (p)
         {
@@ -111,6 +118,7 @@ private:
             label.setFont (labelFont (11.f));
             label.setColour (juce::Label::textColourId, kCream);
             label.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            label.setInterceptsMouseClicks (false, false);
             addAndMakeVisible (label);
             combo.setColour (juce::ComboBox::textColourId, kCream);
             combo.setColour (juce::ComboBox::arrowColourId, kCream);
@@ -119,11 +127,14 @@ private:
             slider.setColour (juce::Slider::textBoxTextColourId, kCream);
             slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
             slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+            slider.addMouseListener (this, false);
             bind (id, name);
         }
 
         void bind (const char* id, const juce::String& name)
         {
+            paramId = id;
+            slot = ParamID::fxModFor (id);
             label.setText (name, juce::dontSendNotification);
             sliderAtt.reset();
             btnAtt.reset();
@@ -170,7 +181,135 @@ private:
                 sliderAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
                     proc.apvts, id, slider);
             }
+            refreshMod();
             resized();
+        }
+
+        void refreshMod()
+        {
+            lfoSrc = 0;
+            lfoAmt = 0.f;
+            if (slot != nullptr)
+            {
+                auto* src = proc.apvts.getRawParameterValue (slot->lfo);
+                auto* amt = proc.apvts.getRawParameterValue (slot->amt);
+                if (src != nullptr)
+                    lfoSrc = juce::roundToInt (src->load());
+                if (amt != nullptr)
+                    lfoAmt = amt->load();
+            }
+            repaint();
+        }
+
+        juce::Rectangle<int> badgeBounds() const
+        {
+            return { getWidth() - 16, 0, 14, 12 };
+        }
+
+        void paintOverChildren (juce::Graphics& g) override
+        {
+            if (slot == nullptr || lfoSrc <= 0)
+                return;
+            auto b = badgeBounds().toFloat();
+            const auto col = lfoColour (lfoSrc);
+            g.setColour (kKnob);
+            g.fillRoundedRectangle (b, 3.f);
+            g.setColour (col);
+            g.drawRoundedRectangle (b, 3.f, 1.2f);
+            g.setFont (labelFont (10.f));
+            g.drawText (juce::String (lfoSrc), b.toNearestInt(), juce::Justification::centred, false);
+        }
+
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            if (slot == nullptr)
+                return;
+            const auto pos = e.getEventRelativeTo (this).getPosition();
+            if (lfoSrc > 0 && badgeBounds().contains (pos))
+            {
+                amtDragging = true;
+                amtDragStart = lfoAmt;
+                amtDragY = pos.y;
+                return;
+            }
+            if (! e.mods.isPopupMenu())
+                return;
+
+            juce::PopupMenu m;
+            for (int i = 1; i <= tew::numLfos; ++i)
+                m.addItem (i, "LFO " + juce::String (i), true, lfoSrc == i);
+            m.addItem (tew::numLfos + 1, "None", true, lfoSrc == 0);
+            juce::Component::SafePointer<FxKnob> safe (this);
+            m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
+                             [safe] (int result)
+                             {
+                                 if (safe == nullptr || result <= 0)
+                                     return;
+                                 safe->assign (result == tew::numLfos + 1 ? 0 : result);
+                             });
+        }
+
+        void mouseDrag (const juce::MouseEvent& e) override
+        {
+            if (! amtDragging || slot == nullptr)
+                return;
+            const auto pos = e.getEventRelativeTo (this).getPosition();
+            const float next = juce::jlimit (-1.f, 1.f, amtDragStart - (float) (pos.y - amtDragY) / 80.f);
+            setAmt (next);
+        }
+
+        void mouseUp (const juce::MouseEvent&) override { amtDragging = false; }
+
+        bool isInterestedInDragSource (const SourceDetails& d) override
+        {
+            return slot != nullptr && d.description.toString().startsWith ("lfo:");
+        }
+
+        void itemDropped (const SourceDetails& d) override
+        {
+            const int src = d.description.toString().fromFirstOccurrenceOf (":", false, false).getIntValue();
+            if (src >= 1 && src <= tew::numLfos)
+                assign (src);
+        }
+
+        void assign (int srcIndex)
+        {
+            if (slot == nullptr)
+                return;
+            auto* src = proc.apvts.getParameter (slot->lfo);
+            auto* amt = proc.apvts.getParameter (slot->amt);
+            if (src == nullptr || amt == nullptr)
+                return;
+            src->beginChangeGesture();
+            src->setValueNotifyingHost (src->convertTo0to1 ((float) juce::jlimit (0, tew::numLfos, srcIndex)));
+            src->endChangeGesture();
+            if (srcIndex > 0 && std::abs (lfoAmt) < 0.001f)
+            {
+                amt->beginChangeGesture();
+                amt->setValueNotifyingHost (amt->convertTo0to1 (0.5f));
+                amt->endChangeGesture();
+            }
+            refreshMod();
+        }
+
+        void setAmt (float amount)
+        {
+            if (slot == nullptr)
+                return;
+            auto* amt = proc.apvts.getParameter (slot->amt);
+            if (amt == nullptr)
+                return;
+            amt->setValueNotifyingHost (amt->convertTo0to1 (juce::jlimit (-1.f, 1.f, amount)));
+            refreshMod();
+        }
+
+        static juce::Colour lfoColour (int src)
+        {
+            static const juce::Colour cols[] = {
+                juce::Colour (0xff3dcc8c), juce::Colour (0xffff6a00),
+                juce::Colour (0xff4c8dff), juce::Colour (0xffff4fa3)
+            };
+            return cols[juce::jlimit (0, tew::numLfos - 1, src - 1)];
         }
 
         void resized() override
@@ -186,6 +325,13 @@ private:
         }
 
         TEW03AudioProcessor& proc;
+        juce::String paramId;
+        const ParamID::FxModSlot* slot = nullptr;
+        int lfoSrc = 0;
+        float lfoAmt = 0.f;
+        float amtDragStart = 0.f;
+        int amtDragY = 0;
+        bool amtDragging = false;
         juce::Label label;
         juce::Slider slider;
         juce::ToggleButton button;
@@ -203,6 +349,12 @@ private:
         {
             setName (ParamID::fxNames[t]);
             addKnobs();
+        }
+
+        void refreshMods()
+        {
+            for (auto* k : knobs)
+                k->refreshMod();
         }
 
         void addKnobs()

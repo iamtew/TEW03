@@ -120,7 +120,7 @@ The name bar cycles presets: **Triangle**, **Sin**, **Saw Up**, **Saw Down**, **
 
 ### Assigning
 
-Drag an **LFO 1–4** handle onto a knob (or the volume fader). Right-click a knob and pick one of the four LFOs, or None.
+Drag an **LFO 1–4** handle onto a knob (or the volume fader). Right-click a knob and pick one of the four LFOs, or None. The lanes stay visible on the Effects page. Continuous effect knobs take an LFO the same way. Switches and type menus do not. The EQ page does not.
 
 A numbered badge appears on the control. Drag that badge vertically for **amount** (−100% to +100%). The LFO is bipolar around the knob’s current value.
 
@@ -141,7 +141,7 @@ Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then *
 
 ## Effects
 
-Click the page bar to **Effects**. Everything is **off** until you enable it.
+Click the page bar to **Effects**. The LFO lanes stay on the right. Everything is **off** until you enable it.
 
 Left rail: click a name to add that effect (turns it on and shows its row). Click again to bypass. Drag rows to reorder the chain. Order is stored with the patch.
 
