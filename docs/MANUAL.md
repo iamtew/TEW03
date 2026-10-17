@@ -122,7 +122,7 @@ The name bar cycles presets: **Triangle**, **Sin**, **Saw Up**, **Saw Down**, **
 
 Drag an **LFO 1–4** handle onto a knob (or the volume fader). Right-click a knob and pick one of the four LFOs, or None. The lanes stay visible on the Effects page. Continuous effect knobs take an LFO the same way. Switches and type menus do not. The EQ page does not.
 
-A numbered badge appears on the control. Drag that badge vertically for **amount** (−100% to +100%). The LFO is bipolar around the knob’s current value.
+A numbered badge appears on the control. Drag that badge vertically for **amount** (−100% to +100%). The LFO is bipolar around the knob’s current value. An arc around the knob shows that sweep, and a dot on the arc tracks the live LFO position.
 
 Destinations: cutoff, resonance, env mod, decay, accent, drive, glide, volume, nasty. **Tempo** cannot take an LFO.
 

@@ -61,6 +61,7 @@ public:
     void setLfoShape (int index, const tew::LfoShape& shape);
     tew::LfoShape getLfoShape (int index) const;
     float lfoPhase (int index) const;
+    float lfoOut (int index) const;
     bool lfoPlayheadOn() const;
     void resetLfoShapes();
 
@@ -135,6 +136,7 @@ private:
     std::atomic<int> lfoPublished { 0 };
     int lfoSeen { -1 };
     std::atomic<float> lfoPhaseUi[tew::numLfos] {};
+    std::atomic<float> lfoOutUi[tew::numLfos] {};
     std::atomic<bool> keyboardSounding { false };
     std::atomic<uint32_t> patterns[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps] {};
     tew::Sequencer::Step patternClip[tew::Sequencer::maxSteps] {};

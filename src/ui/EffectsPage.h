@@ -198,6 +198,10 @@ private:
                 if (amt != nullptr)
                     lfoAmt = amt->load();
             }
+            slider.getProperties().set ("lfoSrc", lfoSrc);
+            slider.getProperties().set ("lfoAmt", lfoAmt);
+            slider.getProperties().set ("lfoY", lfoSrc > 0 ? proc.lfoOut (lfoSrc - 1) : 0.5f);
+            slider.repaint();
             repaint();
         }
 

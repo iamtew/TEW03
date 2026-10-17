@@ -369,7 +369,10 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     {
         engine.render (buffer, start, n, &mod);
         for (int i = 0; i < tew::numLfos; ++i)
+        {
             lfoPhaseUi[i].store (lfo[i].phase, std::memory_order_relaxed);
+            lfoOutUi[i].store (lfo[i].peek(), std::memory_order_relaxed);
+        }
     };
 
     const float* lfoPeek = peekY;
@@ -494,6 +497,13 @@ float TEW03AudioProcessor::lfoPhase (int index) const
     if (index < 0 || index >= tew::numLfos)
         return 0.f;
     return lfoPhaseUi[index].load (std::memory_order_relaxed);
+}
+
+float TEW03AudioProcessor::lfoOut (int index) const
+{
+    if (index < 0 || index >= tew::numLfos)
+        return 0.5f;
+    return lfoOutUi[index].load (std::memory_order_relaxed);
 }
 
 bool TEW03AudioProcessor::lfoPlayheadOn() const

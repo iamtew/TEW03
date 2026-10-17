@@ -858,9 +858,36 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
     const int src = (int) slider.getProperties().getWithDefault ("lfoSrc", 0);
     if (src > 0)
     {
-        const float amt = std::abs ((float) slider.getProperties().getWithDefault ("lfoAmt", 0.f));
-        g.setColour (lfoCol (src).withAlpha (0.45f + 0.5f * amt));
-        g.drawEllipse (rc.expanded (2.f), 3.f);
+        // Same bipolar law as VoiceMod::sample01. Pointer stays the set value.
+        const float amt = (float) slider.getProperties().getWithDefault ("lfoAmt", 0.f);
+        const float y = (float) slider.getProperties().getWithDefault ("lfoY", 0.5f);
+        const float sweep = std::abs (amt);
+        const float lo = juce::jlimit (0.f, 1.f, pos - sweep);
+        const float hi = juce::jlimit (0.f, 1.f, pos + sweep);
+        const float now = juce::jlimit (0.f, 1.f, pos + amt * (y * 2.f - 1.f));
+        const float span = endAngle - startAngle;
+        const float radius = d * 0.5f + 1.5f;
+        const auto centre = rc.getCentre();
+        const auto col = lfoCol (src);
+
+        if (hi - lo > 0.004f)
+        {
+            juce::Path arc;
+            arc.addCentredArc (centre.x, centre.y, radius, radius, 0.f,
+                               startAngle + lo * span, startAngle + hi * span, true);
+            const auto round = juce::PathStrokeType::curved;
+            const auto end = juce::PathStrokeType::rounded;
+            g.setColour (kInk);
+            g.strokePath (arc, juce::PathStrokeType (5.f, round, end));
+            g.setColour (col.withAlpha (0.85f));
+            g.strokePath (arc, juce::PathStrokeType (3.f, round, end));
+        }
+
+        const auto dot = centre.getPointOnCircumference (radius, startAngle + now * span);
+        g.setColour (kInk);
+        g.fillEllipse (dot.x - 4.f, dot.y - 4.f, 8.f, 8.f);
+        g.setColour (col);
+        g.fillEllipse (dot.x - 3.f, dot.y - 3.f, 6.f, 6.f);
     }
 }
 
@@ -1034,6 +1061,7 @@ void TEW03AudioProcessorEditor::ParamCell::refreshMod()
     lfoAmt = editor.proc.apvts.getRawParameterValue (ParamID::destAmtIds[dest])->load();
     slider.getProperties().set ("lfoSrc", lfoSrc);
     slider.getProperties().set ("lfoAmt", lfoAmt);
+    slider.getProperties().set ("lfoY", lfoSrc > 0 ? editor.proc.lfoOut (lfoSrc - 1) : 0.5f);
     slider.repaint();
     repaint();
 }
