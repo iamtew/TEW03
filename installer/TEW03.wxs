@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UpgradeCode stays fixed so a newer MSI replaces this install. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="TEW03"
+           Manufacturer="Stupid Systems LLC"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="7E03A1C4-5B2D-4F8E-9A61-0C3D8E2F4B17"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of TEW03 is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+    <Icon Id="Tew03Icon" SourceFile="!(bindpath.Icon)icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="Tew03Icon" />
+
+    <!-- Feature tree: both on by default, either can be cleared, Browse changes that feature's folder. -->
+    <ui:WixUI Id="WixUI_FeatureTree" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="CompanyFolder" Name="Stupid Systems LLC">
+        <Directory Id="INSTALLFOLDER" Name="TEW03">
+          <Component Id="Standalone" Guid="*">
+            <File Id="StandaloneExe" Name="TEW03.exe" Source="!(bindpath.Standalone)TEW03.exe" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ProgramMenuDir" Name="TEW03">
+        <!-- HKCU keypath is what MSI requires for a Start menu shortcut. -->
+        <Component Id="StartMenuShortcut" Guid="*">
+          <Shortcut Id="StartMenu"
+                    Directory="ProgramMenuDir"
+                    Name="TEW03"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="Tew03Icon"
+                    Target="[INSTALLFOLDER]TEW03.exe" />
+          <RemoveFolder Id="RemoveProgramMenuDir" On="uninstall" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Stupid Systems LLC\TEW03"
+                         Name="installed"
+                         Type="integer"
+                         Value="1"
+                         KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="CommonFiles6432Folder">
+      <Directory Id="VST3DIR" Name="VST3">
+        <Directory Id="Vst3Bundle" Name="TEW03.vst3" />
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="Vst3Files" Directory="Vst3Bundle">
+      <Files Include="!(bindpath.Vst3)**" />
+    </ComponentGroup>
+
+    <Feature Id="Vst3Feature" Title="VST3" Level="1" ConfigurableDirectory="VST3DIR"
+             Description="VST3 plugin. Default folder is Common Files\VST3.">
+      <ComponentGroupRef Id="Vst3Files" />
+    </Feature>
+
+    <Feature Id="StandaloneFeature" Title="Standalone" Level="1" ConfigurableDirectory="INSTALLFOLDER"
+             Description="Standalone app and Start menu shortcut. Default folder is Program Files\Stupid Systems LLC\TEW03.">
+      <ComponentRef Id="Standalone" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+</Wix>

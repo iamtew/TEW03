@@ -1,0 +1,13 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>TEW03</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>$(DefineConstants);ProductVersion=$(ProductVersion)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <BindPath Include="$(Vst3Dir)" BindName="Vst3" />
+    <BindPath Include="$(StandaloneDir)" BindName="Standalone" />
+    <BindPath Include="$(IconDir)" BindName="Icon" />
+  </ItemGroup>
+</Project>

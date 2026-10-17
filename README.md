@@ -11,3 +11,7 @@
 **EQ** — five-band parametric before and after the effects, with the spectrum behind the curve.
 
 VST3 and standalone. Stupid Systems LLC. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/MANUAL.md](docs/MANUAL.md).
+
+## Release
+
+`just build-dist` writes `dist/TEW03-<version>-win-x64-vst3.zip`, `dist/TEW03-<version>-win-x64-standalone.zip`, and `dist/TEW03-<version>-win-x64.msi`. The MSI lets you install the VST3, the standalone app, or both. Defaults are `Common Files\VST3` and `Program Files\Stupid Systems LLC\TEW03`; each folder can be changed. The standalone install adds a Start menu shortcut. Building the MSI needs the .NET 8 SDK.

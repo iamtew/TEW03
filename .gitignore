@@ -5,6 +5,10 @@ JuceLibraryCode/
 # just build-dist
 dist/
 
+# WiX
+installer/bin/
+installer/obj/
+
 # Visual Studio
 .vs/
 *.user
