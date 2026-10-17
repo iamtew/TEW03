@@ -1882,6 +1882,20 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         syncSteps();
     };
 
+    auto setupShift = [this] (ShiftButton& b, int dir, const juce::String& tip)
+    {
+        b.setClickingTogglesState (false);
+        b.setComponentID ("plain");
+        b.setTooltip (tip);
+        b.dir = dir;
+        addAndMakeVisible (b);
+        b.onShift = [this] (int semis) { shiftPattern (semis); };
+    };
+    setupShift (shiftUpBtn, 1,
+                "Click: shift up one semitone (one scale step when Lock is on). Double-click: one octave.");
+    setupShift (shiftDnBtn, -1,
+                "Click: shift down one semitone (one scale step when Lock is on). Double-click: one octave.");
+
     static constexpr const char* kKeys[] = {
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     };
@@ -2045,6 +2059,9 @@ void TEW03AudioProcessorEditor::resized()
     lock.removeFromLeft (10);
     scaleLabel.setBounds (lock.removeFromLeft (40));
     scaleBox.setBounds (lock.removeFromLeft (88).reduced (0, 1));
+    lock.removeFromLeft (8);
+    shiftUpBtn.setBounds (lock.removeFromLeft (32).reduced (0, 1));
+    shiftDnBtn.setBounds (lock.removeFromLeft (32).reduced (0, 1));
     clearBtn.setBounds (lock.removeFromRight (56).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
@@ -2139,6 +2156,59 @@ void TEW03AudioProcessorEditor::mouseMove (const juce::MouseEvent& e)
     setMouseCursor (titleHitBounds().contains (e.getPosition())
                         ? juce::MouseCursor::PointingHandCursor
                         : juce::MouseCursor::NormalCursor);
+}
+
+void TEW03AudioProcessorEditor::ShiftButton::mouseUp (const juce::MouseEvent& e)
+{
+    juce::ToggleButton::mouseUp (e);
+    if (! e.mouseWasClicked() || e.mods.isPopupMenu())
+        return;
+
+    if (e.getNumberOfClicks() >= 2)
+    {
+        stopTimer();
+        armed = false;
+        if (onShift)
+            onShift (dir * 12);
+        return;
+    }
+
+    armed = true;
+    startTimer (juce::MouseEvent::getDoubleClickTimeout());
+}
+
+void TEW03AudioProcessorEditor::ShiftButton::timerCallback()
+{
+    stopTimer();
+    if (! armed)
+        return;
+    armed = false;
+    if (onShift)
+        onShift (dir);
+}
+
+void TEW03AudioProcessorEditor::shiftPattern (int semitones)
+{
+    if (semitones == 0)
+        return;
+
+    const bool octave = semitones >= 12 || semitones <= -12;
+    const int step = semitones > 0 ? 1 : -1;
+    tew::Sequencer::Step out[tew::Sequencer::maxSteps];
+    for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
+    {
+        auto s = proc.getSequencer().getStep (i);
+        if (s.note >= 0)
+        {
+            if (octave || ! pianoRoll.locked)
+                s.note = nudgeNote (s.note, octave ? step * 12 : step);
+            else
+                s.note = stepScale (s.note, step, pianoRoll.keyRoot, pianoRoll.minor);
+        }
+        out[i] = s;
+    }
+    proc.applyCurrentPattern (out);
+    pianoRoll.repaint();
 }
 
 void TEW03AudioProcessorEditor::applyLock()

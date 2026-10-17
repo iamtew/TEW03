@@ -45,6 +45,7 @@ private:
     void cyclePage (int delta);
     void applyPageVisibility();
     void applyLock();
+    void shiftPattern (int dir);
     juce::Rectangle<int> titleHitBounds() const;
     void openAbout();
 
@@ -269,6 +270,21 @@ private:
     juce::ToggleButton lockBtn { "Lock" };
     juce::ToggleButton x2Btn { "2x" };
     juce::ToggleButton clearBtn { "Clear" };
+
+    // Single click waits out the double-click window, so an octave jump is not also a semitone.
+    struct ShiftButton : public juce::ToggleButton, private juce::Timer
+    {
+        explicit ShiftButton (const juce::String& name) : juce::ToggleButton (name) {}
+        void mouseUp (const juce::MouseEvent& e) override;
+        void timerCallback() override;
+
+        std::function<void (int)> onShift;
+        int dir = 1;
+        bool armed = false;
+    };
+
+    ShiftButton shiftUpBtn { "Up" };
+    ShiftButton shiftDnBtn { "Dn" };
     juce::ToggleButton runBtn { "Run" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;

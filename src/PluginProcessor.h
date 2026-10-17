@@ -49,6 +49,7 @@ public:
     void copyCurrentPattern();
     void pasteCurrentPattern();
     void clearCurrentPattern();
+    void applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps]);
     bool hasPatternClip() const { return patternClipValid; }
     void syncSeqLength (bool doubled);
     void selectSlot (int bank, int pat);
@@ -100,7 +101,6 @@ private:
     void writeStepToState (int bank, int pat, int index, tew::Sequencer::Step step);
     void loadLiveFromSlot();
     void storeLiveToSlot();
-    void applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps]);
     std::atomic<uint32_t>* slotPacked (int bank, int pat);
     void copyLiveBanks (tew::Sequencer::Step dest[tew::Sequencer::numBanks]
                                                  [tew::Sequencer::patternsPerBank]

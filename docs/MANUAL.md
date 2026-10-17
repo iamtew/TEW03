@@ -62,6 +62,7 @@ Factory default: the standalone app opens in **Standalone** with **Run** off; in
 - **Bank** — pattern bank 1–3.
 - **Pat** — pattern 1–12 in that bank. Click the number for a menu, arrows to step.
 - **Key** / **Scale** — root (C–B) and Major / Minor. Used when **Lock** is on.
+- **Up** / **Dn** — shift the current pattern up or down one semitone. With **Lock** on, each note moves one scale step. Double-click either button to move a full octave. Rests stay rests. Notes stop at C1 and B4.
 - **Lock** — snaps sequencer pitches to that key and scale. The piano-roll rows are the in-scale notes, stretched to fill the roll.
 - **Clear** — empties the current pattern (notes, accent, slide).
 
