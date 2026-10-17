@@ -372,12 +372,13 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             lfoPhaseUi[i].store (lfo[i].phase, std::memory_order_relaxed);
     };
 
-    auto processInserts = [this, &buffer, bpm] ()
+    const float* lfoPeek = peekY;
+    auto processInserts = [this, &buffer, bpm, lfoPeek] ()
     {
         tew::EqBandParam bands[tew::eqBandCount];
         tew::readEqBands (apvts, false, bands);
         preEq.process (buffer, tew::eqEnabled (apvts, false), bands);
-        fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed));
+        fx.process (buffer, bpm, apvts, fxOrder.load (std::memory_order_relaxed), lfoPeek);
         tew::readEqBands (apvts, true, bands);
         postEq.process (buffer, tew::eqEnabled (apvts, true), bands);
         eqScope.push (buffer);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParametricEq.h"
+#include "Lfo.h"
 #include "../parameters/ParameterIDs.h"
 
 #include <JuceHeader.h>
@@ -33,11 +34,15 @@ struct FxChain
         prepared = true;
     }
 
+    // lfoY is the block peek already advanced by the voice. Do not step it here.
     void process (juce::AudioBuffer<float>& buffer, float bpm,
-                  juce::AudioProcessorValueTreeState& apvts, std::uint64_t packedOrder)
+                  juce::AudioProcessorValueTreeState& apvts, std::uint64_t packedOrder,
+                  const float* lfoY)
     {
         if (! prepared || buffer.getNumSamples() <= 0)
             return;
+
+        blockLfo = lfoY;
 
         int order[fxCount];
         int n = unpackFxOrder (packedOrder, order);
@@ -56,13 +61,34 @@ struct FxChain
         for (int t = 0; t < fxCount; ++t)
             if (! used[t] && on (t))
                 processOne (t, buffer, bpm, apvts);
+        blockLfo = nullptr;
     }
 
 private:
     float p (juce::AudioProcessorValueTreeState& apvts, const char* id) const
     {
         auto* v = apvts.getRawParameterValue (id);
-        return v != nullptr ? v->load() : 0.f;
+        float raw = v != nullptr ? v->load() : 0.f;
+        if (blockLfo == nullptr)
+            return raw;
+
+        const auto* slot = ParamID::fxModFor (id);
+        if (slot == nullptr)
+            return raw;
+        auto* srcA = apvts.getRawParameterValue (slot->lfo);
+        auto* amtA = apvts.getRawParameterValue (slot->amt);
+        if (srcA == nullptr || amtA == nullptr)
+            return raw;
+        const int src = juce::roundToInt (srcA->load());
+        if (src <= 0 || src > numLfos)
+            return raw;
+
+        auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (id));
+        if (ranged == nullptr)
+            return raw;
+        const float bipolar = blockLfo[src - 1] * 2.f - 1.f;
+        const float n = juce::jlimit (0.f, 1.f, ranged->convertTo0to1 (raw) + amtA->load() * bipolar);
+        return ranged->convertFrom0to1 (n);
     }
 
     void processOne (int type, juce::AudioBuffer<float>& buffer, float bpm,
@@ -126,8 +152,13 @@ private:
             case 4:
             {
                 EqBandParam bands[eqBandCount];
-                readEqBands (apvts, ParamID::fxEqType, ParamID::fxEqFreq,
-                             ParamID::fxEqGain, ParamID::fxEqQ, bands);
+                for (int b = 0; b < eqBandCount; ++b)
+                {
+                    bands[b].type = juce::roundToInt (p (apvts, ParamID::fxEqType[b]));
+                    bands[b].hz = p (apvts, ParamID::fxEqFreq[b]);
+                    bands[b].gainDb = p (apvts, ParamID::fxEqGain[b]);
+                    bands[b].q = p (apvts, ParamID::fxEqQ[b]);
+                }
                 insertEq.process (buffer, true, bands);
                 break;
             }
@@ -265,6 +296,7 @@ private:
     juce::AudioBuffer<float> scratch;
     double sr = 44100.0;
     bool prepared = false;
+    const float* blockLfo = nullptr;
 };
 
 } // namespace tew
