@@ -102,7 +102,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             ParameterID { ParamID::lfoRateIds[i], 1 }, n + " Rate",
             NormalisableRange<float> (0.05f, 30.f, 0.01f, 0.4f), 1.f));
         layout.add (std::make_unique<AudioParameterBool> (
-            ParameterID { ParamID::lfoSyncIds[i], 1 }, n + " Sync", i == 0));
+            ParameterID { ParamID::lfoSyncIds[i], 1 }, n + " Sync", true));
         layout.add (std::make_unique<AudioParameterChoice> (
             ParameterID { ParamID::lfoDivIds[i], 1 }, n + " Div",
             StringArray { "1/16", "1/8", "1/4", "1/2", "1", "2" }, 2));

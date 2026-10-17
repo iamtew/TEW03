@@ -114,7 +114,7 @@ The name bar cycles presets: **Triangle**, **Sin**, **Saw Up**, **Saw Down**, **
 - **Mode — Free** — runs continuously.
 - **Mode — Trigger** — resets to the start of the shape on each note-on (keyboard or sequencer).
 - **Sync** off — **Rate** is 0.05–30 Hz.
-- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo). **LFO 1** Sync is on by default (1/4); **LFO 2** Sync is off.
+- **Sync** on — **Div** sets cycle length: 1/16, 1/8, 1/4, 1/2, 1 bar, 2 bars (at the current tempo). Both LFOs default to Sync on (1/4).
 - **Smooth** — lags the shape. 0 is raw breakpoints; 100% is a ~250 ms lag.
 
 ### Assigning
