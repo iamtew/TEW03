@@ -70,7 +70,7 @@ private:
         int playhead = -1;
         int dragStep = -1;
         int keyRoot = 0; // C
-        int viewLow = 36; // C2, one octave window
+        int viewLow = 36; // C2–B3; scroll reaches C1 and B4
         int gutterStartY = 0;
         int gutterStartView = 36;
         int holdDir = 0; // +1 top overlay, -1 bottom, 0 idle

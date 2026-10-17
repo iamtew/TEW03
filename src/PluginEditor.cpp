@@ -8,7 +8,7 @@
 namespace
 {
 constexpr int kEditorW = 900;
-constexpr int kEditorH = 628;
+constexpr int kEditorH = 820; // chrome from the 628 layout, plus a 24-row roll
 constexpr int kLfoH = 140;
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
@@ -20,9 +20,9 @@ constexpr int kLedH = 10;
 constexpr int kToggleH = 18;
 constexpr int kStripH = kLedH + kToggleH * 2 + 4;
 constexpr int kLabelH = 11;
-constexpr int kNoteMin = 24;
-constexpr int kNoteMax = 60;
-constexpr int kOctave = 12;
+constexpr int kNoteMin = 24; // C1
+constexpr int kNoteMax = 71; // B4
+constexpr int kOctave = 24;  // two octaves on screen; range is still C1–B4
 constexpr int kKeyW = 54;
 constexpr int kPianoW = 8;
 constexpr int kRowH = 16;
@@ -162,8 +162,25 @@ struct RollView
     bool locked = false;
     int root = 0;
     bool minor = false;
-    int viewLow = 36;
+    int viewLow = 36; // C2, two octaves up to B3
 };
+
+// viewLow after scrolling `steps` rows (scale steps when locked). Same clamp as the roll.
+int viewAfter (RollView v, int steps)
+{
+    if (steps == 0)
+        return v.viewLow;
+
+    if (! v.locked)
+        return clampViewLow (v.viewLow + steps, false, v.root, v.minor);
+
+    const int dir = steps > 0 ? 1 : -1;
+    const int n = steps > 0 ? steps : -steps;
+    int next = v.viewLow;
+    for (int i = 0; i < n; ++i)
+        next = stepScale (next, dir, v.root, v.minor);
+    return clampViewLow (next, true, v.root, v.minor);
+}
 
 int visibleRows (const RollView& v)
 {
@@ -240,21 +257,23 @@ RollGeom makeGeom (juce::Rectangle<int> bounds, int rows, int cols)
     g.cols = juce::jmax (1, cols);
     g.colW = g.grid.getWidth() / (float) g.cols;
     g.rows = juce::jmax (1, rows);
-    g.rowH = (float) kRowH;
+    // Lock packs to scale notes. Those fewer rows still fill the roll.
+    g.rowH = (float) bounds.getHeight() / (float) g.rows;
     return g;
 }
 
-// +1 top (higher pitches), -1 bottom, 0 not on overlay
-int keyOverlayDir (const RollGeom& geo, juce::Point<int> p)
+// +1 top (higher pitches), -1 bottom, 0 not on overlay.
+// canUp / canDown hide the chevron when that end is already on screen.
+int keyOverlayDir (const RollGeom& geo, juce::Point<int> p, bool canUp, bool canDown)
 {
     if (p.x >= (int) geo.grid.getX() || p.x < (int) geo.keys.getX())
         return 0;
     const float y = (float) p.y;
     if (y < geo.keys.getY() || y >= geo.keys.getBottom())
         return 0;
-    if (y < geo.keys.getY() + geo.rowH)
+    if (canUp && y < geo.keys.getY() + geo.rowH)
         return 1;
-    if (y >= geo.keys.getBottom() - geo.rowH)
+    if (canDown && y >= geo.keys.getBottom() - geo.rowH)
         return -1;
     return 0;
 }
@@ -421,20 +440,7 @@ void TEW03AudioProcessorEditor::PianoRoll::scrollBy (int steps)
     if (steps == 0)
         return;
 
-    int next = viewLow;
-    if (locked)
-    {
-        const int dir = steps > 0 ? 1 : -1;
-        const int n = steps > 0 ? steps : -steps;
-        for (int i = 0; i < n; ++i)
-            next = stepScale (next, dir, keyRoot, minor);
-        next = clampViewLow (next, true, keyRoot, minor);
-    }
-    else
-    {
-        next = clampViewLow (viewLow + steps, false, keyRoot, minor);
-    }
-
+    const int next = viewAfter ({ locked, keyRoot, minor, viewLow }, steps);
     if (next == viewLow)
         return;
     viewLow = next;
@@ -444,9 +450,7 @@ void TEW03AudioProcessorEditor::PianoRoll::scrollBy (int steps)
 void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
 {
     const RollView v { locked, keyRoot, minor, viewLow };
-    auto used = getLocalBounds();
-    used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
+    const auto geo = makeGeom (getLocalBounds(), visibleRows (v), gridSteps (proc));
 
     for (int row = 0; row < geo.rows; ++row)
     {
@@ -491,9 +495,13 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
                         juce::Justification::centredRight, false);
     }
 
-    paintKeyOverlay (g, geo.keys.withHeight (geo.rowH), true, holdDir > 0);
-    paintKeyOverlay (g, geo.keys.withY (geo.keys.getBottom() - geo.rowH).withHeight (geo.rowH),
-                     false, holdDir < 0);
+    const bool canUp = viewAfter (v, 1) != v.viewLow;
+    const bool canDown = viewAfter (v, -1) != v.viewLow;
+    if (canUp)
+        paintKeyOverlay (g, geo.keys.withHeight (geo.rowH), true, holdDir > 0);
+    if (canDown)
+        paintKeyOverlay (g, geo.keys.withY (geo.keys.getBottom() - geo.rowH).withHeight (geo.rowH),
+                         false, holdDir < 0);
 
     if (playhead >= 0 && playhead < geo.cols)
     {
@@ -619,11 +627,11 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
 void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
 {
     const RollView v { locked, keyRoot, minor, viewLow };
-    auto used = getLocalBounds();
-    used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
+    const auto geo = makeGeom (getLocalBounds(), visibleRows (v), gridSteps (proc));
 
-    const int overlay = keyOverlayDir (geo, e.getPosition());
+    const int overlay = keyOverlayDir (geo, e.getPosition(),
+                                       viewAfter (v, 1) != v.viewLow,
+                                       viewAfter (v, -1) != v.viewLow);
     if (overlay != 0)
     {
         gutterDrag = false;
@@ -650,7 +658,11 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
 
     if (gutterDrag)
     {
-        const int delta = (gutterStartY - e.y) / kRowH;
+        const RollView start { locked, keyRoot, minor, gutterStartView };
+        const auto geo = makeGeom (getLocalBounds(), visibleRows (start), gridSteps (proc));
+        const int delta = geo.rowH > 0.f
+                            ? (int) ((float) (gutterStartY - e.y) / geo.rowH)
+                            : 0;
         viewLow = gutterStartView;
         if (delta != 0)
             scrollBy (delta);
@@ -663,9 +675,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseDrag (const juce::MouseEvent& e)
         return;
 
     const RollView v { locked, keyRoot, minor, viewLow };
-    auto used = getLocalBounds();
-    used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
+    const auto geo = makeGeom (getLocalBounds(), visibleRows (v), gridSteps (proc));
     const int note = lockNote (noteAtY (geo, (float) e.y, v));
     auto s = proc.getSequencer().getStep (dragStep);
     if (s.note == note)
@@ -695,9 +705,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseUp (const juce::MouseEvent& e)
         return;
 
     const RollView v { locked, keyRoot, minor, viewLow };
-    auto used = getLocalBounds();
-    used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
+    const auto geo = makeGeom (getLocalBounds(), visibleRows (v), gridSteps (proc));
     if (e.x < (int) geo.grid.getX())
         return;
 
@@ -712,9 +720,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseWheelMove (const juce::MouseEven
                                                            const juce::MouseWheelDetails& w)
 {
     const RollView v { locked, keyRoot, minor, viewLow };
-    auto used = getLocalBounds();
-    used.setHeight (visibleRows (v) * kRowH);
-    const auto geo = makeGeom (used, visibleRows (v), gridSteps (proc));
+    const auto geo = makeGeom (getLocalBounds(), visibleRows (v), gridSteps (proc));
 
     if (e.x < (int) geo.grid.getX())
     {

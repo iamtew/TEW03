@@ -62,19 +62,19 @@ Factory default: the standalone app opens in **Standalone** with **Run** off; in
 - **Bank** — pattern bank 1–3.
 - **Pat** — pattern 1–12 in that bank. Click the number for a menu, arrows to step.
 - **Key** / **Scale** — root (C–B) and Major / Minor. Used when **Lock** is on.
-- **Lock** — snaps sequencer pitches to that key and scale. The piano-roll rows shrink to in-scale notes.
+- **Lock** — snaps sequencer pitches to that key and scale. The piano-roll rows are the in-scale notes, stretched to fill the roll.
 - **Clear** — empties the current pattern (notes, accent, slide).
 
 Edits write into the live slot. Switching bank/pattern copies that slot into the live sequencer.
 
 ### Piano roll
 
-Range is **C1–C4**. One octave of rows is visible; scroll for the rest.
+Range is **C1–B4**. Two octaves are on screen (opens on C2–B3); scroll for the rest.
 
 - **Click** a cell to put that pitch on that step, or to clear it if it was already that pitch.
 - **Drag** a note up/down to change pitch (snaps to scale when Lock is on).
 - **Mouse wheel** on a note nudges pitch (scale steps when Lock is on).
-- **Left gutter** — drag or wheel to scroll the view. Hold the top/bottom key overlays to keep scrolling.
+- **Left gutter** — drag or wheel to scroll when the range is taller than the window. Top and bottom key chevrons show only then.
 - **A** under a column — accent that step.
 - **S** under a column — click once for slide / tie into the next step, twice for **super slide** (holds through rests until the next playing note, LFO1 green chevron).
 - **Playhead** — red column while the sequencer runs.
