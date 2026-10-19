@@ -191,9 +191,7 @@ Click the page bar to **EQ**. This is Pre-FX and Post-FX, five bands each, both 
 
 Left column:
 
-- **Pre** LED — EQ before the FX chain.
-- **Post** LED — EQ after the FX chain.
-- **Edit Pre** / **Edit Post** — which set of five bands you are looking at.
+- **PRE** / **POST** — one row per stack. The LED turns that EQ on or off. Click the name to edit it (cream outline). Selecting does not enable it.
 - **Reset** — dump the set you are editing (On + five bands) back to defaults. The other set is left alone.
 
 The graph on the right is the response of the set you are editing. The spectrum behind it is a post-FX FFT (what leaves the chain), not a live input analyser.

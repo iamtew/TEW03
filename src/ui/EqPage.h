@@ -11,28 +11,14 @@ class EqPage : public juce::Component,
 public:
     explicit EqPage (TEW03AudioProcessor& p) : proc (p), curve (*this), inspector (*this)
     {
-        preOn.setButtonText ("Pre");
-        postOn.setButtonText ("Post");
-        preOn.setComponentID ("led");
-        postOn.setComponentID ("led");
-        addAndMakeVisible (preOn);
-        addAndMakeVisible (postOn);
+        preRow.setup (*this, false);
+        postRow.setup (*this, true);
+        addAndMakeVisible (preRow);
+        addAndMakeVisible (postRow);
         preOnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-            proc.apvts, ParamID::preEqOn, preOn);
+            proc.apvts, ParamID::preEqOn, preRow.on);
         postOnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-            proc.apvts, ParamID::postEqOn, postOn);
-
-        editPre.setButtonText ("Edit Pre");
-        editPost.setButtonText ("Edit Post");
-        editPre.setClickingTogglesState (true);
-        editPost.setClickingTogglesState (true);
-        editPre.setRadioGroupId (1);
-        editPost.setRadioGroupId (1);
-        editPre.setToggleState (true, juce::dontSendNotification);
-        editPre.onClick = [this] { setEditPost (false); };
-        editPost.onClick = [this] { setEditPost (true); };
-        addAndMakeVisible (editPre);
-        addAndMakeVisible (editPost);
+            proc.apvts, ParamID::postEqOn, postRow.on);
 
         resetBtn.setButtonText ("Reset");
         resetBtn.setComponentID ("plain");
@@ -52,12 +38,8 @@ public:
     {
         auto r = getLocalBounds();
         auto rail = r.removeFromLeft (102);
-        auto onRow = rail.removeFromTop (22).reduced (4, 1);
-        preOn.setBounds (onRow.removeFromLeft (onRow.getWidth() / 2));
-        postOn.setBounds (onRow);
-        auto editRow = rail.removeFromTop (22).reduced (4, 1);
-        editPre.setBounds (editRow.removeFromLeft (editRow.getWidth() / 2));
-        editPost.setBounds (editRow);
+        preRow.setBounds (rail.removeFromTop (28).reduced (2, 1));
+        postRow.setBounds (rail.removeFromTop (28).reduced (2, 1));
         resetBtn.setBounds (rail.removeFromTop (22).reduced (4, 1));
         inspector.setBounds (rail);
         curve.setBounds (r);
@@ -87,6 +69,8 @@ private:
         if (editPostOn == post)
             return;
         editPostOn = post;
+        preRow.repaint();
+        postRow.repaint();
         inspector.bind();
         curve.repaint();
     }
@@ -188,6 +172,49 @@ private:
         inspector.bind();
         curve.repaint();
     }
+
+    // LED enables this stack; click the name to edit it. Selecting does not turn it on.
+    struct StackRow : public juce::Component
+    {
+        void setup (EqPage& page, bool post)
+        {
+            owner = &page;
+            isPost = post;
+            // LnF only draws the LED blob when the label is 2+ chars; spaces keep it LED-only.
+            on.setButtonText ("  ");
+            addAndMakeVisible (on);
+        }
+
+        void paint (juce::Graphics& g) override
+        {
+            auto r = getLocalBounds().toFloat();
+            const bool sel = owner != nullptr && owner->editPostOn == isPost;
+            g.setColour (sel ? juce::Colour (0xff2a2a2a) : juce::Colour (0xff151515));
+            g.fillRoundedRectangle (r, 4.f);
+            g.setColour (sel ? kCream : kCream.withAlpha (0.45f));
+            if (sel)
+                g.drawRoundedRectangle (r.reduced (0.8f), 4.f, 1.6f);
+            g.setFont (labelFont (14.f));
+            g.drawText (isPost ? "POST" : "PRE",
+                        getLocalBounds().withTrimmedLeft (24),
+                        juce::Justification::centredLeft, false);
+        }
+
+        void resized() override
+        {
+            on.setBounds (getLocalBounds().removeFromLeft (22).reduced (1, 3));
+        }
+
+        void mouseDown (const juce::MouseEvent&) override
+        {
+            if (owner != nullptr)
+                owner->setEditPost (isPost);
+        }
+
+        EqPage* owner = nullptr;
+        bool isPost = false;
+        juce::ToggleButton on;
+    };
 
     struct BandKnob : public juce::Component
     {
@@ -714,7 +741,8 @@ private:
         std::vector<float> specDb;
     };
 
-    juce::ToggleButton preOn, postOn, editPre, editPost, resetBtn;
+    StackRow preRow, postRow;
+    juce::ToggleButton resetBtn;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> preOnAtt, postOnAtt;
     Curve curve;
     Inspector inspector;
