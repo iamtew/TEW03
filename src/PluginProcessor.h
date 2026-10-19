@@ -91,6 +91,9 @@ public:
     bool importPatch (const juce::File& src);
     bool importBank (const juce::File& src);
 
+    // Editor scale (drag the corner). 0.85 fits a 1440x900 screen; saved with the session.
+    float uiScale = 0.85f;
+
 private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     float raw (const char* id) const;

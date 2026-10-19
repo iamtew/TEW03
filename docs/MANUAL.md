@@ -40,6 +40,8 @@ The bar at the top left is the page switcher: **Main**, **Effects**, **EQ**. Cli
 
 Click **TEW03** or the version number for About. **Check for update** looks at GitHub tags; if a newer build exists, **Open releases** opens the download page in your browser.
 
+Drag the window corner to scale (40%–150%); the scale is saved with the session.
+
 ## Main — sequencer
 
 Left column is transport and pattern. Centre is the piano roll.

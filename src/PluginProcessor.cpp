@@ -1165,6 +1165,7 @@ void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     writeBanksToState();
     writeLfosToState();
     writeFxOrderToState();
+    apvts.state.setProperty ("uiScale", uiScale, nullptr);
 
     if (auto xml = apvts.copyState().createXml())
         copyXmlToBinary (*xml, destData);
@@ -1176,6 +1177,7 @@ void TEW03AudioProcessor::setStateInformation (const void* data, int sizeInBytes
         if (xml->hasTagName (apvts.state.getType()))
         {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            uiScale = juce::jlimit (0.4f, 1.5f, (float) apvts.state.getProperty ("uiScale", uiScale));
             loadBanksFromState();
             loadLfosFromState();
             loadFxOrderFromState();

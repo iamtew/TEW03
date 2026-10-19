@@ -1854,7 +1854,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         if (p == nullptr)
             return;
         auto* cell = dest.add (new ParamCell (*this, *p));
-        addAndMakeVisible (cell);
+        content.addAndMakeVisible (cell);
         if (id == ParamID::seqTempo)
             tempoCell = cell;
     };
@@ -1866,7 +1866,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     for (auto* id : kMaster)
         add (masterCells, id);
 
-    addAndMakeVisible (pianoRoll);
+    content.addAndMakeVisible (pianoRoll);
 
     auto setupLabel = [] (juce::Label& l, const juce::String& text)
     {
@@ -1879,27 +1879,27 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     setupLabel (scaleLabel, "Scale");
     setupLabel (bankLabel, "Bank");
     setupLabel (patternLabel, "Pat");
-    addAndMakeVisible (keyLabel);
-    addAndMakeVisible (scaleLabel);
-    addAndMakeVisible (bankLabel);
-    addAndMakeVisible (patternLabel);
+    content.addAndMakeVisible (keyLabel);
+    content.addAndMakeVisible (scaleLabel);
+    content.addAndMakeVisible (bankLabel);
+    content.addAndMakeVisible (patternLabel);
 
     lockBtn.setClickingTogglesState (true);
     lockBtn.setTooltip ("Lock sequencer notes to the selected key and scale");
-    addAndMakeVisible (lockBtn);
+    content.addAndMakeVisible (lockBtn);
     lockAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         proc.apvts, ParamID::seqKeyLock, lockBtn);
 
     runBtn.setClickingTogglesState (true);
     runBtn.setComponentID ("led");
     runBtn.setTooltip ("Play or pause the sequencer");
-    addAndMakeVisible (runBtn);
+    content.addAndMakeVisible (runBtn);
     runAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         proc.apvts, ParamID::seqPlay, runBtn);
 
     x2Btn.setClickingTogglesState (true);
     x2Btn.setTooltip ("Split each step in half (32nds)");
-    addAndMakeVisible (x2Btn);
+    content.addAndMakeVisible (x2Btn);
     x2Att = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         proc.apvts, ParamID::seq2x, x2Btn);
     x2Btn.onClick = [this]
@@ -1907,14 +1907,14 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         proc.syncSeqLength (x2Btn.getToggleState());
         for (int i = 0; i < steps.size(); ++i)
             steps[i]->syncFrom (proc);
-        resized();
+        layoutContent();
         pianoRoll.repaint();
     };
 
     clearBtn.setClickingTogglesState (false);
     clearBtn.setComponentID ("plain");
     clearBtn.setTooltip ("Clear the current pattern");
-    addAndMakeVisible (clearBtn);
+    content.addAndMakeVisible (clearBtn);
     clearBtn.onClick = [this]
     {
         proc.clearCurrentPattern();
@@ -1927,7 +1927,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         b.setComponentID ("plain");
         b.setTooltip (tip);
         b.dir = dir;
-        addAndMakeVisible (b);
+        content.addAndMakeVisible (b);
         b.onShift = [this] (int semis) { shiftPattern (semis); };
     };
     setupShift (shiftUpBtn, 1,
@@ -1956,7 +1956,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
 
     for (int i = 1; i <= tew::Sequencer::numBanks; ++i)
         bankBox.addItem (juce::String (i), i);
-    addAndMakeVisible (bankBox);
+    content.addAndMakeVisible (bankBox);
     bankAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         proc.apvts, ParamID::seqBank, bankBox);
 
@@ -1974,14 +1974,14 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     patBar.onStep = [this] (int d) { cyclePattern (d); };
     patBar.onOpen = [this] { openPatternMenu(); };
     patBar.onPopup = [this] { openPatternClipMenu(); };
-    addAndMakeVisible (pageBar);
-    addAndMakeVisible (patchBar);
-    addAndMakeVisible (bankLibBar);
-    addAndMakeVisible (patBar);
-    addAndMakeVisible (volumeStrip);
-    addAndMakeVisible (effectsPage);
+    content.addAndMakeVisible (pageBar);
+    content.addAndMakeVisible (patchBar);
+    content.addAndMakeVisible (bankLibBar);
+    content.addAndMakeVisible (patBar);
+    content.addAndMakeVisible (volumeStrip);
+    content.addAndMakeVisible (effectsPage);
     effectsPage.setVisible (false);
-    addAndMakeVisible (eqPage);
+    content.addAndMakeVisible (eqPage);
     eqPage.setVisible (false);
     refreshLibraryNames();
     patBar.setText (juce::String (proc.currentPattern() + 1));
@@ -1993,24 +1993,35 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         proc.apvts, ParamID::seqKey, keyBox);
     scaleAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         proc.apvts, ParamID::seqScale, scaleBox);
-    addAndMakeVisible (keyBox);
-    addAndMakeVisible (scaleBox);
+    content.addAndMakeVisible (keyBox);
+    content.addAndMakeVisible (scaleBox);
     applyLock();
 
     for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
     {
         auto* col = steps.add (new StepColumn (proc, i, pianoRoll));
-        addAndMakeVisible (col);
+        content.addAndMakeVisible (col);
     }
 
     for (int i = 0; i < tew::numLfos; ++i)
-        addAndMakeVisible (lfoLanes.add (new LfoLane (*this, i)));
+        content.addAndMakeVisible (lfoLanes.add (new LfoLane (*this, i)));
     refreshLfo();
 
-    addAndMakeVisible (aboutBox);
+    content.addAndMakeVisible (aboutBox);
     aboutBox.setVisible (false);
 
-    setSize (kEditorW, kEditorH);
+    baseW = kEditorW;
+    baseH = kEditorH;
+    content.setSize (baseW, baseH);
+    addAndMakeVisible (content);
+
+    // Drag the corner to scale (40%..150%), aspect ratio locked. The scale is saved with the session.
+    // Read it first: setResizeLimits clamps the still-empty editor and resized() overwrites uiScale.
+    const float s = juce::jlimit (0.4f, 1.5f, proc.uiScale);
+    setResizable (true, true);
+    setResizeLimits (baseW * 2 / 5, baseH * 2 / 5, baseW * 3 / 2, baseH * 3 / 2);
+    getConstrainer()->setFixedAspectRatio ((double) baseW / (double) baseH);
+    setSize (juce::roundToInt ((float) baseW * s), juce::roundToInt ((float) baseH * s));
     startTimerHz (15);
 }
 
@@ -2022,9 +2033,23 @@ TEW03AudioProcessorEditor::~TEW03AudioProcessorEditor()
 
 void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 {
+    g.fillAll (kChassis);  // covers the sub-pixel edge the scaled content may leave
+}
+
+void TEW03AudioProcessorEditor::resized()
+{
+    if (baseW == 0)
+        return;  // called before the constructor finished
+    const float s = (float) getWidth() / (float) baseW;
+    content.setTransform (juce::AffineTransform::scale (s));
+    proc.uiScale = s;
+}
+
+void TEW03AudioProcessorEditor::paintContent (juce::Graphics& g)
+{
     g.fillAll (kChassis);
 
-    auto r = getLocalBounds().reduced (kPad);
+    auto r = content.getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
     auto nameCol = title.removeFromLeft (kTitleHitW);
     g.setColour (kInk);
@@ -2041,7 +2066,7 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
 
     if (editorPage != 0)
     {
-        auto bevel = getLocalBounds().toFloat().reduced (1.5f);
+        auto bevel = content.getLocalBounds().toFloat().reduced (1.5f);
         g.setColour (kChassisDark);
         g.drawRoundedRectangle (bevel, 2.f, 2.f);
         return;
@@ -2072,14 +2097,14 @@ void TEW03AudioProcessorEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (lfoArea.toFloat(), 4.f);
     }
 
-    auto bevel = getLocalBounds().toFloat().reduced (1.5f);
+    auto bevel = content.getLocalBounds().toFloat().reduced (1.5f);
     g.setColour (kChassisDark);
     g.drawRoundedRectangle (bevel, 2.f, 2.f);
 }
 
-void TEW03AudioProcessorEditor::resized()
+void TEW03AudioProcessorEditor::layoutContent()
 {
-    auto r = getLocalBounds().reduced (kPad);
+    auto r = content.getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
     title.removeFromLeft (kTitleHitW);
     volumeStrip.setBounds (title.removeFromRight (240).reduced (2, 4));
@@ -2174,7 +2199,7 @@ void TEW03AudioProcessorEditor::resized()
     const int lfoH = lfo.getHeight() / nLfo;
     for (int i = 0; i < lfoLanes.size(); ++i)
         lfoLanes[i]->setBounds (lfo.removeFromTop (i == nLfo - 1 ? lfo.getHeight() : lfoH));
-    aboutBox.setBounds (getLocalBounds());
+    aboutBox.setBounds (content.getLocalBounds());
     applyPageVisibility();
     if (aboutBox.isVisible())
         aboutBox.toFront (false);
@@ -2182,7 +2207,7 @@ void TEW03AudioProcessorEditor::resized()
 
 juce::Rectangle<int> TEW03AudioProcessorEditor::titleHitBounds() const
 {
-    auto r = getLocalBounds().reduced (kPad);
+    auto r = content.getLocalBounds().reduced (kPad);
     return r.removeFromTop (kTitleH).removeFromLeft (kTitleHitW);
 }
 
@@ -2192,17 +2217,17 @@ void TEW03AudioProcessorEditor::openAbout()
     aboutBox.toFront (true);
 }
 
-void TEW03AudioProcessorEditor::mouseUp (const juce::MouseEvent& e)
+void TEW03AudioProcessorEditor::contentMouseUp (const juce::MouseEvent& e)
 {
     if (e.mouseWasClicked() && titleHitBounds().contains (e.getPosition()))
         openAbout();
 }
 
-void TEW03AudioProcessorEditor::mouseMove (const juce::MouseEvent& e)
+void TEW03AudioProcessorEditor::contentMouseMove (const juce::MouseEvent& e)
 {
-    setMouseCursor (titleHitBounds().contains (e.getPosition())
-                        ? juce::MouseCursor::PointingHandCursor
-                        : juce::MouseCursor::NormalCursor);
+    content.setMouseCursor (titleHitBounds().contains (e.getPosition())
+                                ? juce::MouseCursor::PointingHandCursor
+                                : juce::MouseCursor::NormalCursor);
 }
 
 void TEW03AudioProcessorEditor::ShiftButton::mouseUp (const juce::MouseEvent& e)
@@ -2438,7 +2463,7 @@ void TEW03AudioProcessorEditor::cyclePatch (int delta)
     proc.loadPatchByName (names[idx]);
     refreshLibraryNames();
     syncSteps();
-    resized();
+    layoutContent();
 }
 
 void TEW03AudioProcessorEditor::cycleBank (int delta)
@@ -2533,7 +2558,7 @@ void TEW03AudioProcessorEditor::setEditorPage (int page)
     editorPage = juce::jlimit (0, 2, page);
     pageBar.setText (editorPage == 0 ? "Main" : (editorPage == 1 ? "Effects" : "EQ"));
     applyPageVisibility();
-    resized();
+    layoutContent();
     repaint();
 }
 
@@ -2629,7 +2654,7 @@ void TEW03AudioProcessorEditor::openPatchMenu()
                          }
                          safe->refreshLibraryNames();
                          safe->syncSteps();
-                         safe->resized();
+                         safe->layoutContent();
                      });
 }
 
@@ -2746,6 +2771,6 @@ void TEW03AudioProcessorEditor::chooseImport (bool patch)
                               safe->refreshLibraryNames();
                               safe->syncSteps();
                               if (patch)
-                                  safe->resized();
+                                  safe->layoutContent();
                           });
 }

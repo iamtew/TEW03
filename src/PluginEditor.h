@@ -17,10 +17,24 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
-    void mouseUp (const juce::MouseEvent&) override;
-    void mouseMove (const juce::MouseEvent&) override;
 
 private:
+    // Everything lives in `content`, laid out at a fixed base size and scaled as
+    // one picture. Dragging the corner changes only the scale, so nothing reflows.
+    struct Content : public juce::Component
+    {
+        explicit Content (TEW03AudioProcessorEditor& e) : ed (e) {}
+        void paint (juce::Graphics& g) override { ed.paintContent (g); }
+        void resized() override { ed.layoutContent(); }
+        void mouseUp (const juce::MouseEvent& e) override { ed.contentMouseUp (e); }
+        void mouseMove (const juce::MouseEvent& e) override { ed.contentMouseMove (e); }
+        TEW03AudioProcessorEditor& ed;
+    };
+    void paintContent (juce::Graphics&);
+    void layoutContent();
+    void contentMouseUp (const juce::MouseEvent&);
+    void contentMouseMove (const juce::MouseEvent&);
+
     void timerCallback() override;
     void refreshPlayhead();
     void refreshHostTempo();
@@ -264,6 +278,8 @@ private:
     };
 
     PanelLnF panelLnF;
+    Content content { *this };  // declared before its children so it is destroyed after them
+    int baseW = 0, baseH = 0;   // unscaled size
     juce::TooltipWindow tooltipWindow { this };
     juce::Label keyLabel, scaleLabel, bankLabel, patternLabel;
     juce::ComboBox keyBox, scaleBox, bankBox;
