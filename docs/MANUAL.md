@@ -189,11 +189,14 @@ Size, Damp, Width, Mix.
 
 Click the page bar to **EQ**. This is Pre-FX and Post-FX, five bands each, both **off** until you enable them.
 
+Left column:
+
 - **Pre** LED — EQ before the FX chain.
 - **Post** LED — EQ after the FX chain.
 - **Edit Pre** / **Edit Post** — which set of five bands you are looking at.
+- **Reset** — dump the set you are editing (On + five bands) back to defaults. The other set is left alone.
 
-The graph is the response of the set you are editing. The spectrum behind it is a post-FX FFT (what leaves the chain), not a live input analyser.
+The graph on the right is the response of the set you are editing. The spectrum behind it is a post-FX FFT (what leaves the chain), not a live input analyser.
 
 ### Bands
 
@@ -201,12 +204,13 @@ Each band: **Off**, **Peak**, **Low S** (low shelf), **High S** (high shelf), **
 
 ### Inspector
 
-- **On** — Peak if it was Off, Off if it was any other type.
-- **&lt;** / **&gt;** — previous / next band.
-- Type combo, **FREQ**, **GAIN**, **Q**.
+- **&lt;** / **&gt;** — previous / next band. The number is coloured per band.
+- Type glyphs (2×3) — Off, Peak, Low Shelf, High Shelf, High Pass, Low Pass. Hover for the name.
+- **FREQ**, **GAIN**, **Q** knobs.
 
 ### Graph
 
+- Handles are numbered 1–5 for active bands.
 - Drag a handle — frequency (X) and gain (Y).
 - Mouse wheel — Q.
 - Double-click a handle — reset that band.

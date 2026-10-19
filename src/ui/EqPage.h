@@ -34,6 +34,12 @@ public:
         addAndMakeVisible (editPre);
         addAndMakeVisible (editPost);
 
+        resetBtn.setButtonText ("Reset");
+        resetBtn.setComponentID ("plain");
+        resetBtn.setClickingTogglesState (false);
+        resetBtn.onClick = [this] { resetEq(); };
+        addAndMakeVisible (resetBtn);
+
         addAndMakeVisible (curve);
         addAndMakeVisible (inspector);
         inspector.bind();
@@ -45,24 +51,22 @@ public:
     void resized() override
     {
         auto r = getLocalBounds();
-        auto top = r.removeFromTop (28);
-        preOn.setBounds (top.removeFromLeft (72).reduced (2, 2));
-        postOn.setBounds (top.removeFromLeft (72).reduced (2, 2));
-        top.removeFromLeft (12);
-        editPre.setBounds (top.removeFromLeft (88).reduced (2, 2));
-        editPost.setBounds (top.removeFromLeft (96).reduced (2, 2));
+        auto rail = r.removeFromLeft (102);
+        auto onRow = rail.removeFromTop (22).reduced (4, 1);
+        preOn.setBounds (onRow.removeFromLeft (onRow.getWidth() / 2));
+        postOn.setBounds (onRow);
+        auto editRow = rail.removeFromTop (22).reduced (4, 1);
+        editPre.setBounds (editRow.removeFromLeft (editRow.getWidth() / 2));
+        editPost.setBounds (editRow);
+        resetBtn.setBounds (rail.removeFromTop (22).reduced (4, 1));
+        inspector.setBounds (rail);
         curve.setBounds (r);
-        // Sit on the plot, above the Hz labels (plot() has 18px bottom pad + 12px text).
-        auto dock = r.removeFromBottom (108).reduced (12, 6).translated (0, -20);
-        inspector.setBounds (dock.withSizeKeepingCentre (juce::jmin (560, dock.getWidth()), dock.getHeight()));
     }
 
     TEW03AudioProcessor& proc;
 
 private:
-    static const juce::Colour kInk;
     static const juce::Colour kCream;
-    static const juce::Colour kKnob;
     static const juce::Colour kGraph;
     static const juce::Colour kSum;
     static const juce::Colour kBandCol[tew::eqBandCount];
@@ -74,7 +78,7 @@ private:
 
     void timerCallback() override
     {
-        inspector.syncPower();
+        inspector.sync();
         curve.repaint();
     }
 
@@ -109,6 +113,10 @@ private:
     const char* qId (int b) const
     {
         return editPostOn ? ParamID::postEqQ[b] : ParamID::preEqQ[b];
+    }
+    const char* onId() const
+    {
+        return editPostOn ? ParamID::postEqOn : ParamID::preEqOn;
     }
 
     void setParam (const char* id, float v)
@@ -166,20 +174,44 @@ private:
         curve.repaint();
     }
 
+    // Currently edited stack only (Pre or Post), not both.
+    void resetEq()
+    {
+        resetParamId (onId());
+        for (int b = 0; b < tew::eqBandCount; ++b)
+        {
+            resetParamId (typeId (b));
+            resetParamId (freqId (b));
+            resetParamId (gainId (b));
+            resetParamId (qId (b));
+        }
+        inspector.bind();
+        curve.repaint();
+    }
+
     struct BandKnob : public juce::Component
     {
         BandKnob()
         {
-            label.setJustificationType (juce::Justification::centred);
+            label.setJustificationType (juce::Justification::centredLeft);
             label.setFont (labelFont (11.f));
             label.setColour (juce::Label::textColourId, kCream);
+            label.setBorderSize ({});
             addAndMakeVisible (label);
+            value.setJustificationType (juce::Justification::centredLeft);
+            value.setFont (labelFont (11.f));
+            value.setColour (juce::Label::textColourId, kCream);
+            value.setBorderSize ({});
+            addAndMakeVisible (value);
             slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-            slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 64, 14);
-            slider.setColour (juce::Slider::textBoxTextColourId, kCream);
-            slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-            slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+            slider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+            slider.onValueChange = [this] { refreshValue(); };
             addAndMakeVisible (slider);
+        }
+
+        void refreshValue()
+        {
+            value.setText (slider.getTextFromValue (slider.getValue()), juce::dontSendNotification);
         }
 
         void bind (TEW03AudioProcessor& p, const char* id, const juce::String& name)
@@ -190,44 +222,130 @@ private:
                 slider.setDoubleClickReturnValue (true, ranged->convertFrom0to1 (ranged->getDefaultValue()));
             att = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
                 p.apvts, id, slider);
+            refreshValue();
         }
 
         void resized() override
         {
             auto r = getLocalBounds();
-            label.setBounds (r.removeFromTop (14));
-            slider.setBounds (r);
+            const int ks = juce::jmin (r.getHeight(), 36);
+            slider.setBounds (r.removeFromLeft (ks));
+            auto text = r.withSizeKeepingCentre (r.getWidth(), 22);
+            label.setBounds (text.removeFromTop (11));
+            value.setBounds (text);
         }
 
-        juce::Label label;
+        juce::Label label, value;
         juce::Slider slider;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
+    };
+
+    static void drawEqTypePath (juce::Graphics& g, juce::Rectangle<float> r, int type, juce::Colour c)
+    {
+        r = r.reduced (1.2f);
+        if (r.getWidth() < 4.f || r.getHeight() < 4.f)
+            return;
+
+        const float x0 = r.getX(), x1 = r.getRight();
+        const float y0 = r.getY(), y1 = r.getBottom();
+        const float xm = r.getCentreX(), ym = r.getCentreY();
+        juce::Path p;
+
+        switch (type)
+        {
+            case tew::eqTypePeak:
+                p.startNewSubPath (x0, ym);
+                p.quadraticTo (x0 + r.getWidth() * 0.32f, ym, xm, y0);
+                p.quadraticTo (x1 - r.getWidth() * 0.32f, ym, x1, ym);
+                break;
+            case tew::eqTypeLowShelf:
+                p.startNewSubPath (x0, y0 + r.getHeight() * 0.22f);
+                p.lineTo (xm - 1.5f, y0 + r.getHeight() * 0.22f);
+                p.lineTo (xm + 1.5f, y1 - r.getHeight() * 0.22f);
+                p.lineTo (x1, y1 - r.getHeight() * 0.22f);
+                break;
+            case tew::eqTypeHighShelf:
+                p.startNewSubPath (x0, y1 - r.getHeight() * 0.22f);
+                p.lineTo (xm - 1.5f, y1 - r.getHeight() * 0.22f);
+                p.lineTo (xm + 1.5f, y0 + r.getHeight() * 0.22f);
+                p.lineTo (x1, y0 + r.getHeight() * 0.22f);
+                break;
+            case tew::eqTypeHP:
+                p.startNewSubPath (x0, y1);
+                p.lineTo (xm - 2.f, y1);
+                p.quadraticTo (xm, y1, xm, ym);
+                p.lineTo (xm, y0 + 1.5f);
+                p.lineTo (x1, y0 + 1.5f);
+                break;
+            case tew::eqTypeLP:
+                p.startNewSubPath (x0, y0 + 1.5f);
+                p.lineTo (xm, y0 + 1.5f);
+                p.lineTo (xm, ym);
+                p.quadraticTo (xm, y1, xm + 2.f, y1);
+                p.lineTo (x1, y1);
+                break;
+            default: // Off
+                p.startNewSubPath (x0 + r.getWidth() * 0.18f, ym);
+                p.lineTo (x1 - r.getWidth() * 0.18f, ym);
+                break;
+        }
+
+        g.setColour (c);
+        g.strokePath (p, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved,
+                                              juce::PathStrokeType::rounded));
+    }
+
+    struct TypeBtn : public juce::Button
+    {
+        int type = 0;
+
+        TypeBtn() : juce::Button ({})
+        {
+            setClickingTogglesState (true);
+            setRadioGroupId (2);
+        }
+
+        void paintButton (juce::Graphics& g, bool, bool) override
+        {
+            auto b = getLocalBounds().toFloat().reduced (1.f);
+            const bool on = getToggleState();
+            g.setColour (on ? kSum.withAlpha (0.85f) : juce::Colour (0xff151515));
+            g.fillRoundedRectangle (b, 3.f);
+            drawEqTypePath (g, b.reduced (2.f), type, on ? juce::Colours::white : kCream);
+        }
     };
 
     struct Inspector : public juce::Component
     {
         explicit Inspector (EqPage& page) : owner (page)
         {
-            power.setButtonText ("On");
-            power.setComponentID ("led");
-            power.onClick = [this]
-            {
-                const int t = juce::roundToInt (owner.loadId (owner.typeId (owner.selBand)));
-                owner.setType (owner.selBand, t > tew::eqTypeOff ? tew::eqTypeOff : tew::eqTypePeak);
-                bind();
-            };
             prev.setButtonText ("<");
             next.setButtonText (">");
-            prev.setComponentID ("plain");
-            next.setComponentID ("plain");
+            prev.setClickingTogglesState (false);
+            next.setClickingTogglesState (false);
             prev.onClick = [this] { owner.selectBand (owner.selBand - 1); };
             next.onClick = [this] { owner.selectBand (owner.selBand + 1); };
-            combo.setColour (juce::ComboBox::textColourId, kCream);
-            combo.setColour (juce::ComboBox::arrowColourId, kCream);
-            addAndMakeVisible (power);
+            index.setJustificationType (juce::Justification::centred);
+            index.setFont (labelFont (16.f));
+            index.setInterceptsMouseClicks (false, false);
             addAndMakeVisible (prev);
+            addAndMakeVisible (index);
             addAndMakeVisible (next);
-            addAndMakeVisible (combo);
+            static const char* kTips[] = {
+                "Off", "Peak", "Low Shelf", "High Shelf", "High Pass", "Low Pass"
+            };
+            for (int i = 0; i < 6; ++i)
+            {
+                types[i].type = i;
+                types[i].setTooltip (kTips[i]);
+                types[i].onClick = [this, i]
+                {
+                    if (types[i].getToggleState())
+                        owner.setType (owner.selBand, i);
+                    sync();
+                };
+                addAndMakeVisible (types[i]);
+            }
             addAndMakeVisible (freq);
             addAndMakeVisible (gain);
             addAndMakeVisible (q);
@@ -236,65 +354,56 @@ private:
         void bind()
         {
             const int b = owner.selBand;
-            comboAtt.reset();
-            combo.clear (juce::dontSendNotification);
-            auto* choice = dynamic_cast<juce::AudioParameterChoice*> (
-                owner.proc.apvts.getParameter (owner.typeId (b)));
-            if (choice != nullptr)
-            {
-                for (int i = 0; i < choice->choices.size(); ++i)
-                    combo.addItem (choice->choices[i], i + 1);
-                comboAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-                    owner.proc.apvts, owner.typeId (b), combo);
-            }
+            index.setText (juce::String (b + 1), juce::dontSendNotification);
+            index.setColour (juce::Label::textColourId, kBandCol[b]);
             freq.bind (owner.proc, owner.freqId (b), "FREQ");
             gain.bind (owner.proc, owner.gainId (b), "GAIN");
             q.bind (owner.proc, owner.qId (b), "Q");
-            syncPower();
+            sync();
             repaint();
         }
 
-        void syncPower()
+        void sync()
         {
             const int t = juce::roundToInt (owner.loadId (owner.typeId (owner.selBand)));
-            power.setToggleState (t > tew::eqTypeOff, juce::dontSendNotification);
+            for (int i = 0; i < 6; ++i)
+                types[i].setToggleState (i == t, juce::dontSendNotification);
         }
 
         void paint (juce::Graphics& g) override
         {
             auto r = getLocalBounds().toFloat();
             g.setColour (juce::Colour (0xee1a1a1a));
-            g.fillRoundedRectangle (r, 8.f);
+            g.fillRoundedRectangle (r, 6.f);
             g.setColour (kBandCol[owner.selBand]);
-            g.drawRoundedRectangle (r.reduced (0.8f), 8.f, 1.6f);
-            g.setColour (kCream);
-            g.setFont (labelFont (18.f));
-            g.drawText (juce::String (owner.selBand + 1),
-                        juce::Rectangle<int> (52, 8, 28, 28), juce::Justification::centred, false);
+            g.drawRoundedRectangle (r.reduced (0.8f), 6.f, 1.6f);
         }
 
         void resized() override
         {
-            auto r = getLocalBounds().reduced (10, 8);
-            auto left = r.removeFromLeft (200);
-            auto row = left.removeFromTop (28);
-            power.setBounds (row.removeFromLeft (44));
-            prev.setBounds (row.removeFromLeft (24).reduced (1));
-            row.removeFromLeft (28);
-            next.setBounds (row.removeFromLeft (24).reduced (1));
-            combo.setBounds (left.removeFromTop (24).reduced (0, 1));
-            const int w = r.getWidth() / 3;
-            freq.setBounds (r.removeFromLeft (w));
-            gain.setBounds (r.removeFromLeft (w));
+            auto r = getLocalBounds().reduced (4, 4);
+            auto row = r.removeFromTop (22);
+            prev.setBounds (row.removeFromLeft (22).reduced (1));
+            next.setBounds (row.removeFromRight (22).reduced (1));
+            index.setBounds (row);
+            auto pad = r.removeFromTop (54);
+            const int cw = juce::jmax (1, pad.getWidth() / 2);
+            const int ch = juce::jmax (1, pad.getHeight() / 3);
+            for (int i = 0; i < 6; ++i)
+                types[i].setBounds (pad.getX() + (i % 2) * cw,
+                                    pad.getY() + (i / 2) * ch,
+                                    cw, ch);
+            const int h = juce::jmax (1, r.getHeight() / 3);
+            freq.setBounds (r.removeFromTop (h));
+            gain.setBounds (r.removeFromTop (h));
             q.setBounds (r);
         }
 
         EqPage& owner;
-        juce::ToggleButton power;
-        juce::TextButton prev, next;
-        juce::ComboBox combo;
+        juce::ToggleButton prev, next;
+        juce::Label index;
+        TypeBtn types[6];
         BandKnob freq, gain, q;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> comboAtt;
     };
 
     struct Curve : public juce::Component
@@ -484,6 +593,11 @@ private:
                     g.setColour (kCream);
                     g.drawEllipse (pt.x - 7.f, pt.y - 7.f, 14.f, 14.f, 1.4f);
                 }
+                g.setColour (juce::Colour (0xff151515));
+                g.setFont (labelFont (sel ? 10.f : 9.f));
+                g.drawText (juce::String (b + 1),
+                            (int) pt.x - 6, (int) pt.y - 6, 12, 12,
+                            juce::Justification::centred, false);
             }
 
             g.setColour (juce::Colour (0xff8a9098));
@@ -600,7 +714,7 @@ private:
         std::vector<float> specDb;
     };
 
-    juce::ToggleButton preOn, postOn, editPre, editPost;
+    juce::ToggleButton preOn, postOn, editPre, editPost, resetBtn;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> preOnAtt, postOnAtt;
     Curve curve;
     Inspector inspector;
@@ -608,9 +722,7 @@ private:
     int selBand = 0;
 };
 
-inline const juce::Colour EqPage::kInk { 0xff111111 };
 inline const juce::Colour EqPage::kCream { 0xfff4ead0 };
-inline const juce::Colour EqPage::kKnob { 0xff1a1a1a };
 inline const juce::Colour EqPage::kGraph { 0xff12151a };
 inline const juce::Colour EqPage::kSum { 0xffe8b84a };
 inline const juce::Colour EqPage::kBandCol[tew::eqBandCount] {
