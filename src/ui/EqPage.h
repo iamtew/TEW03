@@ -220,12 +220,12 @@ private:
     {
         BandKnob()
         {
-            label.setJustificationType (juce::Justification::centredLeft);
+            label.setJustificationType (juce::Justification::centred);
             label.setFont (labelFont (11.f));
             label.setColour (juce::Label::textColourId, kCream);
             label.setBorderSize ({});
             addAndMakeVisible (label);
-            value.setJustificationType (juce::Justification::centredLeft);
+            value.setJustificationType (juce::Justification::centred);
             value.setFont (labelFont (11.f));
             value.setColour (juce::Label::textColourId, kCream);
             value.setBorderSize ({});
@@ -238,7 +238,10 @@ private:
 
         void refreshValue()
         {
-            value.setText (slider.getTextFromValue (slider.getValue()), juce::dontSendNotification);
+            const auto v = slider.getValue();
+            value.setText (label.getText() == "GAIN" ? juce::String (v, 2)
+                                                     : slider.getTextFromValue (v),
+                           juce::dontSendNotification);
         }
 
         void bind (TEW03AudioProcessor& p, const char* id, const juce::String& name)
@@ -255,11 +258,10 @@ private:
         void resized() override
         {
             auto r = getLocalBounds();
-            const int ks = juce::jmin (r.getHeight(), 36);
-            slider.setBounds (r.removeFromLeft (ks));
-            auto text = r.withSizeKeepingCentre (r.getWidth(), 22);
-            label.setBounds (text.removeFromTop (11));
-            value.setBounds (text);
+            const int ks = juce::jmin (r.getWidth() - 2, 56);
+            slider.setBounds (r.removeFromTop (ks).withSizeKeepingCentre (ks, ks));
+            label.setBounds (r.removeFromTop (12));
+            value.setBounds (r.removeFromTop (12));
         }
 
         juce::Label label, value;
@@ -420,10 +422,11 @@ private:
                 types[i].setBounds (pad.getX() + (i % 2) * cw,
                                     pad.getY() + (i / 2) * ch,
                                     cw, ch);
-            const int h = juce::jmax (1, r.getHeight() / 3);
-            freq.setBounds (r.removeFromTop (h));
-            gain.setBounds (r.removeFromTop (h));
-            q.setBounds (r);
+            // Fixed cells — don't stretch into the leftover rail (that parked the labels miles below each knob).
+            const int knobH = 80; // 56 rotary + 12 + 12
+            freq.setBounds (r.removeFromTop (knobH));
+            gain.setBounds (r.removeFromTop (knobH));
+            q.setBounds (r.removeFromTop (knobH));
         }
 
         EqPage& owner;
