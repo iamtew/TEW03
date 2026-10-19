@@ -13,7 +13,7 @@ constexpr int kEditorH = 680; // chrome from the 628 layout, plus a 24-row roll,
 constexpr int kLockH = 22;
 constexpr int kPad = 6;
 constexpr int kTitleH = 36;
-constexpr int kTitleHitW = 90;
+constexpr int kTitleHitW = 150;
 constexpr int kSeqW = 236;
 constexpr int kSectionH = 14;
 constexpr int kLedH = 10;
@@ -1833,6 +1833,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
 {
     setLookAndFeel (&panelLnF);
     setOpaque (true);
+    logo = juce::ImageCache::getFromMemory (BinaryData::icon_png, BinaryData::icon_pngSize);
     panelLnF.setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff2e2e2e));
     panelLnF.setColour (juce::PopupMenu::textColourId, kCream);
     panelLnF.setColour (juce::PopupMenu::highlightedBackgroundColourId, kLedOn);
@@ -2051,7 +2052,13 @@ void TEW03AudioProcessorEditor::paintContent (juce::Graphics& g)
 
     auto r = content.getLocalBounds().reduced (kPad);
     auto title = r.removeFromTop (kTitleH);
-    auto nameCol = title.removeFromLeft (kTitleHitW);
+    if (logo.isValid())
+    {
+        auto logoR = title.removeFromLeft (kTitleH).reduced (2);
+        g.drawImage (logo, logoR.toFloat(), juce::RectanglePlacement::centred);
+        title.removeFromLeft (6);
+    }
+    auto nameCol = title.removeFromLeft (kTitleHitW - kTitleH - 6);
     g.setColour (kInk);
     g.setFont (boldFont (16.f));
     g.drawText ("TEW03", nameCol.removeFromTop (20), juce::Justification::centredLeft, false);

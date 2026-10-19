@@ -8,7 +8,7 @@
               useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="dBqcWt"
               jucerFormatVersion="1">
   <MAINGROUP id="fy3Cc7" name="TEW03">
-    <FILE id="icoPng01" name="icon.png" compile="0" resource="0" file="assets/icon.png"/>
+    <FILE id="icoPng01" name="icon.png" compile="0" resource="1" file="assets/icon.png"/>
     <GROUP id="srcGrp1" name="src">
       <FILE id="procH01" name="PluginProcessor.h" compile="0" resource="0"
             file="src/PluginProcessor.h"/>

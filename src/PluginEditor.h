@@ -311,6 +311,7 @@ private:
     EqPage eqPage;
     int editorPage = 0;
     std::unique_ptr<juce::FileChooser> chooser;
+    juce::Image logo;
     PianoRoll pianoRoll;
     juce::OwnedArray<StepColumn> steps;
     juce::OwnedArray<ParamCell> seqCells;
