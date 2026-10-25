@@ -364,6 +364,8 @@ int main()
         assert (v.nasty >= 0.f && v.nasty <= 1.f);
         assert (v.glide >= 0.f && v.glide <= 0.5f);
         assert (v.waveform == 0.f || v.waveform == 1.f);
+        assert (v.gate >= 0.1f && v.gate <= 1.f);
+        assert (v.swing >= 0.f && v.swing <= 0.6f);
         for (int j = 0; j < i; ++j)
             assert (std::strcmp (v.name, tew::factoryPatches[j].name) != 0);
 
@@ -380,6 +382,8 @@ int main()
         };
         assert (std::abs (find ("cutoff") - v.cutoff) < 1e-3f);
         assert (std::abs (find ("waveform") - v.waveform) < 1e-4f);
+        assert (std::abs (find ("seqGate") - v.gate) < 1e-4f);
+        assert (std::abs (find ("seqSwing") - v.swing) < 1e-4f);
         assert (find ("fxChoOn") == 0.f);
         assert (find ("cutoffLfo") == 0.f);
     }

@@ -141,7 +141,7 @@ Two libraries. Loading one does not overwrite the other.
 
 Files live in `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`. The title bars show the current names. The DAW session stores those names for recall.
 
-The first time the plugin runs it drops ten factory patches into that Patches folder (`01 Squelch` through `10 Open`). A file already there is left alone. Each one sets waveform, cutoff, resonance, env mod, decay, accent, drive, nasty, and glide, and turns effects off. Patterns are untouched.
+The first time the plugin runs it drops ten factory patches into that Patches folder (`01 Squelch` through `10 Open`). A file already there is left alone. Each one sets waveform, cutoff, resonance, env mod, decay, accent, drive, nasty, glide, gate, and swing, and turns effects off. Patterns are untouched.
 
 Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then **Save**, **Save As…**, **Export…**, **Import…**. Arrows on the bar step through saved files. Init restores defaults / factory fills.
 
