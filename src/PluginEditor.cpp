@@ -237,13 +237,12 @@ int rowForNote (int note, const RollView& v)
 
 juce::Colour pitchColour (int note)
 {
+    // High notes sit at the top of the roll. Walk LFO 1..4 the same way the lanes stack.
     const float t = juce::jlimit (0.f, 1.f,
                                   (float) (kNoteMax - note) / (float) (kNoteMax - kNoteMin));
-    juce::ColourGradient grad (juce::Colour (0xff156878), 0.f, 0.f,
-                               juce::Colour (0xff2a4a08), 0.f, 1.f, false);
-    grad.addColour (0.28, juce::Colour (0xff1a9a58));
-    grad.addColour (0.52, juce::Colour (0xff28b040));
-    grad.addColour (0.78, juce::Colour (0xff3a8a18));
+    juce::ColourGradient grad (kLfoCol[0], 0.f, 0.f, kLfoCol[3], 0.f, 1.f, false);
+    grad.addColour (1.0 / 3.0, kLfoCol[1]);
+    grad.addColour (2.0 / 3.0, kLfoCol[2]);
     return grad.getColourAtPosition ((double) t);
 }
 
