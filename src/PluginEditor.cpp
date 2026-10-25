@@ -384,6 +384,8 @@ juce::String uiLabel (const juce::String& id)
     if (id == ParamID::volume)      return "Volume";
     if (id == ParamID::waveform)    return "Waveform";
     if (id == ParamID::glide)       return "Glide";
+    if (id == ParamID::seqGate)     return "Gate";
+    if (id == ParamID::seqSwing)    return "Swing";
     if (id == ParamID::seqPlay)     return "Run";
     if (id == ParamID::playMode)    return "Play";
     if (id == ParamID::seqTempo)    return "Tempo";
@@ -1839,13 +1841,13 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     panelLnF.setColour (juce::PopupMenu::highlightedTextColourId, kCream);
 
     static constexpr const char* kSeq[] = {
-        ParamID::playMode, ParamID::seqTempo, ParamID::waveform
+        ParamID::playMode, ParamID::seqTempo, ParamID::seqSwing, ParamID::waveform
     };
     static constexpr const char* kFilter[] = {
         ParamID::cutoff, ParamID::resonance, ParamID::envMod, ParamID::decay, ParamID::accent
     };
     static constexpr const char* kMaster[] = {
-        ParamID::drive, ParamID::glide, ParamID::nasty
+        ParamID::drive, ParamID::glide, ParamID::nasty, ParamID::seqGate
     };
 
     auto add = [this] (juce::OwnedArray<ParamCell>& dest, const char* id)
@@ -2163,9 +2165,10 @@ void TEW03AudioProcessorEditor::layoutContent()
         runBtn.setBounds (run.reduced (2, 2));
         seqCells[0]->setBounds (playRow);
         auto row = seq;
-        const int half = row.getWidth() / 2;
-        seqCells[1]->setBounds (row.removeFromLeft (half));
-        seqCells[2]->setBounds (row);
+        const int cols = juce::jmax (1, seqCells.size() - 1);
+        const int colW = row.getWidth() / cols;
+        for (int i = 1; i < seqCells.size(); ++i)
+            seqCells[i]->setBounds (row.removeFromLeft (i == seqCells.size() - 1 ? row.getWidth() : colW));
     }
 
     auto place = [] (juce::OwnedArray<ParamCell>& cells, juce::Rectangle<int> area)
@@ -2177,7 +2180,6 @@ void TEW03AudioProcessorEditor::layoutContent()
             cells[i]->setBounds (area.removeFromLeft (i == cells.size() - 1 ? area.getWidth() : w));
     };
     place (filterCells, filterArea);
-    // Dice 4: Drive Glide / Nasty empty. Bottom-right reserved for a future knob.
     {
         auto area = masterArea;
         area.removeFromTop (kSectionH);
@@ -2190,6 +2192,8 @@ void TEW03AudioProcessorEditor::layoutContent()
             masterCells[1]->setBounds (top);
         if (masterCells.size() >= 3)
             masterCells[2]->setBounds (area.removeFromLeft (colW));
+        if (masterCells.size() >= 4)
+            masterCells[3]->setBounds (area);
     }
 
     strip.removeFromLeft (kKeyW);

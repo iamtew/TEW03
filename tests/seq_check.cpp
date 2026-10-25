@@ -384,6 +384,64 @@ int main()
         assert (find ("cutoffLfo") == 0.f);
     }
 
+    const double straight = 44100.0 * 60.0 / 120.0 / 4.0;
+
+    Sequencer::Step gateSteps[Sequencer::maxSteps];
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+        gateSteps[i] = { -1, false, false };
+    gateSteps[0] = { 36, false, false };
+    gateSteps[1] = { 40, false, false };
+
+    Sequencer gateSeq;
+    gateSeq.prepare (44100.0);
+    gateSeq.loadAll (gateSteps);
+    gateSeq.setGroove (0.5f, 0.f);
+    SeqEvent gev[8];
+    const int gn = gateSeq.advance (6000, 120.f, true, gev, 8);
+    assert (gn == 3);
+    assert (gev[0].on && gev[0].note == 36 && gev[0].offset == 0);
+    assert (! gev[1].on && gev[1].note == 36);
+    assert (std::abs (gev[1].offset - (int) std::ceil (straight * 0.5)) <= 1);
+    assert (gev[2].on && gev[2].note == 40);
+    assert (std::abs (gev[2].offset - (int) std::ceil (straight)) <= 1);
+
+    Sequencer::Step slideSteps[Sequencer::maxSteps];
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+        slideSteps[i] = { -1, false, false };
+    slideSteps[0] = { 36, false, true };
+    slideSteps[1] = { 40, false, false };
+
+    Sequencer slideSeq;
+    slideSeq.prepare (44100.0);
+    slideSeq.loadAll (slideSteps);
+    slideSeq.setGroove (0.5f, 0.f);
+    SeqEvent slev[8];
+    const int sln = slideSeq.advance (6000, 120.f, true, slev, 8);
+    assert (sln == 3);
+    assert (slev[0].on && slev[0].offset == 0);
+    assert (slev[1].offset > 5000);
+    assert (slev[1].on && slev[1].slide);
+    assert (! slev[2].on);
+
+    Sequencer::Step swingSteps[Sequencer::maxSteps];
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+        swingSteps[i] = { 36 + i, false, false };
+    Sequencer swingSeq;
+    swingSeq.prepare (44100.0);
+    swingSeq.loadAll (swingSteps);
+    swingSeq.setGroove (1.f, 0.5f);
+    SeqEvent wev[8];
+    const int wn = swingSeq.advance (12000, 120.f, true, wev, 8);
+    int ons[3] = { -1, -1, -1 };
+    int found = 0;
+    for (int i = 0; i < wn; ++i)
+        if (wev[i].on && found < 3)
+            ons[found++] = wev[i].offset;
+    assert (found == 3);
+    assert (ons[0] == 0);
+    assert (std::abs (ons[1] - (int) std::ceil (straight * 1.5)) <= 1);
+    assert (std::abs (ons[2] - (int) std::ceil (straight * 2.0)) <= 1);
+
     std::puts ("seq_check ok");
     return 0;
 }

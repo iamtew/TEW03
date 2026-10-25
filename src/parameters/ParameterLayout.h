@@ -29,6 +29,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     auto decayR = NormalisableRange<float> (0.05f, 2.f, 0.001f, 0.4f);
     auto unit = NormalisableRange<float> (0.f, 1.f);
     auto glideR = NormalisableRange<float> (0.f, 0.5f);
+    auto gateR = NormalisableRange<float> (0.1f, 1.f);
+    auto swingR = NormalisableRange<float> (0.f, 0.6f);
 
     auto cutoffAttrs = AudioParameterFloatAttributes()
         .withStringFromValueFunction ([hz] (float v, int)
@@ -65,6 +67,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                        "Square", false));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::glide, 1 },
                                                         "Glide", glideR, 0.f, pct (glideR)));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqGate, 1 },
+                                                        "Gate", gateR, 1.f, pct (gateR)));
+    layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::seqSwing, 1 },
+                                                        "Swing", swingR, 0.f, pct (swingR)));
     // Shared Code is one lib for VST3 + Standalone; wrapper is set before the processor exists.
     const bool standalone = PluginHostType::getPluginLoadedAs()
                             == AudioProcessor::wrapperType_Standalone;

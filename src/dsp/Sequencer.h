@@ -170,6 +170,15 @@ struct Sequencer
         keyMinor.store (minor, std::memory_order_relaxed);
     }
 
+    // Audio thread only. Gate is the hold fraction of a non-slide step (1 = full).
+    // Swing delays offbeats: downbeats (even index) last (1+swing), odd steps (1-swing).
+    // 2x uses that same grid, so swing lands on 32nds.
+    void setGroove (float gate01, float swing01)
+    {
+        gateHold = std::clamp (gate01, 0.1f, 1.f);
+        swingAmt = std::clamp (swing01, 0.f, 0.6f);
+    }
+
     // Length only. Use reshapeTo when 2x toggles so the grid splits instead of appending.
     void setLength (int n)
     {
@@ -241,6 +250,7 @@ struct Sequencer
             step = 0;
             clock = 0.0;
             nextEdge = 0.0;
+            offPending = false;
             pendingSlide = false;
             pendingSuper = false;
         }
@@ -259,6 +269,21 @@ struct Sequencer
 
         while (consumed < numSamples)
         {
+            if (offPending && offEdge <= clock)
+            {
+                if (produced + 1 > maxEvents)
+                {
+                    clock += (double) (numSamples - consumed);
+                    break;
+                }
+
+                if (gate)
+                    out[produced++] = { consumed, lastNote, false, false, false };
+                gate = false;
+                offPending = false;
+                continue;
+            }
+
             if (nextEdge <= clock)
             {
                 const Step s = unpack (packed[step].load (std::memory_order_relaxed));
@@ -280,6 +305,8 @@ struct Sequencer
 
                 playheadIndex.store (step, std::memory_order_relaxed);
 
+                const double dur = stepDur (step, stepSamples);
+
                 if (rest)
                 {
                     if (! holdRest)
@@ -290,6 +317,7 @@ struct Sequencer
                         pendingSlide = false;
                         pendingSuper = false;
                     }
+                    offPending = false;
                 }
                 else
                 {
@@ -306,15 +334,27 @@ struct Sequencer
                     gate = true;
                     pendingSlide = s.slide;
                     pendingSuper = s.superSlide;
+
+                    // Slide holds the whole step. A short gate releases inside this one.
+                    offPending = false;
+                    if (! s.slide && gateHold < 0.999f)
+                    {
+                        offPending = true;
+                        offEdge = nextEdge + dur * (double) gateHold;
+                    }
                 }
 
                 step = (step + 1) % len;
-                nextEdge += stepSamples;
+                nextEdge += dur;
                 continue;
             }
 
+            double edge = nextEdge;
+            if (offPending && offEdge < edge)
+                edge = offEdge;
+
             const int room = numSamples - consumed;
-            int chunk = (int) std::ceil (nextEdge - clock);
+            int chunk = (int) std::ceil (edge - clock);
             if (chunk < 1)
                 chunk = 1;
             chunk = std::min (chunk, room);
@@ -332,6 +372,7 @@ private:
         running = false;
         clock = 0.0;
         nextEdge = 0.0;
+        offPending = false;
         pendingSlide = false;
         pendingSuper = false;
         playheadIndex.store (-1, std::memory_order_relaxed);
@@ -347,6 +388,14 @@ private:
         return 1;
     }
 
+    double stepDur (int index, double straight) const
+    {
+        const double scale = (index % 2) == 0 ? (1.0 + (double) swingAmt)
+                                               : (1.0 - (double) swingAmt);
+        const double dur = straight * scale;
+        return dur < 1.0 ? 1.0 : dur;
+    }
+
     std::atomic<uint32_t> packed[maxSteps] {};
     std::atomic<int> lengthSteps { numSteps };
     std::atomic<int> playheadIndex { -1 };
@@ -356,10 +405,14 @@ private:
     double sampleRate = 44100.0;
     double clock = 0.0;
     double nextEdge = 0.0;
+    double offEdge = 0.0;
+    float gateHold = 1.f;
+    float swingAmt = 0.f;
     int step = 0;
     int lastNote = 36;
     bool running = false;
     bool gate = false;
+    bool offPending = false;
     bool pendingSlide = false;
     bool pendingSuper = false;
 };

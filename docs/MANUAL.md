@@ -60,6 +60,7 @@ Factory default: the standalone app opens in **Standalone** with **Run** off; in
 
 - **Run** — play / pause the sequencer.
 - **Tempo** — 40–300 BPM. In a DAW the host BPM wins when the playhead reports one. Standalone (and hosts with no BPM) use this knob. LFOs and delay sync use the same tempo.
+- **Swing** — delays every offbeat step. 0% is straight. 100% delays the offbeat by 60% of a step; the next downbeat lands back on the grid. With **2x** on, that grid is 32nd notes.
 - **2x** — splits each step in half (16 sixteenths vs 32 thirty-seconds). Global for the live pattern length, not a per-step flag.
 - **Bank** — pattern bank 1–3.
 - **Pat** — pattern 1–12 in that bank. Click the number for a menu, arrows to step.
@@ -96,6 +97,7 @@ Double-click a knob to reset it to the default.
 - **Drive** — osc gain into the ladder.
 - **Glide** — portamento time (0–0.5 s, shown as %).
 - **Nasty** — post-filter saturation mix.
+- **Gate** — how long a non-slide step holds, 10–100% of that step. 100% is the full step. Slide and super slide ignore it and hold the whole step.
 
 **Volume** is the title-bar fader, not in this cluster.
 
