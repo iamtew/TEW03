@@ -1,0 +1,195 @@
+# Windows, Linux, and macOS release files. One artifact named dist.
+# Run from the Actions tab, or push a numeric tag such as 0.0.6. Does not publish a release.
+name: dist
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "[0-9]*"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.3
+          path: JUCE
+
+      - name: Point the jucer at this JUCE
+        shell: pwsh
+        run: |
+          $jucer = Join-Path (Get-Location) "TEW03.jucer"
+          $modules = Join-Path (Get-Location) "JUCE\modules"
+          $text = [System.IO.File]::ReadAllText($jucer)
+          $updated = $text.Replace("C:\Users\Mikael\JUCE\modules", $modules)
+          if ($updated -eq $text) { throw "jucer module path was not rewritten" }
+          $utf8 = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText($jucer, $updated, $utf8)
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install ImageMagick
+        run: choco install imagemagick -y --no-progress
+
+      - name: Build Projucer
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          if (-not $msbuild) { throw "MSBuild not found" }
+          & $msbuild "JUCE\extras\Projucer\Builds\VisualStudio2022\Projucer.sln" /p:Configuration=Release /p:Platform=x64 /m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item "JUCE\extras\Projucer\Builds\VisualStudio2022\x64\Release\App\Projucer.exe" "JUCE\Projucer.exe"
+          # utf8NoBOM: a BOM in GITHUB_ENV breaks the next step.
+          "MSBUILD=$msbuild" | Add-Content -Path $env:GITHUB_ENV -Encoding utf8NoBOM
+          "JUCE_PATH=$(Join-Path (Get-Location) 'JUCE')" | Add-Content -Path $env:GITHUB_ENV -Encoding utf8NoBOM
+
+      # resave writes Builds/. icon.ico is the magick one; a later resave leaves it alone.
+      - name: Build dist
+        shell: pwsh
+        run: |
+          just resave
+          just icon
+          just build-dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-win
+          path: dist/*
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.3
+          path: JUCE
+
+      - name: Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config zip \
+            libasound2-dev libfreetype6-dev libfontconfig1-dev libcurl4-openssl-dev \
+            libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxcomposite-dev libxrender-dev
+
+      - name: Point the jucer at this JUCE
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("TEW03.jucer")
+          text = p.read_text(encoding="utf-8")
+          modules = str(Path("JUCE/modules").resolve())
+          updated = text.replace("C:\\Users\\Mikael\\JUCE\\modules", modules)
+          if updated == text:
+              raise SystemExit("jucer module path was not rewritten")
+          p.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Build Projucer and resave
+        run: |
+          make -C JUCE/extras/Projucer/Builds/LinuxMakefile -j"$(nproc)" CONFIG=Release
+          JUCE/extras/Projucer/Builds/LinuxMakefile/build/Projucer --resave TEW03.jucer
+
+      - name: Build and pack
+        run: |
+          make -C Builds/LinuxMakefile -j"$(nproc)" CONFIG=Release
+          ver=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('TEW03.jucer').getroot().attrib['version'])")
+          mkdir -p dist
+          (cd Builds/LinuxMakefile/build && zip -r "$GITHUB_WORKSPACE/dist/TEW03-$ver-linux-x64-vst3.zip" TEW03.vst3)
+          (cd Builds/LinuxMakefile/build && zip -j "$GITHUB_WORKSPACE/dist/TEW03-$ver-linux-x64-standalone.zip" TEW03)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.3
+          path: JUCE
+
+      - name: Point the jucer at this JUCE
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("TEW03.jucer")
+          text = p.read_text(encoding="utf-8")
+          modules = str(Path("JUCE/modules").resolve())
+          updated = text.replace("C:\\Users\\Mikael\\JUCE\\modules", modules)
+          if updated == text:
+              raise SystemExit("jucer module path was not rewritten")
+          p.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Build Projucer and resave
+        run: |
+          xcodebuild -project JUCE/extras/Projucer/Builds/MacOSX/Projucer.xcodeproj \
+            -configuration Release -target "Projucer - App" ONLY_ACTIVE_ARCH=YES
+          JUCE/extras/Projucer/Builds/MacOSX/build/Release/Projucer.app/Contents/MacOS/Projucer --resave TEW03.jucer
+          # Projucer's sign script passes --timestamp, which ad-hoc signing rejects.
+          sed -i '' 's/ --timestamp//g' Builds/MacOSX/TEW03.xcodeproj/project.pbxproj
+
+      - name: Build, sign, and pack
+        run: |
+          xcodebuild -project Builds/MacOSX/TEW03.xcodeproj \
+            -configuration Release -target "TEW03 - All" ONLY_ACTIVE_ARCH=NO
+          vst3="Builds/MacOSX/build/Release/TEW03.vst3"
+          au="Builds/MacOSX/build/Release/TEW03.component"
+          app="Builds/MacOSX/build/Release/TEW03.app"
+          test -d "$vst3"
+          test -d "$au"
+          test -d "$app"
+          codesign --force --sign - --deep "$vst3"
+          codesign --force --sign - --deep "$au"
+          codesign --force --sign - --deep "$app"
+          info=$(lipo -info "$vst3/Contents/MacOS/TEW03")
+          echo "$info"
+          case "$info" in
+            *x86_64*arm64*|*arm64*x86_64*) ;;
+            *) echo "expected a universal binary" >&2; exit 1 ;;
+          esac
+          ver=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('TEW03.jucer').getroot().attrib['version'])")
+          mkdir -p dist
+          ditto -c -k --keepParent "$vst3" "dist/TEW03-$ver-mac-universal-vst3.zip"
+          ditto -c -k --keepParent "$au" "dist/TEW03-$ver-mac-universal-au.zip"
+          ditto -c -k --keepParent "$app" "dist/TEW03-$ver-mac-universal-standalone.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-mac
+          path: dist/*
+          if-no-files-found: error
+
+  pack:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error

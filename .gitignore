@@ -1,5 +1,8 @@
 # Projucer rewrites these on `just resave`. Do not edit them by hand.
 Builds/
+
+# CI checks JUCE out here. Local JUCE stays at %USERPROFILE%\JUCE.
+JUCE/
 JuceLibraryCode/
 
 # just build-dist

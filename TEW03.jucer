@@ -3,7 +3,7 @@
 <JUCERPROJECT name="TEW03" companyName="Stupid Systems LLC" version="0.0.6"
               userNotes="Mean acid lines." projectType="audioplug" pluginAUIsSandboxSafe="1"
               pluginManufacturer="Stupid Systems LLC" pluginManufacturerCode="Ssys"
-              pluginCode="Tew3" cppLanguageStandard="17" pluginFormats="buildVST3,buildStandalone"
+              pluginCode="Tew3" cppLanguageStandard="17" pluginFormats="buildVST3,buildAU,buildStandalone"
               pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut"
               useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="dBqcWt"
               jucerFormatVersion="1">
@@ -89,6 +89,55 @@
         <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
       </MODULEPATHS>
     </VS2022>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="icoPng01" smallIcon="icoPng01">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="TEW03" enablePluginBinaryCopyStep="0"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="TEW03" enablePluginBinaryCopyStep="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
+    <XCODE_MAC targetFolder="Builds/MacOSX" bigIcon="icoPng01" smallIcon="icoPng01"
+               xcodeValidArchs="x86_64,arm64">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="TEW03"
+                       osxArchitecture="64BitIntel" macOSDeploymentTarget="11.0"
+                       enablePluginBinaryCopyStep="0"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="TEW03"
+                       osxArchitecture="64BitIntel" macOSDeploymentTarget="11.0"
+                       enablePluginBinaryCopyStep="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
   </EXPORTFORMATS>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_WEB_BROWSER="0" JUCE_USE_CURL="0"
                JUCE_VST3_CAN_REPLACE_VST2="0"/>

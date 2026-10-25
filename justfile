@@ -7,7 +7,8 @@ PROJUCER  := JUCE_PATH + "\\Projucer.exe"
 PROJECT   := "TEW03.jucer"
 SOLUTION  := "Builds\\VisualStudio2022\\TEW03.sln"
 # Bare `msbuild` is not on PATH with Build Tools alone.
-MSBUILD   := "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\MSBuild\\Current\\Bin\\MSBuild.exe"
+# CI sets MSBUILD to the runner's Visual Studio; this default stays the local Build Tools.
+MSBUILD   := env_var_or_default("MSBUILD", "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\MSBuild\\Current\\Bin\\MSBuild.exe")
 
 default:
     @just --list

@@ -218,7 +218,7 @@ Each band: **Off**, **Peak**, **Low S** (low shelf), **High S** (high shelf), **
 - **In (Keyboard mode)** — note on/off and pitch bend (±2 semitones).
 - **Out** — the sequencer (and/or what the voice is playing) as MIDI notes, so you can record the pattern in the DAW. Accent = velocity 127, otherwise 100.
 
-VST3 and standalone.
+VST3 and standalone. Audio Unit on macOS.
 
 ## More notes
 
