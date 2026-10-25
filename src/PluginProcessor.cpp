@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "midi/MidiHandler.h"
-#include "parameters/Library.h"
+#include "parameters/FactoryPatches.h"
 
 #include <cstring>
 
@@ -137,6 +137,8 @@ bool slotHasNote (juce::ValueTree pattern)
 }
 } // namespace
 
+void seedFactoryPatches();
+
 TEW03AudioProcessor::TEW03AudioProcessor()
     : juce::AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "PARAMS", createParameterLayout())
@@ -162,6 +164,7 @@ TEW03AudioProcessor::TEW03AudioProcessor()
     resetLfoShapes();
     loadLfosFromState();
     loadFxOrderFromState();
+    seedFactoryPatches();
 }
 
 TEW03AudioProcessor::~TEW03AudioProcessor()
@@ -912,6 +915,19 @@ void TEW03AudioProcessor::syncSeqLength (bool doubled)
 juce::File TEW03AudioProcessor::patchesDir() const
 {
     return ensureDir (libraryRoot().getChildFile ("Patches"));
+}
+
+void seedFactoryPatches()
+{
+    // First launch only. A file already saved under that name stays as the Meat Bag left it.
+    const auto dir = ensureDir (libraryRoot().getChildFile ("Patches"));
+    for (int i = 0; i < tew::factoryPatchCount; ++i)
+    {
+        const auto file = dir.getChildFile (juce::String (tew::factoryPatches[i].name) + kPatchExt);
+        if (file.existsAsFile())
+            continue;
+        writeText (file, tew::factoryPatchXml (i));
+    }
 }
 
 juce::File TEW03AudioProcessor::banksDir() const

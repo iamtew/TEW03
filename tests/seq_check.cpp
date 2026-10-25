@@ -2,13 +2,14 @@
 #include "dsp/EqBiquad.h"
 #include "dsp/Lfo.h"
 #include "dsp/Sequencer.h"
-#include "parameters/Library.h"
+#include "parameters/FactoryPatches.h"
 #include "ui/VersionCompare.h"
 
 #include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -348,6 +349,40 @@ int main()
     assert (tew::versionNewer ("0.0.4.1", "0.0.4"));
     assert (tew::newestNewerTag ({ "v0.0.3", "0.0.5", "v0.1.0" }, "0.0.4") == "v0.1.0");
     assert (tew::newestNewerTag ({ "v0.0.4", "v0.0.3" }, "0.0.4").empty());
+
+    assert (tew::factoryPatchCount == 10);
+    for (int i = 0; i < tew::factoryPatchCount; ++i)
+    {
+        const auto& v = tew::factoryPatches[i];
+        assert (v.name != nullptr && v.name[0] != 0);
+        assert (v.cutoff >= 20.f && v.cutoff <= 8000.f);
+        assert (v.resonance >= 0.f && v.resonance <= 1.f);
+        assert (v.envMod >= 0.f && v.envMod <= 1.f);
+        assert (v.decay >= 0.05f && v.decay <= 2.f);
+        assert (v.accent >= 0.f && v.accent <= 1.f);
+        assert (v.drive >= 0.f && v.drive <= 1.f);
+        assert (v.nasty >= 0.f && v.nasty <= 1.f);
+        assert (v.glide >= 0.f && v.glide <= 0.5f);
+        assert (v.waveform == 0.f || v.waveform == 1.f);
+        for (int j = 0; j < i; ++j)
+            assert (std::strcmp (v.name, tew::factoryPatches[j].name) != 0);
+
+        const auto xml = tew::factoryPatchXml (i);
+        std::vector<tew::PatchParam> loaded;
+        tew::LfoShape shapes[tew::numLfos];
+        assert (tew::readPatchXml (xml, loaded, shapes));
+        assert (shapes[0].presetIndex() == 0);
+        auto find = [&] (const char* id) {
+            for (const auto& p : loaded)
+                if (p.id == id)
+                    return p.value;
+            return -1.f;
+        };
+        assert (std::abs (find ("cutoff") - v.cutoff) < 1e-3f);
+        assert (std::abs (find ("waveform") - v.waveform) < 1e-4f);
+        assert (find ("fxChoOn") == 0.f);
+        assert (find ("cutoffLfo") == 0.f);
+    }
 
     std::puts ("seq_check ok");
     return 0;

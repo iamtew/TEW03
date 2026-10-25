@@ -39,6 +39,8 @@
         <FILE id="plyH001" name="ParameterLayout.h" compile="0" resource="0"
               file="src/parameters/ParameterLayout.h"/>
         <FILE id="libH001" name="Library.h" compile="0" resource="0" file="src/parameters/Library.h"/>
+        <FILE id="facH001" name="FactoryPatches.h" compile="0" resource="0"
+              file="src/parameters/FactoryPatches.h"/>
       </GROUP>
       <GROUP id="uiGrp01" name="ui">
         <FILE id="fxpH001" name="EffectsPage.h" compile="0" resource="0" file="src/ui/EffectsPage.h"/>
