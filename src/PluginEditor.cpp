@@ -34,7 +34,6 @@ const juce::Colour kCream { 0xfff4ead0 };
 const juce::Colour kInk { 0xff111111 };
 const juce::Colour kKnob { 0xff1a1a1a };
 const juce::Colour kChrome { 0xffd4d8dc };
-const juce::Colour kChromeHi { 0xfff2f4f6 };
 const juce::Colour kLedOn { 0xffff2200 };
 const juce::Colour kLedOff { 0xff5a1808 };
 const juce::Colour kLaneWhite { 0xff3c3c3c };
@@ -835,31 +834,63 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
                                                             float pos, float startAngle, float endAngle,
                                                             juce::Slider& slider)
 {
-    auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h).reduced (3.f);
+    // Inset so the ticks stay inside the slider, including the small EQ knobs.
+    auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h).reduced (1.f);
     const float d = juce::jmin (bounds.getWidth(), bounds.getHeight());
-    auto rc = bounds.withSizeKeepingCentre (d, d);
+    if (d < 8.f)
+        return;
 
-    g.setColour (kKnob);
-    g.fillEllipse (rc);
+    auto area = bounds.withSizeKeepingCentre (d, d);
+    const auto c = area.getCentre();
+    const float tickW = juce::jmax (1.f, d * 0.018f);
 
-    auto cap = rc.reduced (d * 0.16f);
-    g.setColour (kChrome);
+    g.setColour (kChrome.withAlpha (0.75f));
+    constexpr int nTicks = 11;
+    for (int i = 0; i < nTicks; ++i)
+    {
+        const float t = (float) i / (float) (nTicks - 1);
+        const float a = startAngle + t * (endAngle - startAngle);
+        const auto p0 = c.getPointOnCircumference (d * 0.48f, a);
+        const auto p1 = c.getPointOnCircumference (d * 0.40f, a);
+        g.drawLine (p0.x, p0.y, p1.x, p1.y, tickW);
+    }
+
+    const float bodyD = d * 0.72f;
+    auto body = area.withSizeKeepingCentre (bodyD, bodyD);
+    g.setColour (juce::Colours::black.withAlpha (0.22f));
+    g.fillEllipse (body.translated (0.f, d * 0.04f).expanded (d * 0.01f));
+    g.setColour (juce::Colours::black.withAlpha (0.4f));
+    g.fillEllipse (body.translated (0.f, d * 0.018f));
+
+    g.setGradientFill (juce::ColourGradient (kKnob.brighter (0.18f), c.x, body.getY(),
+                                              kInk, c.x, body.getBottom(), false));
+    g.fillEllipse (body);
+    g.setColour (kChrome.withAlpha (0.3f));
+    g.drawEllipse (body.reduced (0.6f), juce::jmax (1.f, d * 0.012f));
+
+    const float capD = bodyD * 0.5f;
+    auto cap = area.withSizeKeepingCentre (capD, capD);
+    g.setColour (kChassis);
     g.fillEllipse (cap);
-    g.setColour (kChromeHi);
-    g.fillEllipse (cap.translated (-d * 0.06f, -d * 0.08f).withSizeKeepingCentre (cap.getWidth() * 0.45f,
-                                                                                 cap.getHeight() * 0.35f));
 
     const float angle = startAngle + pos * (endAngle - startAngle);
-    const auto c = cap.getCentre();
-    const auto tip = c.getPointOnCircumference (cap.getWidth() * 0.42f, angle);
+    juce::Path pointer;
+    pointer.startNewSubPath (c.getPointOnCircumference (bodyD * 0.32f, angle));
+    pointer.lineTo (c.getPointOnCircumference (bodyD * 0.46f, angle));
     g.setColour (kInk);
-    g.drawLine (c.x, c.y, tip.x, tip.y, 2.2f);
-    g.fillEllipse (c.x - 2.5f, c.y - 2.5f, 5.f, 5.f);
+    g.strokePath (pointer, juce::PathStrokeType (juce::jmax (1.15f, d * 0.028f),
+                                                  juce::PathStrokeType::curved,
+                                                  juce::PathStrokeType::rounded));
+
+    const float pip = juce::jmax (1.6f, d * 0.045f);
+    const auto pipC = c.getPointOnCircumference (capD * 0.28f, angle);
+    g.fillEllipse (pipC.x - pip * 0.5f, pipC.y - pip * 0.5f, pip, pip);
 
     const int src = (int) slider.getProperties().getWithDefault ("lfoSrc", 0);
     if (src > 0)
     {
         // Same bipolar law as VoiceMod::sample01. Pointer stays the set value.
+        // Arc sits in the tick ring so the 1 px inset still holds.
         const float amt = (float) slider.getProperties().getWithDefault ("lfoAmt", 0.f);
         const float lfoY = (float) slider.getProperties().getWithDefault ("lfoY", 0.5f);
         const float sweep = std::abs (amt);
@@ -867,28 +898,29 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
         const float hi = juce::jlimit (0.f, 1.f, pos + sweep);
         const float now = juce::jlimit (0.f, 1.f, pos + amt * (lfoY * 2.f - 1.f));
         const float span = endAngle - startAngle;
-        const float radius = d * 0.5f + 1.5f;
-        const auto centre = rc.getCentre();
+        const float radius = d * 0.44f;
         const auto col = lfoCol (src);
+        const auto round = juce::PathStrokeType::curved;
+        const auto end = juce::PathStrokeType::rounded;
 
         if (hi - lo > 0.004f)
         {
             juce::Path arc;
-            arc.addCentredArc (centre.x, centre.y, radius, radius, 0.f,
+            arc.addCentredArc (c.x, c.y, radius, radius, 0.f,
                                startAngle + lo * span, startAngle + hi * span, true);
-            const auto round = juce::PathStrokeType::curved;
-            const auto end = juce::PathStrokeType::rounded;
             g.setColour (kInk);
-            g.strokePath (arc, juce::PathStrokeType (5.f, round, end));
+            g.strokePath (arc, juce::PathStrokeType (juce::jmax (1.5f, d * 0.045f), round, end));
             g.setColour (col.withAlpha (0.85f));
-            g.strokePath (arc, juce::PathStrokeType (3.f, round, end));
+            g.strokePath (arc, juce::PathStrokeType (juce::jmax (1.f, d * 0.028f), round, end));
         }
 
-        const auto dot = centre.getPointOnCircumference (radius, startAngle + now * span);
+        const auto dot = c.getPointOnCircumference (radius, startAngle + now * span);
+        const float dotD = juce::jmax (2.f, d * 0.06f);
         g.setColour (kInk);
-        g.fillEllipse (dot.x - 4.f, dot.y - 4.f, 8.f, 8.f);
+        g.fillEllipse (dot.x - dotD * 0.5f, dot.y - dotD * 0.5f, dotD, dotD);
+        const float dotIn = juce::jmax (1.4f, dotD * 0.72f);
         g.setColour (col);
-        g.fillEllipse (dot.x - 3.f, dot.y - 3.f, 6.f, 6.f);
+        g.fillEllipse (dot.x - dotIn * 0.5f, dot.y - dotIn * 0.5f, dotIn, dotIn);
     }
 }
 
@@ -973,6 +1005,7 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (TEW03AudioProcessorEditor& ed,
         label.setInterceptsMouseClicks (false, false);
     label.setText (uiLabel (id), juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
+    label.setBorderSize ({ 0, 2, 0, 2 });
     label.setColour (juce::Label::textColourId, kInk);
     label.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     addAndMakeVisible (label);
@@ -1040,18 +1073,32 @@ TEW03AudioProcessorEditor::ParamCell::ParamCell (TEW03AudioProcessorEditor& ed,
 void TEW03AudioProcessorEditor::ParamCell::resized()
 {
     auto r = getLocalBounds().reduced (2, 0);
-    label.setBounds (r.removeFromTop (kLabelH));
     if (isBool)
+    {
+        label.setBounds (r.removeFromTop (kLabelH));
         button.setBounds ((isFlip ? r : r.removeFromTop (24)).reduced (2, 2));
-    else if (isChoice)
+        return;
+    }
+    if (isChoice)
+    {
+        label.setBounds (r.removeFromTop (kLabelH));
         combo.setBounds (r.removeFromTop (24).reduced (2, 2));
-    else
-        slider.setBounds (r);
+        return;
+    }
+
+    // Label sits on the knob. Spare yellow goes above the name and below the value.
+    const int textH = slider.getTextBoxHeight();
+    const int knob = juce::jmin (r.getWidth(), juce::jmax (8, r.getHeight() - kLabelH - textH));
+    const int spare = juce::jmax (0, r.getHeight() - (kLabelH + knob + textH));
+    r.removeFromTop (spare / 2);
+    label.setBounds (r.removeFromTop (kLabelH));
+    slider.setBounds (r.removeFromTop (knob + textH));
 }
 
 juce::Rectangle<int> TEW03AudioProcessorEditor::ParamCell::badgeBounds() const
 {
-    return { getWidth() - 16, 0, 14, kLabelH };
+    const int y = label.getHeight() > 0 ? label.getY() : 0;
+    return { getWidth() - 16, y, 14, kLabelH };
 }
 
 void TEW03AudioProcessorEditor::ParamCell::refreshMod()
