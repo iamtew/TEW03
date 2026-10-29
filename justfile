@@ -19,10 +19,11 @@ projucer:
 resave:
     {{PROJUCER}} --resave {{PROJECT}}
 
-# PNG → Builds/.../icon.ico, then wipe compiled .res so the next build relinks it.
+# PNG → Builds/.../icon.ico + docs/icon.png, then wipe compiled .res so the next build relinks it.
 # `just resave` does not refresh icon.ico when the PNG changes.
 icon:
     magick assets/icon.png -define icon:auto-resize=256,128,64,48,32,16 Builds\VisualStudio2022\icon.ico
+    Copy-Item assets/icon.png docs/icon.png -Force
     Get-ChildItem Builds\VisualStudio2022 -Recurse -Filter resources.res | Remove-Item -Force
 
 build-debug: resave
