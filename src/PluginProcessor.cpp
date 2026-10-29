@@ -903,6 +903,18 @@ void TEW03AudioProcessor::clearCurrentPattern()
     applyCurrentPattern (empty);
 }
 
+void TEW03AudioProcessor::randomizeCurrentPattern()
+{
+    tew::Sequencer::Step out[tew::Sequencer::maxSteps];
+    const int len = raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
+                                                 : tew::Sequencer::numSteps;
+    tew::Sequencer::fillRandom (out, len,
+                                juce::roundToInt (raw (ParamID::seqKey)),
+                                juce::roundToInt (raw (ParamID::seqScale)) == 1,
+                                (uint32_t) juce::Random::getSystemRandom().nextInt());
+    applyCurrentPattern (out);
+}
+
 void TEW03AudioProcessor::syncSeqLength (bool doubled)
 {
     sequencer.reshapeTo (doubled ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);

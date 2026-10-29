@@ -1960,6 +1960,16 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         pianoRoll.repaint();
     };
 
+    randomBtn.setClickingTogglesState (false);
+    randomBtn.setComponentID ("plain");
+    randomBtn.setTooltip ("Generate a random acid pattern in the current key and scale");
+    content.addAndMakeVisible (randomBtn);
+    randomBtn.onClick = [this]
+    {
+        proc.randomizeCurrentPattern();
+        syncSteps();
+    };
+
     clearBtn.setClickingTogglesState (false);
     clearBtn.setComponentID ("plain");
     clearBtn.setTooltip ("Clear the current pattern");
@@ -2189,6 +2199,7 @@ void TEW03AudioProcessorEditor::layoutContent()
     shiftUpBtn.setBounds (lock.removeFromLeft (32).reduced (0, 1));
     shiftDnBtn.setBounds (lock.removeFromLeft (32).reduced (0, 1));
     clearBtn.setBounds (lock.removeFromRight (56).reduced (0, 1));
+    randomBtn.setBounds (lock.removeFromRight (68).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
 
     const int clusterW = 36 + 48 + 28 + 88;
@@ -2659,6 +2670,7 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (scaleBox);
     vis (bankBox);
     vis (x2Btn);
+    vis (randomBtn);
     vis (clearBtn);
     vis (shiftUpBtn);
     vis (shiftDnBtn);

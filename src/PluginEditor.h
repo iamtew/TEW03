@@ -285,6 +285,7 @@ private:
     juce::ComboBox keyBox, scaleBox, bankBox;
     juce::ToggleButton lockBtn { "Lock" };
     juce::ToggleButton x2Btn { "2x" };
+    juce::ToggleButton randomBtn { "Random" };
     juce::ToggleButton clearBtn { "Clear" };
 
     // Single click waits out the double-click window, so an octave jump is not also a semitone.

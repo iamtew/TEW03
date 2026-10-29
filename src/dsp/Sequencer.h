@@ -122,6 +122,101 @@ struct Sequencer
             out[i] = { -1, false, false };
     }
 
+    // Acid-biased random fill. Notes stay in key/scale, MIDI 24-60. Tail past `length` is rests.
+    static void fillRandom (Step out[maxSteps], int length, int keyPc, bool minor, uint32_t seed)
+    {
+        const int len = length >= maxSteps ? maxSteps : numSteps;
+        keyPc = ((keyPc % 12) + 12) % 12;
+
+        int pool[40];
+        int nPool = 0;
+        for (int note = 24; note <= 60; ++note)
+            if (inScale (note, keyPc, minor))
+                pool[nPool++] = note;
+
+        for (int i = 0; i < maxSteps; ++i)
+            out[i] = { -1, false, false, false };
+        if (nPool == 0)
+            return;
+
+        uint32_t s = seed == 0 ? 1u : seed;
+        auto next = [&] () { s = s * 1664525u + 1013904223u; return s; };
+        auto dice = [&] (int n) { return n <= 0 ? 0 : (int) (next() % (uint32_t) n); };
+
+        int rootIdx = 0;
+        int best = 99;
+        const int want = 36 + keyPc;
+        for (int i = 0; i < nPool; ++i)
+        {
+            const int d = std::abs (pool[i] - want);
+            if (d < best) { best = d; rootIdx = i; }
+        }
+
+        const int feel = dice (4); // 0 dense, 1 classic, 2 sparse, 3 ostinato
+        const int hitPct = feel == 0 ? 75 : (feel == 2 ? 45 : 60);
+        const bool ostinato = feel == 3;
+        const bool sparse = feel == 2;
+        bool cell[4];
+        for (int i = 0; i < 4; ++i)
+            cell[i] = dice (100) < (i == 0 ? 90 : hitPct);
+
+        int pitchIdx = rootIdx;
+        for (int i = 0; i < len; ++i)
+        {
+            bool hit = ostinato ? (cell[i % 4] && (i < len / 2 || dice (100) < 80))
+                                : dice (100) < (len >= maxSteps ? hitPct - 10 : hitPct);
+            if (! hit)
+                continue;
+
+            const int roll = dice (100);
+            if (roll < 45)
+                pitchIdx += dice (3) - 1;
+            else if (roll < 65)
+                pitchIdx += dice (2) == 0 ? -2 : 2;
+            else if (roll < 80)
+                pitchIdx += dice (2) == 0 ? -4 : 4; // ~fifth in scale degrees
+            else
+                pitchIdx += dice (2) == 0 ? -7 : 7; // octave hop
+            pitchIdx = std::clamp (pitchIdx, 0, nPool - 1);
+
+            const bool accent = (i % 4 == 0 && dice (100) < 55) || dice (100) < 12;
+            out[i] = { pool[pitchIdx], accent, false, false };
+        }
+
+        int nNotes = 0;
+        for (int i = 0; i < len; ++i)
+            if (out[i].note >= 0)
+                ++nNotes;
+        if (nNotes == 0)
+            out[0] = { pool[rootIdx], true, false, false };
+        if (nNotes >= len)
+            out[len / 2] = { -1, false, false, false };
+
+        for (int i = 0; i < len; ++i)
+        {
+            const int nxt = (i + 1) % len;
+            if (out[i].note < 0 || out[nxt].note < 0)
+                continue;
+            if (out[i].note != out[nxt].note && dice (100) < (sparse ? 55 : 30))
+                out[i].slide = true;
+            else if (out[i].note == out[nxt].note && dice (100) < 8)
+                out[i].slide = true;
+        }
+
+        if (sparse && dice (100) < 40)
+        {
+            for (int i = 0; i < len - 2; ++i)
+            {
+                if (out[i].note >= 0 && out[i + 1].note < 0)
+                {
+                    out[i].slide = true;
+                    out[i].superSlide = true;
+                    break;
+                }
+            }
+        }
+    }
+
     Sequencer()
     {
         Step baked[maxSteps];

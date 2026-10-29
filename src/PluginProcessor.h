@@ -49,6 +49,7 @@ public:
     void copyCurrentPattern();
     void pasteCurrentPattern();
     void clearCurrentPattern();
+    void randomizeCurrentPattern();
     void applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps]);
     bool hasPatternClip() const { return patternClipValid; }
     void syncSeqLength (bool doubled);

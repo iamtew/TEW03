@@ -168,6 +168,42 @@ int main()
         assert (! same);
     }
 
+    Sequencer::Step rndA[Sequencer::maxSteps];
+    Sequencer::Step rndB[Sequencer::maxSteps];
+    Sequencer::fillRandom (rndA, Sequencer::numSteps, 0, false, 42u);
+    Sequencer::fillRandom (rndB, Sequencer::numSteps, 0, false, 99u);
+    int nNotes = 0, nRests = 0;
+    bool sameSeed = true;
+    for (int i = 0; i < Sequencer::numSteps; ++i)
+    {
+        if (rndA[i].note >= 0)
+        {
+            ++nNotes;
+            assert (tew::inScale (rndA[i].note, 0, false));
+            assert (rndA[i].note >= 24 && rndA[i].note <= 60);
+        }
+        else
+            ++nRests;
+        if (rndA[i].note != rndB[i].note)
+            sameSeed = false;
+    }
+    assert (nNotes > 0);
+    assert (nRests > 0);
+    assert (! sameSeed);
+    for (int i = Sequencer::numSteps; i < Sequencer::maxSteps; ++i)
+        assert (rndA[i].note < 0);
+
+    Sequencer::fillRandom (rndA, Sequencer::maxSteps, 9, true, 7u); // A minor
+    int n32 = 0;
+    for (int i = 0; i < Sequencer::maxSteps; ++i)
+    {
+        if (rndA[i].note < 0)
+            continue;
+        ++n32;
+        assert (tew::inScale (rndA[i].note, 9, true));
+    }
+    assert (n32 > 0);
+
     const int nStop = seq.advance (1, 120.f, false, ev, 8);
     assert (nStop == 1);
     assert (! ev[0].on);
