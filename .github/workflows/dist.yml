@@ -1,5 +1,6 @@
 # Windows, Linux, and macOS release files. One artifact named dist.
-# Run from the Actions tab, or push a numeric tag such as 0.0.6. Does not publish a release.
+# Push a numeric tag such as 0.0.6 to build and publish a GitHub Release.
+# workflow_dispatch builds artifacts only.
 name: dist
 
 on:
@@ -181,7 +182,13 @@ jobs:
   pack:
     needs: [windows, linux, macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           pattern: dist-*
@@ -193,3 +200,10 @@ jobs:
           name: dist
           path: dist/*
           if-no-files-found: error
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.msi --notes "$(git log --pretty=format:'- %h %s' $(git describe --tags --abbrev=0 --match '[0-9]*' HEAD^ 2>/dev/null)..HEAD)"

@@ -14,7 +14,7 @@ VST3 and standalone. Audio Unit on macOS. Stupid Systems LLC. [MIT](LICENSE). Si
 
 ## Release
 
-Windows, Linux, and macOS files come from GitHub Actions (`.github/workflows/dist.yml`). Run it from the Actions tab, or push a numeric tag such as `0.0.6`. The workflow does not publish a release. `<version>` is the `version` in `TEW03.jucer`.
+Windows, Linux, and macOS files come from GitHub Actions (`.github/workflows/dist.yml`). Run it from the Actions tab for artifacts only, or push a numeric tag such as `0.0.6` (no `v` prefix) to build and publish a GitHub Release with the files attached. `<version>` is the `version` in `TEW03.jucer`.
 
 The `dist` artifact holds:
 
@@ -26,12 +26,6 @@ The `dist` artifact holds:
 - `TEW03-<version>-mac-universal-vst3.zip`
 - `TEW03-<version>-mac-universal-au.zip`
 - `TEW03-<version>-mac-universal-standalone.zip`
-
-Download that artifact into `dist/` and upload the files on a GitHub release:
-
-```
-gh run download <run-id> -n dist -D dist
-```
 
 The MSI installs the VST3, the standalone app, or both. Defaults are `Common Files\VST3` and `Program Files\Stupid Systems LLC\TEW03`; each folder can be changed. The standalone install adds a Start menu shortcut.
 
