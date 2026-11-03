@@ -1,0 +1,34 @@
+---
+description: Commit each done unit. One concern. Clanker message style. No push unless asked.
+alwaysApply: true
+---
+
+# Commit often
+
+This repo opts in to frequent commits. Do not wait to be asked. Commit each done unit as it lands. One concern. Do not batch the whole task into one commit at the end.
+
+Empty diff → no commit. Never stage secrets (`.env`, credentials, keys).
+
+## Message
+
+- Subject ≤50 chars: present tense, imperative, first letter not capitalized, no trailing `.`
+- Body: bullets, same style
+- Do not `git log` to pick a style
+
+PowerShell:
+
+```powershell
+git commit -m @"
+subject line
+
+- bullet
+"@
+```
+
+## Safety
+
+- `git status` and `git diff` first
+- Never `git config`, `--no-verify`, `-i`, or `git add -p`
+- Never force-push
+- Amend only if asked and HEAD is yours and unpushed
+- Commit only. Push only on "ship it" or an explicit push
