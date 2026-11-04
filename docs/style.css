@@ -26,31 +26,6 @@ body {
   z-index: 0;
 }
 
-.smile {
-  position: absolute;
-  left: var(--x);
-  bottom: -12vmin;
-  width: var(--s);
-  height: var(--s);
-  filter: blur(var(--b));
-  animation:
-    fly var(--t) linear var(--d) infinite,
-    blink var(--k) ease-in-out infinite;
-}
-
-@keyframes fly {
-  to { transform: translateY(-120vh) rotate(var(--turn)); }
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 0.06; }
-  50% { opacity: 0.42; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #fx { display: none; }
-}
-
 a { color: var(--yellow); }
 a:hover { color: var(--yellow-dim); }
 
