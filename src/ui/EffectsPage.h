@@ -5,15 +5,18 @@
 
 #include <JuceHeader.h>
 
-class EffectsPage : public juce::Component
+class EffectsPage : public juce::Component,
+                    private juce::Timer
 {
 public:
-    static constexpr int kRailW = 110;
-    static constexpr int kRowH = 96;
-    static constexpr int kStripW = 72;
+    static constexpr int kRailW = 124;
+    static constexpr int kGripW = 14;
+    static constexpr int kVizH = 260;
+    static constexpr int kKnobRowH = 118;
 
     explicit EffectsPage (TEW03AudioProcessor& p) : proc (p)
     {
+        logo = juce::ImageCache::getFromMemory (BinaryData::icon_png, BinaryData::icon_pngSize);
         viewport.setScrollBarsShown (true, false);
         viewport.setViewedComponent (&stack, false);
         addAndMakeVisible (viewport);
@@ -24,9 +27,13 @@ public:
             addAndMakeVisible (rail);
             auto* row = rows.add (new FxRow (*this, t));
             stack.addAndMakeVisible (row);
+            row->setVisible (false);
         }
         refresh();
+        startTimerHz (24);
     }
+
+    ~EffectsPage() override { stopTimer(); }
 
     void paint (juce::Graphics& g) override
     {
@@ -37,12 +44,23 @@ public:
         g.setColour (kInk.withAlpha (0.35f));
         g.drawRoundedRectangle (rail.toFloat().reduced (0.5f), 4.f, 1.f);
 
-        if (nVisible == 0)
+        if (selected < 0)
         {
+            auto msg = body.reduced (12);
+            if (logo.isValid())
+            {
+                const int s = juce::jmin (180, msg.getWidth() - 24, msg.getHeight() / 2);
+                auto logoR = juce::Rectangle<int> (0, 0, s, s)
+                                 .withCentre ({ msg.getCentreX(), msg.getCentreY() - 28 });
+                g.setOpacity (0.92f);
+                g.drawImage (logo, logoR.toFloat(), juce::RectanglePlacement::centred);
+                g.setOpacity (1.f);
+                msg.removeFromTop (logoR.getBottom() - msg.getY());
+            }
             g.setColour (kInk);
             g.setFont (juce::Font (juce::FontOptions (13.f).withStyle ("Bold")));
             g.drawText ("Click an effect to add it",
-                        body.reduced (12), juce::Justification::centred, true);
+                        msg, juce::Justification::centredTop, true);
         }
     }
 
@@ -50,15 +68,28 @@ public:
     {
         auto r = getLocalBounds();
         railArea = r.removeFromLeft (kRailW);
-        viewport.setBounds (r.reduced (4, 0));
+        viewport.setBounds (r);
         layoutRail();
-        layoutStack();
+        layoutDetail();
     }
 
     void refreshMods()
     {
         for (auto* row : rows)
             row->refreshMods();
+    }
+
+    void select (int type)
+    {
+        if (type < 0 || type >= tew::fxCount)
+            return;
+        if (selected == type)
+            return;
+        selected = type;
+        layoutDetail();
+        for (auto* rail : rails)
+            rail->repaint();
+        repaint();
     }
 
     void refresh()
@@ -72,26 +103,15 @@ public:
             return v != nullptr && v->load() >= 0.5f;
         };
 
-        nVisible = 0;
         for (int t = 0; t < tew::fxCount; ++t)
-        {
             rails[t]->setOn (on (t));
-            rows[t]->setVisible (false);
-        }
-        for (int i = 0; i < nRail; ++i)
-        {
-            const int t = railOrder[i];
-            if (! on (t))
-                continue;
-            rows[t]->setVisible (true);
-            rows[t]->toFront (false);
-            rows[t]->syncDelay();
-            visOrder[nVisible++] = t;
-        }
+
+        if (selected >= 0)
+            rows[selected]->syncDelay();
         layoutRail();
-        layoutStack();
-        viewport.setVisible (nVisible > 0);
-        repaint();
+        viewport.setVisible (selected >= 0);
+        for (auto* rail : rails)
+            rail->repaint();
     }
 
 private:
@@ -109,6 +129,15 @@ private:
         return juce::Font (juce::FontOptions (h).withStyle ("Bold"));
     }
 
+    void timerCallback() override
+    {
+        vizPhase += 0.035f;
+        if (vizPhase >= 1.f)
+            vizPhase -= 1.f;
+        if (selected >= 0 && selected < rows.size())
+            rows[selected]->tickViz();
+    }
+
     struct FxKnob : public juce::Component,
                      public juce::DragAndDropTarget
     {
@@ -116,7 +145,7 @@ private:
         {
             label.setJustificationType (juce::Justification::centred);
             label.setFont (labelFont (11.f));
-            label.setColour (juce::Label::textColourId, kCream);
+            label.setColour (juce::Label::textColourId, kInk);
             label.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
             label.setInterceptsMouseClicks (false, false);
             addAndMakeVisible (label);
@@ -124,7 +153,7 @@ private:
             combo.setColour (juce::ComboBox::arrowColourId, kCream);
             slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
             slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 12);
-            slider.setColour (juce::Slider::textBoxTextColourId, kCream);
+            slider.setColour (juce::Slider::textBoxTextColourId, kInk);
             slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
             slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
             slider.addMouseListener (this, false);
@@ -349,16 +378,31 @@ private:
 
     struct FxRow : public juce::Component
     {
-        FxRow (EffectsPage& page, int t) : owner (page), type (t)
+        FxRow (EffectsPage& page, int t) : owner (page), type (t), viz (*this)
         {
             setName (ParamID::fxNames[t]);
+            addAndMakeVisible (viz);
             addKnobs();
+            if (type == 4)
+            {
+                eqPlot = std::make_unique<EqPlot> (*this);
+                addAndMakeVisible (*eqPlot);
+                viz.setVisible (false);
+            }
         }
 
         void refreshMods()
         {
             for (auto* k : knobs)
                 k->refreshMod();
+        }
+
+        void tickViz()
+        {
+            if (type == 4 && eqPlot != nullptr)
+                eqPlot->repaint();
+            else
+                viz.repaint();
         }
 
         void addKnobs()
@@ -375,6 +419,8 @@ private:
                     add (ParamID::fxChoDepth, "Depth");
                     add (ParamID::fxChoFb, "Fb");
                     add (ParamID::fxChoMix, "Mix");
+                    add (ParamID::fxChoCentre, "Centre");
+                    add (ParamID::fxChoWidth, "Width");
                     break;
                 case 1:
                     add (ParamID::fxCmpThr, "Thresh");
@@ -382,6 +428,9 @@ private:
                     add (ParamID::fxCmpAtk, "Atk");
                     add (ParamID::fxCmpRel, "Rel");
                     add (ParamID::fxCmpMix, "Mix");
+                    add (ParamID::fxCmpMake, "Makeup");
+                    add (ParamID::fxCmpKnee, "Knee");
+                    add (ParamID::fxCmpHpf, "HPF");
                     break;
                 case 2:
                     add (ParamID::fxDlySync, "Sync");
@@ -390,23 +439,30 @@ private:
                     add (ParamID::fxDlyFb, "Fb");
                     add (ParamID::fxDlyCut, "Cut");
                     add (ParamID::fxDlyMix, "Mix");
+                    add (ParamID::fxDlyPing, "Ping");
+                    add (ParamID::fxDlyHp, "HP");
+                    add (ParamID::fxDlySpread, "Spread");
                     break;
                 case 3:
+                    add (ParamID::fxDstType, "Type");
                     add (ParamID::fxDstDrive, "Drive");
+                    add (ParamID::fxDstBias, "Bias");
+                    add (ParamID::fxDstTone, "Tone");
                     add (ParamID::fxDstMix, "Mix");
                     break;
                 case 4:
-                    eqPlot = std::make_unique<EqPlot> (*this);
-                    addAndMakeVisible (*eqPlot);
                     add (ParamID::fxEqType[0], "Type");
                     add (ParamID::fxEqFreq[0], "Freq");
                     add (ParamID::fxEqGain[0], "Gain");
                     add (ParamID::fxEqQ[0], "Q");
+                    add (ParamID::fxEqTrim, "Trim");
                     break;
                 case 5:
                     add (ParamID::fxFltType, "Type");
+                    add (ParamID::fxFltSlope, "Slope");
                     add (ParamID::fxFltCut, "Cutoff");
                     add (ParamID::fxFltRes, "Res");
+                    add (ParamID::fxFltDrive, "Drive");
                     add (ParamID::fxFltMix, "Mix");
                     break;
                 case 6:
@@ -414,12 +470,15 @@ private:
                     add (ParamID::fxFlaDepth, "Depth");
                     add (ParamID::fxFlaFb, "Fb");
                     add (ParamID::fxFlaMix, "Mix");
+                    add (ParamID::fxFlaCentre, "Centre");
+                    add (ParamID::fxFlaWidth, "Width");
                     break;
                 case 7:
                     add (ParamID::fxPhaRate, "Rate");
                     add (ParamID::fxPhaDepth, "Depth");
                     add (ParamID::fxPhaFb, "Fb");
                     add (ParamID::fxPhaCentre, "Centre");
+                    add (ParamID::fxPhaStages, "Stages");
                     add (ParamID::fxPhaMix, "Mix");
                     break;
                 case 8:
@@ -427,6 +486,9 @@ private:
                     add (ParamID::fxRevDamp, "Damp");
                     add (ParamID::fxRevWidth, "Width");
                     add (ParamID::fxRevMix, "Mix");
+                    add (ParamID::fxRevPre, "Pre");
+                    add (ParamID::fxRevFreeze, "Freeze");
+                    add (ParamID::fxRevLo, "Lo Cut");
                     break;
                 default:
                     break;
@@ -489,6 +551,12 @@ private:
             bindEq();
         }
 
+        float load (const char* id, float fallback = 0.f) const
+        {
+            auto* v = owner.proc.apvts.getRawParameterValue (id);
+            return v != nullptr ? v->load() : fallback;
+        }
+
         struct EqPlot : public juce::Component
         {
             explicit EqPlot (FxRow& row) : fx (row)
@@ -519,6 +587,10 @@ private:
             static float dbToY (float db)
             {
                 return 1.f - juce::jlimit (0.f, 1.f, (db + 18.f) / 36.f);
+            }
+            static float specToY (float db)
+            {
+                return 1.f - juce::jlimit (0.f, 1.f, (db + 72.f) / 72.f);
             }
 
             juce::Point<float> bandPos (const tew::EqBandParam& p, const tew::Biquad& bq) const
@@ -582,6 +654,21 @@ private:
                 tew::Biquad bq[tew::eqBandCount];
                 readBands (params, bq);
                 const int n = juce::jmax (2, (int) r.getWidth());
+                if ((int) specDb.size() != n)
+                    specDb.resize ((size_t) n);
+                fx.owner.proc.eqAnalyser().copyLogDb (specDb.data(), n);
+                juce::Path spec;
+                spec.startNewSubPath (r.getX(), r.getBottom());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    spec.lineTo (r.getX() + x01 * r.getWidth(),
+                                 r.getY() + specToY (specDb[(size_t) i]) * r.getHeight());
+                }
+                spec.lineTo (r.getRight(), r.getBottom());
+                spec.closeSubPath();
+                g.setColour (juce::Colour (0x55a0a8b0));
+                g.fillPath (spec);
 
                 for (int b = 0; b < tew::eqBandCount; ++b)
                 {
@@ -711,6 +798,189 @@ private:
             FxRow& fx;
             int drag = -1;
             bool gesturing = false;
+            std::vector<float> specDb;
+        };
+
+        struct Visual : public juce::Component
+        {
+            explicit Visual (FxRow& row) : fx (row) {}
+
+            void paint (juce::Graphics& g) override
+            {
+                auto bounds = getLocalBounds().toFloat();
+                g.setColour (juce::Colour (0xff12151a));
+                g.fillRoundedRectangle (bounds, 4.f);
+                auto r = bounds.reduced (8.f, 10.f);
+                g.setColour (juce::Colour (0xff2a2e32));
+                g.drawHorizontalLine ((int) r.getCentreY(), r.getX(), r.getRight());
+
+                switch (fx.type)
+                {
+                    case 0: case 6: case 7: paintSweep (g, r); break;
+                    case 1: paintGr (g, r); break;
+                    case 2: paintDelay (g, r); break;
+                    case 3: paintDist (g, r); break;
+                    case 5: paintFilter (g, r); break;
+                    case 8: paintReverb (g, r); break;
+                    default: break;
+                }
+            }
+
+            void paintSweep (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const bool flanger = fx.type == 6;
+                const bool phaser = fx.type == 7;
+                const char* rateId = phaser ? ParamID::fxPhaRate
+                                   : flanger ? ParamID::fxFlaRate : ParamID::fxChoRate;
+                const char* depthId = phaser ? ParamID::fxPhaDepth
+                                    : flanger ? ParamID::fxFlaDepth : ParamID::fxChoDepth;
+                const float depth = fx.load (depthId);
+                const float rate = fx.load (rateId);
+                const float phase = fx.owner.vizPhase * (0.4f + rate * 2.6f);
+                juce::Path p;
+                const int n = juce::jmax (2, (int) r.getWidth());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    const float y = std::sin ((x01 * 4.f + phase) * 6.2831853f) * depth * r.getHeight() * 0.35f;
+                    const juce::Point<float> pt (r.getX() + x01 * r.getWidth(), r.getCentreY() + y);
+                    if (i == 0)
+                        p.startNewSubPath (pt);
+                    else
+                        p.lineTo (pt);
+                }
+                g.setColour (kCream);
+                g.strokePath (p, juce::PathStrokeType (1.6f));
+            }
+
+            void paintGr (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const float gr = juce::jlimit (0.f, 24.f, fx.owner.proc.fxCompGrDb());
+                const float w = r.getWidth() * (gr / 24.f);
+                g.setColour (juce::Colour (0xff5a1808));
+                g.fillRoundedRectangle (r.removeFromTop (18.f), 3.f);
+                g.setColour (kLedOn);
+                g.fillRoundedRectangle (r.withWidth (w).withHeight (18.f).translated (0.f, -18.f), 3.f);
+                g.setColour (kCream);
+                g.setFont (labelFont (11.f));
+                g.drawText (juce::String (gr, 1) + " dB", r.translated (0.f, 8.f),
+                            juce::Justification::centredLeft, false);
+            }
+
+            void paintDelay (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const float fb = fx.load (ParamID::fxDlyFb);
+                const bool ping = fx.load (ParamID::fxDlyPing) >= 0.5f;
+                const int taps = 1 + juce::roundToInt (fb * 6.f);
+                for (int i = 0; i < taps; ++i)
+                {
+                    const float x = r.getX() + r.getWidth() * ((float) (i + 1) / (float) (taps + 1));
+                    const float h = r.getHeight() * (1.f - (float) i * 0.12f);
+                    g.setColour (kCream.withAlpha (1.f - (float) i * 0.12f));
+                    g.fillRect (x - 2.f, r.getBottom() - h, 4.f, h);
+                    if (ping && (i % 2) == 1)
+                    {
+                        g.setColour (juce::Colour (0xff4c8dff));
+                        g.fillEllipse (x - 3.f, r.getY() + 4.f, 6.f, 6.f);
+                    }
+                }
+            }
+
+            void paintDist (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const int kind = juce::roundToInt (fx.load (ParamID::fxDstType));
+                const float drive = 1.f + fx.load (ParamID::fxDstDrive) * 12.f;
+                const float bias = fx.load (ParamID::fxDstBias) * 0.5f;
+                juce::Path p;
+                const int n = juce::jmax (2, (int) r.getWidth());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    const float x = (x01 * 2.f - 1.f);
+                    float y = 0.f;
+                    float v = (x + bias) * drive;
+                    if (kind == 1)
+                        y = juce::jlimit (-1.f, 1.f, v);
+                    else if (kind == 2)
+                    {
+                        y = v;
+                        while (y > 1.f || y < -1.f)
+                        {
+                            if (y > 1.f) y = 2.f - y;
+                            if (y < -1.f) y = -2.f - y;
+                        }
+                    }
+                    else if (kind == 3)
+                        y = std::abs (std::tanh (v));
+                    else
+                        y = std::tanh (v);
+                    const juce::Point<float> pt (r.getX() + x01 * r.getWidth(),
+                                                 r.getCentreY() - y * r.getHeight() * 0.42f);
+                    if (i == 0)
+                        p.startNewSubPath (pt);
+                    else
+                        p.lineTo (pt);
+                }
+                g.setColour (kCream);
+                g.strokePath (p, juce::PathStrokeType (1.6f));
+            }
+
+            void paintFilter (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const int kind = juce::roundToInt (fx.load (ParamID::fxFltType));
+                const float cut = fx.load (ParamID::fxFltCut, 2000.f);
+                const float res = 0.1f + fx.load (ParamID::fxFltRes) * 8.f;
+                const bool steep = juce::roundToInt (fx.load (ParamID::fxFltSlope)) >= 1;
+                const int eqt = kind == 1 ? tew::eqTypePeak : (kind == 2 ? tew::eqTypeHP : tew::eqTypeLP);
+                const float gain = kind == 1 ? juce::jlimit (0.f, 12.f, (res - 0.1f) * 1.4f) : 0.f;
+                const float q = juce::jlimit (0.1f, 10.f, res);
+                auto bq = tew::eqBiquad (eqt, 44100.f, cut, q, gain);
+                juce::Path path;
+                const int n = juce::jmax (2, (int) r.getWidth());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    const float hz = 20.f * std::pow (10.f, x01 * 3.f);
+                    tew::Biquad one[1] { bq };
+                    float mag = tew::eqMagnitude (one, 1, 44100.f, hz);
+                    if (steep)
+                        mag *= mag;
+                    const float db = mag > 1.0e-8f ? 20.f * std::log10 (mag) : -60.f;
+                    const float y01 = 1.f - juce::jlimit (0.f, 1.f, (db + 24.f) / 36.f);
+                    const juce::Point<float> pt (r.getX() + x01 * r.getWidth(), r.getY() + y01 * r.getHeight());
+                    if (i == 0)
+                        path.startNewSubPath (pt);
+                    else
+                        path.lineTo (pt);
+                }
+                g.setColour (kCream);
+                g.strokePath (path, juce::PathStrokeType (1.6f));
+            }
+
+            void paintReverb (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const float size = fx.load (ParamID::fxRevSize);
+                const float damp = fx.load (ParamID::fxRevDamp);
+                const float pre = fx.load (ParamID::fxRevPre) / 200.f;
+                juce::Path p;
+                const int n = juce::jmax (2, (int) r.getWidth());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    const float t = juce::jmax (0.f, x01 - pre * 0.25f);
+                    const float env = t <= 0.f ? 0.f : std::exp (-t * (1.4f + damp * 4.f) / (0.15f + size));
+                    const juce::Point<float> pt (r.getX() + x01 * r.getWidth(),
+                                                 r.getBottom() - env * r.getHeight() * 0.85f);
+                    if (i == 0)
+                        p.startNewSubPath (pt);
+                    else
+                        p.lineTo (pt);
+                }
+                g.setColour (kCream);
+                g.strokePath (p, juce::PathStrokeType (1.6f));
+            }
+
+            FxRow& fx;
         };
 
         void syncDelay()
@@ -724,53 +994,53 @@ private:
             resized();
         }
 
-        void paint (juce::Graphics& g) override
+        int knobRows() const
         {
-            auto r = getLocalBounds().toFloat().reduced (2.f);
-            g.setColour (kKnob);
-            g.fillRoundedRectangle (r, 4.f);
-            g.setColour (kInk.withAlpha (0.4f));
-            g.drawRoundedRectangle (r.reduced (0.5f), 4.f, 1.f);
-
-            auto strip = r.removeFromLeft ((float) kStripW).reduced (3.f, 4.f);
-            g.setColour (juce::Colour (0xff2e2e2e));
-            g.fillRoundedRectangle (strip, 3.f);
-            g.setColour (kCream);
-            g.setFont (labelFont (11.f));
-            g.drawFittedText (ParamID::fxNames[type], strip.toNearestInt(),
-                              juce::Justification::centred, 3);
+            int vis = 0;
+            for (auto* k : knobs)
+                if (k->isVisible())
+                    ++vis;
+            const int cols = juce::jmax (1, juce::jmin (vis, 6));
+            return vis <= 0 ? 1 : (vis + cols - 1) / cols;
         }
 
         void resized() override
         {
-            auto r = getLocalBounds().reduced (4, 4);
-            r.removeFromLeft (kStripW);
+            auto r = getLocalBounds().reduced (8, 6);
+            auto vizR = r.removeFromTop (kVizH);
             if (type == 4 && eqPlot != nullptr)
-            {
-                auto knobArea = r.removeFromRight (280);
-                eqPlot->setBounds (r.reduced (2, 2));
-                r = knobArea;
-            }
+                eqPlot->setBounds (vizR);
+            else
+                viz.setBounds (vizR);
+            r.removeFromTop (6);
             int vis = 0;
             for (auto* k : knobs)
                 if (k->isVisible())
                     ++vis;
             if (vis <= 0)
                 return;
-            const int w = r.getWidth() / vis;
+            const int cols = juce::jmin (vis, 6);
+            const int rowsN = (vis + cols - 1) / cols;
+            const int rowH = juce::jmax (1, r.getHeight() / rowsN);
+            const int colW = juce::jmax (1, r.getWidth() / cols);
             int i = 0;
             for (auto* k : knobs)
             {
                 if (! k->isVisible())
                     continue;
+                const int row = i / cols;
+                const int col = i % cols;
+                const int colsThis = (row == rowsN - 1) ? (vis - row * cols) : cols;
+                const int w = row == rowsN - 1 ? r.getWidth() / juce::jmax (1, colsThis) : colW;
+                k->setBounds (r.getX() + col * w, r.getY() + row * rowH, w, rowH);
                 ++i;
-                k->setBounds (r.removeFromLeft (i == vis ? r.getWidth() : w));
             }
         }
 
         EffectsPage& owner;
         int type = 0;
         int eqBand = 0;
+        Visual viz;
         std::unique_ptr<EqPlot> eqPlot;
         juce::OwnedArray<FxKnob> knobs;
     };
@@ -780,88 +1050,107 @@ private:
     {
         RailButton (EffectsPage& page, int t) : owner (page), type (t)
         {
-            setMouseCursor (juce::MouseCursor::DraggingHandCursor);
+            on.setButtonText ("On");
+            on.setComponentID ("led");
+            on.onClick = [this]
+            {
+                if (on.getToggleState())
+                    owner.select (type);
+                owner.refresh();
+            };
+            addAndMakeVisible (on);
+            onAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+                owner.proc.apvts, ParamID::fxOnIds[type], on);
         }
 
         void setOn (bool v)
         {
-            if (on == v)
+            if (lit == v)
                 return;
-            on = v;
+            lit = v;
             repaint();
+        }
+
+        juce::Rectangle<int> gripBounds() const
+        {
+            return { 0, 0, kGripW, getHeight() };
         }
 
         void paint (juce::Graphics& g) override
         {
             auto r = getLocalBounds().toFloat();
-            g.setColour (on ? juce::Colour (0xff3a3a3a) : kKnob);
+            g.setColour (lit ? juce::Colour (0xff3a3a3a) : kKnob);
             g.fillRoundedRectangle (r, 4.f);
-            g.setColour (on ? kInk : kInk.withAlpha (0.45f));
-            g.drawRoundedRectangle (r.reduced (0.5f), 4.f, 1.f);
+            g.setColour (owner.selected == type ? kCream : (lit ? kInk : kInk.withAlpha (0.45f)));
+            g.drawRoundedRectangle (r.reduced (0.5f), 4.f, owner.selected == type ? 1.8f : 1.f);
 
-            const float led = 8.f;
-            g.setColour (on ? kLedOn : kLedOff);
-            g.fillEllipse (r.getX() + 5.f, r.getCentreY() - led * 0.5f, led, led);
+            auto grip = juce::Rectangle<float> ((float) kGripW, r.getHeight()).reduced (3.f, 6.f);
+            g.setColour (kCream.withAlpha (0.55f));
+            for (int row = 0; row < 3; ++row)
+                for (int col = 0; col < 2; ++col)
+                    g.fillEllipse (grip.getX() + (float) col * 5.f,
+                                   grip.getY() + (float) row * (grip.getHeight() / 3.f),
+                                   2.4f, 2.4f);
 
-            drawIcon (g, juce::Rectangle<float> (r.getRight() - 28.f, r.getY() + 4.f, 22.f, r.getHeight() - 8.f));
+            drawIcon (g, juce::Rectangle<float> (r.getRight() - 26.f, r.getY() + 4.f, 20.f, r.getHeight() - 8.f));
 
             g.setColour (kCream);
-            g.setFont (labelFont (11.f));
+            g.setFont (labelFont (10.f));
             g.drawFittedText (ParamID::fxNames[type],
-                              juce::Rectangle<int> ((int) r.getX() + 16, (int) r.getY(),
-                                                    (int) r.getWidth() - 42, (int) r.getHeight()),
+                              juce::Rectangle<int> (kGripW + 2, (int) r.getY() + 2,
+                                                    (int) r.getWidth() - kGripW - 48, (int) r.getHeight() / 2),
                               juce::Justification::centredLeft, 2);
         }
 
         void drawIcon (juce::Graphics& g, juce::Rectangle<float> box)
         {
-            g.setColour (kCream.withAlpha (on ? 1.f : 0.65f));
+            g.setColour (kCream.withAlpha (lit ? 1.f : 0.65f));
             juce::Path p;
             const float x = box.getX(), y = box.getY(), w = box.getWidth(), h = box.getHeight();
             switch (type)
             {
-                case 0: // overlapping ovals
+                case 0:
                     g.drawEllipse (x, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
                     g.drawEllipse (x + w * 0.22f, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
                     g.drawEllipse (x + w * 0.44f, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
                     break;
-                case 1: // compressor bars
+                case 1:
                     for (int i = 0; i < 4; ++i)
                     {
                         const float bh = h * (0.25f + 0.15f * (float) (i % 3));
                         g.fillRect (x + 3.f * (float) i, y + (h - bh) * 0.5f, 2.2f, bh);
                     }
                     break;
-                case 2: // delay taps
+                case 2:
                     for (int i = 0; i < 4; ++i)
                         g.fillRect (x + 4.f * (float) i, y + h * 0.2f, 2.f, h * (0.6f - 0.12f * (float) i));
                     break;
-                case 3: // diamond
+                case 3:
                     p.addTriangle (x + w * 0.5f, y + 2.f, x + w - 2.f, y + h * 0.5f, x + w * 0.5f, y + h - 2.f);
                     p.addTriangle (x + w * 0.5f, y + 2.f, x + 2.f, y + h * 0.5f, x + w * 0.5f, y + h - 2.f);
                     g.strokePath (p, juce::PathStrokeType (1.3f));
                     break;
-                case 4: // eq nodes
+                case 4:
                     g.drawLine (x, y + h * 0.6f, x + w, y + h * 0.45f, 1.3f);
                     g.fillEllipse (x + w * 0.2f - 2.f, y + h * 0.55f - 2.f, 4.f, 4.f);
                     g.fillEllipse (x + w * 0.55f - 2.f, y + h * 0.4f - 2.f, 4.f, 4.f);
                     break;
-                case 5: // filter hump
+                case 5:
                     p.startNewSubPath (x, y + h * 0.75f);
                     p.quadraticTo (x + w * 0.45f, y + 2.f, x + w, y + h * 0.7f);
                     g.strokePath (p, juce::PathStrokeType (1.4f));
                     break;
-                case 6: // comb
+                case 6:
                     for (int i = 0; i < 5; ++i)
                         g.drawLine (x + 3.5f * (float) i, y + h * 0.2f, x + 3.5f * (float) i, y + h * 0.8f, 1.2f);
                     break;
-                case 7: // sine
+                case 7:
                     p.startNewSubPath (x, y + h * 0.5f);
                     p.quadraticTo (x + w * 0.25f, y + 2.f, x + w * 0.5f, y + h * 0.5f);
                     p.quadraticTo (x + w * 0.75f, y + h - 2.f, x + w, y + h * 0.5f);
                     g.strokePath (p, juce::PathStrokeType (1.4f));
                     break;
-                case 8: // cube
+                case 8:
                     g.drawRect (x + 3.f, y + h * 0.3f, w * 0.55f, h * 0.5f, 1.2f);
                     g.drawLine (x + 3.f, y + h * 0.3f, x + 8.f, y + h * 0.15f, 1.2f);
                     g.drawLine (x + 3.f + w * 0.55f, y + h * 0.3f, x + 8.f + w * 0.55f, y + h * 0.15f, 1.2f);
@@ -872,21 +1161,34 @@ private:
             }
         }
 
+        void resized() override
+        {
+            auto r = getLocalBounds();
+            r.removeFromLeft (kGripW);
+            r.removeFromRight (24);
+            on.setBounds (r.removeFromBottom (18).reduced (2, 1));
+        }
+
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            gripDown = gripBounds().contains (e.getPosition());
+        }
+
         void mouseDrag (const juce::MouseEvent& e) override
         {
-            if (e.getDistanceFromDragStart() > 6)
+            if (gripDown && e.getDistanceFromDragStart() > 6)
                 if (auto* c = juce::DragAndDropContainer::findParentDragContainerFor (this))
                     c->startDragging ("fx:" + juce::String (type), this);
         }
 
         void mouseUp (const juce::MouseEvent& e) override
         {
+            const bool wasGrip = gripDown;
+            gripDown = false;
             if (! e.mouseWasClicked())
                 return;
-            auto* v = owner.proc.apvts.getRawParameterValue (ParamID::fxOnIds[type]);
-            const bool next = ! (v != nullptr && v->load() >= 0.5f);
-            owner.proc.setFxEnabled (type, next);
-            owner.refresh();
+            if (! wasGrip)
+                owner.select (type);
         }
 
         bool isInterestedInDragSource (const SourceDetails& d) override
@@ -905,7 +1207,10 @@ private:
 
         EffectsPage& owner;
         int type = 0;
-        bool on = false;
+        bool lit = false;
+        bool gripDown = false;
+        juce::ToggleButton on;
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> onAtt;
     };
 
     void layoutRail()
@@ -918,16 +1223,21 @@ private:
                                                 .reduced (3, 2));
     }
 
-    void layoutStack()
+    void layoutDetail()
     {
         const int w = juce::jmax (1, viewport.getWidth());
-        stack.setSize (w, juce::jmax (viewport.getHeight(), nVisible * kRowH));
-        int y = 0;
-        for (int i = 0; i < nVisible; ++i)
+        for (int t = 0; t < tew::fxCount; ++t)
+            rows[t]->setVisible (t == selected);
+        if (selected < 0)
         {
-            rows[visOrder[i]]->setBounds (0, y, w, kRowH);
-            y += kRowH;
+            stack.setSize (w, 1);
+            return;
         }
+        const int h = kVizH + rows[selected]->knobRows() * kKnobRowH + 16;
+        stack.setSize (w, juce::jmax (viewport.getHeight(), h));
+        rows[selected]->setBounds (0, 0, w, stack.getHeight());
+        rows[selected]->toFront (false);
+        rows[selected]->syncDelay();
     }
 
     TEW03AudioProcessor& proc;
@@ -936,10 +1246,11 @@ private:
     juce::OwnedArray<RailButton> rails;
     juce::OwnedArray<FxRow> rows;
     juce::Rectangle<int> railArea;
+    juce::Image logo;
     int railOrder[tew::fxCount] {};
     int nRail = 0;
-    int visOrder[tew::fxCount] {};
-    int nVisible = 0;
+    int selected = -1;
+    float vizPhase = 0.f;
 };
 
 inline const juce::Colour EffectsPage::kInk { 0xff111111 };
