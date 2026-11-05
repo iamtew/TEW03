@@ -846,7 +846,7 @@ void TEW03AudioProcessorEditor::PanelLnF::drawRotarySlider (juce::Graphics& g, i
     const auto c = area.getCentre();
     const float tickW = juce::jmax (1.f, d * 0.018f);
 
-    g.setColour (kChrome.withAlpha (0.75f));
+    g.setColour (kInk);
     constexpr int nTicks = 11;
     for (int i = 0; i < nTicks; ++i)
     {
