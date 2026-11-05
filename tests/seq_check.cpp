@@ -386,11 +386,16 @@ int main()
     assert (tew::newestNewerTag ({ "v0.0.3", "0.0.5", "v0.1.0" }, "0.0.4") == "v0.1.0");
     assert (tew::newestNewerTag ({ "v0.0.4", "v0.0.3" }, "0.0.4").empty());
 
-    assert (tew::factoryPatchCount == 10);
+    assert (tew::factoryPatchCount == 40);
+    for (int i = 0; i < tew::factoryFxParamCount; ++i)
+        assert (tew::factoryFxParams[i].id != nullptr);
+
     for (int i = 0; i < tew::factoryPatchCount; ++i)
     {
         const auto& v = tew::factoryPatches[i];
         assert (v.name != nullptr && v.name[0] != 0);
+        assert (v.category != nullptr && v.category[0] != 0);
+        assert (v.fxMask != 0);
         assert (v.cutoff >= 20.f && v.cutoff <= 8000.f);
         assert (v.resonance >= 0.f && v.resonance <= 1.f);
         assert (v.envMod >= 0.f && v.envMod <= 1.f);
@@ -408,8 +413,10 @@ int main()
         const auto xml = tew::factoryPatchXml (i);
         std::vector<tew::PatchParam> loaded;
         tew::LfoShape shapes[tew::numLfos];
-        assert (tew::readPatchXml (xml, loaded, shapes));
+        std::string fxOrd, cat;
+        assert (tew::readPatchXml (xml, loaded, shapes, &fxOrd, &cat));
         assert (shapes[0].presetIndex() == 0);
+        assert (cat == v.category);
         auto find = [&] (const char* id) {
             for (const auto& p : loaded)
                 if (p.id == id)
@@ -420,8 +427,13 @@ int main()
         assert (std::abs (find ("waveform") - v.waveform) < 1e-4f);
         assert (std::abs (find ("seqGate") - v.gate) < 1e-4f);
         assert (std::abs (find ("seqSwing") - v.swing) < 1e-4f);
-        assert (find ("fxChoOn") == 0.f);
+        assert (find ("fxChoOn") == ((v.fxMask & tew::fxBit (0)) ? 1.f : 0.f));
         assert (find ("cutoffLfo") == 0.f);
+        bool anyOn = false;
+        for (int t = 0; t < tew::fxCount; ++t)
+            if (find (ParamID::fxOnIds[t]) >= 0.5f)
+                anyOn = true;
+        assert (anyOn);
     }
 
     const double straight = 44100.0 * 60.0 / 120.0 / 4.0;

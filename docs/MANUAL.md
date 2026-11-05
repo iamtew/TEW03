@@ -141,7 +141,7 @@ Two libraries. Loading one does not overwrite the other.
 
 Files live in `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`. The title bars show the current names. The DAW session stores those names for recall.
 
-The first time the plugin runs it drops ten factory patches into that Patches folder (`01 Squelch` through `10 Open`). A file already there is left alone. Each one sets waveform, cutoff, resonance, env mod, decay, accent, drive, nasty, glide, gate, and swing, and turns effects off. Patterns are untouched.
+Launch writes forty factory patches into that Patches folder (`01 Squelch` through `40 Factory Floor`), overwriting those factory names so they pick up the current effects. Files you saved under other names stay. Each factory patch is a sound plus an effects chain, tagged with a category: **Acid**, **Bass**, **Lead**, **Space**, **Dirty**, or **Classic**. The patch bar shows `Acid  ·  01 Squelch`. The patch menu groups by those names; leftovers sit under **User**.
 
 Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then **Save**, **Save As…**, **Export…**, **Import…**. Arrows on the bar step through saved files. Init restores defaults / factory fills.
 
@@ -149,45 +149,45 @@ Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then *
 
 Click the page bar to **Effects**. The LFO lanes stay on the right. Everything is **off** until you enable it.
 
-Left rail: click a name to add that effect (turns it on and shows its row). Click again to bypass. Drag rows to reorder the chain. Order is stored with the patch.
+Left rail: **On** enables that effect. Click the rest of the box to select it — settings fill the whole panel between the rail and the LFO column. A six-dot handle on the left of each box drags the chain order. Order is stored with the patch. Nothing selected: the yellow field, the logo, and **Click an effect to add it**.
 
-The insert **Equalizer** is the same five-band parametric as Pre/Post, but it sits *in* the chain and moves with the other rows. Pre/Post sit around the whole chain and are edited on the EQ page.
+The insert **Equalizer** is the same five-band parametric as Pre/Post, but it sits *in* the chain. Pre/Post sit around the whole chain and are edited on the EQ page.
 
 ### Chorus
 
-Rate, Depth, Fb (feedback), Mix.
+Rate, Depth, Fb, Mix, Centre (1–20 ms), Width.
 
 ### Compressor
 
-Thresh (−40 to 0 dB), Ratio (1–20), Atk (0.1–100 ms), Rel (10–500 ms), Mix (100% = fully compressed).
+Thresh (−40 to 0 dB), Ratio (1–20), Atk (0.1–100 ms), Rel (10–500 ms), Mix, Makeup (−6 to +24 dB), Knee (0–12 dB), HPF on the detector (20–400 Hz). The meter is gain reduction.
 
 ### Delay
 
-**Sync** on: **Div** is 1/16, 1/8, 1/4, or 1/2 at tempo. **Sync** off: **Time** is free. Then Fb, Cut (damping in the feedback), Mix.
+**Sync** on: **Div** is 1/16, 1/8, 1/4, or 1/2 at tempo. **Sync** off: **Time** is free. Then Fb, Cut, Mix, Ping (cross-channel), HP in the feedback, Spread.
 
 ### Distortion
 
-Drive, Mix. Separate from the synth **Drive** knob; this is after the voice (position in the chain is yours).
+Type Soft / Hard / Fold / Rectify, Drive, Bias, Tone, Mix. Separate from the synth **Drive** knob.
 
 ### Equalizer
 
-Five bands. Click a band on the mini plot, then set Type, Freq, Gain, Q. Types match the EQ page: Off, Peak, Low S, High S, HP, LP.
+Five bands plus Trim. Click a band on the plot, then set Type, Freq, Gain, Q. Spectrum behind the curve is the post-FX FFT.
 
 ### Filter
 
-Type Low / Band / High, Cutoff (20–12000 Hz), Res, Mix. Extra filter in the FX chain, not the 303 ladder.
+Type Low / Band / High, Slope 12 / 24 dB, Cutoff (20–12000 Hz), Res, Drive, Mix. Extra filter in the FX chain, not the 303 ladder.
 
 ### Flanger
 
-Rate, Depth, Fb, Mix.
+Rate, Depth, Fb, Mix, Centre (0.5–8 ms), Width.
 
 ### Phaser
 
-Rate, Depth, Fb, Centre (200–4000 Hz), Mix.
+Rate, Depth, Fb, Centre (200–4000 Hz), Stages 2 / 4 / 6 / 8, Mix.
 
 ### Reverb
 
-Size, Damp, Width, Mix.
+Size, Damp, Width, Mix, Predelay (0–200 ms), Freeze, Lo Cut.
 
 ## EQ
 

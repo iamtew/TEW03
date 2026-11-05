@@ -32,6 +32,7 @@ const juce::Identifier kPt { "PT" };
 const juce::Identifier kX { "x" };
 const juce::Identifier kY { "y" };
 const juce::Identifier kFxOrder { "FX_ORDER" };
+const juce::Identifier kPatchCat { "PATCH_CAT" };
 constexpr const char* kInitPatch = "Init Patch";
 constexpr const char* kInitBank = "Init Bank";
 constexpr const char* kPatchExt = ".tew3p";
@@ -932,13 +933,10 @@ juce::File TEW03AudioProcessor::patchesDir() const
 
 void seedFactoryPatches()
 {
-    // First launch only. A file already saved under that name stays as the Meat Bag left it.
     const auto dir = ensureDir (libraryRoot().getChildFile ("Patches"));
     for (int i = 0; i < tew::factoryPatchCount; ++i)
     {
         const auto file = dir.getChildFile (juce::String (tew::factoryPatches[i].name) + kPatchExt);
-        if (file.existsAsFile())
-            continue;
         writeText (file, tew::factoryPatchXml (i));
     }
 }
@@ -961,6 +959,14 @@ juce::StringArray TEW03AudioProcessor::bankNames() const
 juce::String TEW03AudioProcessor::patchName() const
 {
     return apvts.state.getProperty (kPatchName, kInitPatch).toString();
+}
+
+juce::String TEW03AudioProcessor::patchCategory() const
+{
+    const auto cat = apvts.state.getProperty (kPatchCat, "").toString();
+    if (cat.isNotEmpty())
+        return cat;
+    return tew::factoryCategoryForName (patchName().toRawUTF8());
 }
 
 juce::String TEW03AudioProcessor::bankName() const
@@ -994,6 +1000,15 @@ void TEW03AudioProcessor::applyBankSteps (const tew::Sequencer::Step src[tew::Se
 
 void TEW03AudioProcessor::applyPatchParams (const std::vector<tew::PatchParam>& params)
 {
+    for (auto* base : getParameters())
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (base);
+        if (param == nullptr || ! tew::storeInPatch (param->getParameterID().toStdString().c_str()))
+            continue;
+        param->beginChangeGesture();
+        param->setValueNotifyingHost (param->getDefaultValue());
+        param->endChangeGesture();
+    }
     for (const auto& p : params)
     {
         auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (p.id));
@@ -1036,6 +1051,7 @@ void TEW03AudioProcessor::initPatch()
     syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
     resetLfoShapes();
     apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
+    apvts.state.setProperty (kPatchCat, {}, nullptr);
     publishFxOrder (nullptr, 0);
 }
 
@@ -1054,7 +1070,8 @@ bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::Stri
     std::vector<tew::PatchParam> params;
     tew::LfoShape shapes[tew::numLfos];
     std::string fxOrd;
-    if (! tew::readPatchXml (readText (src), params, shapes, &fxOrd))
+    std::string cat;
+    if (! tew::readPatchXml (readText (src), params, shapes, &fxOrd, &cat))
         return false;
     applyPatchParams (params);
     for (int i = 0; i < tew::numLfos; ++i)
@@ -1063,6 +1080,9 @@ bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::Stri
     const int n = tew::parseFxOrder (fxOrd.c_str(), types);
     publishFxOrder (types, n);
     apvts.state.setProperty (kPatchName, shownName, nullptr);
+    if (cat.empty())
+        cat = tew::factoryCategoryForName (shownName.toRawUTF8());
+    apvts.state.setProperty (kPatchCat, juce::String (cat), nullptr);
     return true;
 }
 
@@ -1103,11 +1123,16 @@ bool TEW03AudioProcessor::savePatchAs (const juce::String& name)
     const auto stem = legalStem (name);
     if (stem.isEmpty() || stem == kInitPatch)
         return false;
+    auto cat = apvts.state.getProperty (kPatchCat, "").toString();
+    if (cat.isEmpty())
+        cat = tew::factoryCategoryForName (stem.toRawUTF8());
     if (! writeText (patchesDir().getChildFile (stem + kPatchExt),
                      tew::writePatchXml (currentPatchParams(), uiLfo,
-                                         fxOrderXml (fxOrder.load (std::memory_order_relaxed)))))
+                                         fxOrderXml (fxOrder.load (std::memory_order_relaxed)),
+                                         cat.toStdString())))
         return false;
     apvts.state.setProperty (kPatchName, stem, nullptr);
+    apvts.state.setProperty (kPatchCat, cat, nullptr);
     return true;
 }
 
@@ -1145,8 +1170,12 @@ bool TEW03AudioProcessor::exportPatch (const juce::File& dest)
     auto file = dest;
     if (! file.hasFileExtension ("tew3p"))
         file = file.withFileExtension ("tew3p");
+    auto cat = apvts.state.getProperty (kPatchCat, "").toString();
+    if (cat.isEmpty())
+        cat = tew::factoryCategoryForName (patchName().toRawUTF8());
     return writeText (file, tew::writePatchXml (currentPatchParams(), uiLfo,
-                                               fxOrderXml (fxOrder.load (std::memory_order_relaxed))));
+                                               fxOrderXml (fxOrder.load (std::memory_order_relaxed)),
+                                               cat.toStdString()));
 }
 
 bool TEW03AudioProcessor::exportBank (const juce::File& dest)

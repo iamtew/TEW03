@@ -1,7 +1,9 @@
 #include "PluginEditor.h"
+#include "parameters/FactoryPatches.h"
 #include "ui/VersionCompare.h"
 
 #include <cmath>
+#include <cstring>
 #include <thread>
 #include <vector>
 
@@ -2500,7 +2502,11 @@ void TEW03AudioProcessorEditor::setDestAmt (int dest, float amount)
 
 void TEW03AudioProcessorEditor::refreshLibraryNames()
 {
-    patchBar.setText (proc.patchName());
+    const auto name = proc.patchName();
+    if (name == "Init Patch")
+        patchBar.setText (name);
+    else
+        patchBar.setText (proc.patchCategory() + "  ·  " + name);
     bankLibBar.setText (proc.bankName());
 }
 
@@ -2607,12 +2613,43 @@ enum
 };
 
 void fillLibraryMenu (juce::PopupMenu& m, const juce::StringArray& names,
-                      const juce::String& current, const juce::String& initLabel)
+                      const juce::String& current, const juce::String& initLabel,
+                      bool groupPatches)
 {
     m.addItem (kMenuInit, initLabel, true, current == initLabel);
     m.addSeparator();
-    for (int i = 0; i < names.size(); ++i)
-        m.addItem (kMenuFiles + i, names[i], true, names[i] == current);
+    if (! groupPatches)
+    {
+        for (int i = 0; i < names.size(); ++i)
+            m.addItem (kMenuFiles + i, names[i], true, names[i] == current);
+    }
+    else
+    {
+        static const char* cats[] = { "Acid", "Bass", "Lead", "Space", "Dirty", "Classic" };
+        std::vector<char> used ((size_t) names.size(), 0);
+        for (const char* cat : cats)
+        {
+            juce::PopupMenu sub;
+            for (int i = 0; i < names.size(); ++i)
+            {
+                if (std::strcmp (tew::factoryCategoryForName (names[i].toRawUTF8()), cat) != 0)
+                    continue;
+                sub.addItem (kMenuFiles + i, names[i], true, names[i] == current);
+                used[(size_t) i] = 1;
+            }
+            if (sub.getNumItems() > 0)
+                m.addSubMenu (cat, sub);
+        }
+        juce::PopupMenu user;
+        for (int i = 0; i < names.size(); ++i)
+        {
+            if (used[(size_t) i])
+                continue;
+            user.addItem (kMenuFiles + i, names[i], true, names[i] == current);
+        }
+        if (user.getNumItems() > 0)
+            m.addSubMenu ("User", user);
+    }
     m.addSeparator();
     m.addItem (kMenuSave, "Save");
     m.addItem (kMenuSaveAs, "Save As...");
@@ -2694,7 +2731,7 @@ void TEW03AudioProcessorEditor::openPatchMenu()
 {
     juce::PopupMenu m;
     const auto names = proc.patchNames();
-    fillLibraryMenu (m, names, proc.patchName(), "Init Patch");
+    fillLibraryMenu (m, names, proc.patchName(), "Init Patch", true);
 
     juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (patchBar),
@@ -2731,7 +2768,7 @@ void TEW03AudioProcessorEditor::openBankMenu()
 {
     juce::PopupMenu m;
     const auto names = proc.bankNames();
-    fillLibraryMenu (m, names, proc.bankName(), "Init Bank");
+    fillLibraryMenu (m, names, proc.bankName(), "Init Bank", false);
 
     juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (bankLibBar),

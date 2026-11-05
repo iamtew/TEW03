@@ -112,9 +112,17 @@ inline void readLfoXml (const std::string& xml, LfoShape out[numLfos])
 
 inline std::string writePatchXml (const std::vector<PatchParam>& params,
                                   const LfoShape shapes[numLfos],
-                                  const std::string& fxOrder = {})
+                                  const std::string& fxOrder = {},
+                                  const std::string& category = {})
 {
-    std::string o = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TEW03PATCH>\n";
+    std::string o = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TEW03PATCH";
+    if (! category.empty())
+    {
+        o += " cat=\"";
+        o += category;
+        o += "\"";
+    }
+    o += ">\n";
     for (const auto& p : params)
     {
         if (! storeInPatch (p.id.c_str()))
@@ -143,7 +151,8 @@ inline std::string writePatchXml (const std::vector<PatchParam>& params)
 }
 
 inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out,
-                          LfoShape shapes[numLfos], std::string* fxOrder = nullptr)
+                          LfoShape shapes[numLfos], std::string* fxOrder = nullptr,
+                          std::string* category = nullptr)
 {
     if (xml.find ("<TEW03PATCH") == std::string::npos)
         return false;
@@ -151,6 +160,16 @@ inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out,
     out.clear();
     if (fxOrder != nullptr)
         fxOrder->clear();
+    if (category != nullptr)
+    {
+        category->clear();
+        const auto tagEnd = xml.find ('>', xml.find ("<TEW03PATCH"));
+        if (tagEnd != std::string::npos)
+        {
+            const auto tag = xml.substr (0, tagEnd);
+            readXmlAttr (tag, "cat", *category);
+        }
+    }
     std::size_t pos = 0;
     while ((pos = xml.find ("<PARAM", pos)) != std::string::npos)
     {
