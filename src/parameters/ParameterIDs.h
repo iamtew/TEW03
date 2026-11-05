@@ -108,12 +108,17 @@ namespace ParamID
     inline constexpr const char* fxChoDepth = "fxChoDepth";
     inline constexpr const char* fxChoMix = "fxChoMix";
     inline constexpr const char* fxChoFb = "fxChoFb";
+    inline constexpr const char* fxChoCentre = "fxChoCentre";
+    inline constexpr const char* fxChoWidth = "fxChoWidth";
 
     inline constexpr const char* fxCmpThr = "fxCmpThr";
     inline constexpr const char* fxCmpRat = "fxCmpRat";
     inline constexpr const char* fxCmpAtk = "fxCmpAtk";
     inline constexpr const char* fxCmpRel = "fxCmpRel";
     inline constexpr const char* fxCmpMix = "fxCmpMix";
+    inline constexpr const char* fxCmpMake = "fxCmpMake";
+    inline constexpr const char* fxCmpKnee = "fxCmpKnee";
+    inline constexpr const char* fxCmpHpf = "fxCmpHpf";
 
     inline constexpr const char* fxDlyTime = "fxDlyTime";
     inline constexpr const char* fxDlyFb = "fxDlyFb";
@@ -121,30 +126,44 @@ namespace ParamID
     inline constexpr const char* fxDlyCut = "fxDlyCut";
     inline constexpr const char* fxDlySync = "fxDlySync";
     inline constexpr const char* fxDlyDiv = "fxDlyDiv";
+    inline constexpr const char* fxDlyPing = "fxDlyPing";
+    inline constexpr const char* fxDlyHp = "fxDlyHp";
+    inline constexpr const char* fxDlySpread = "fxDlySpread";
 
     inline constexpr const char* fxDstDrive = "fxDstDrive";
     inline constexpr const char* fxDstMix = "fxDstMix";
+    inline constexpr const char* fxDstType = "fxDstType";
+    inline constexpr const char* fxDstTone = "fxDstTone";
+    inline constexpr const char* fxDstBias = "fxDstBias";
 
     inline constexpr const char* fxFltCut = "fxFltCut";
     inline constexpr const char* fxFltRes = "fxFltRes";
     inline constexpr const char* fxFltMix = "fxFltMix";
     inline constexpr const char* fxFltType = "fxFltType";
+    inline constexpr const char* fxFltDrive = "fxFltDrive";
+    inline constexpr const char* fxFltSlope = "fxFltSlope";
 
     inline constexpr const char* fxFlaRate = "fxFlaRate";
     inline constexpr const char* fxFlaDepth = "fxFlaDepth";
     inline constexpr const char* fxFlaFb = "fxFlaFb";
     inline constexpr const char* fxFlaMix = "fxFlaMix";
+    inline constexpr const char* fxFlaCentre = "fxFlaCentre";
+    inline constexpr const char* fxFlaWidth = "fxFlaWidth";
 
     inline constexpr const char* fxPhaRate = "fxPhaRate";
     inline constexpr const char* fxPhaDepth = "fxPhaDepth";
     inline constexpr const char* fxPhaFb = "fxPhaFb";
     inline constexpr const char* fxPhaMix = "fxPhaMix";
     inline constexpr const char* fxPhaCentre = "fxPhaCentre";
+    inline constexpr const char* fxPhaStages = "fxPhaStages";
 
     inline constexpr const char* fxRevSize = "fxRevSize";
     inline constexpr const char* fxRevDamp = "fxRevDamp";
     inline constexpr const char* fxRevMix = "fxRevMix";
     inline constexpr const char* fxRevWidth = "fxRevWidth";
+    inline constexpr const char* fxRevPre = "fxRevPre";
+    inline constexpr const char* fxRevFreeze = "fxRevFreeze";
+    inline constexpr const char* fxRevLo = "fxRevLo";
 
     inline constexpr int eqBandCount = 5;
     inline constexpr const char* fxEqType[eqBandCount] = {
@@ -159,6 +178,7 @@ namespace ParamID
     inline constexpr const char* fxEqQ[eqBandCount] = {
         "fxEq1Q", "fxEq2Q", "fxEq3Q", "fxEq4Q", "fxEq5Q"
     };
+    inline constexpr const char* fxEqTrim = "fxEqTrim";
     inline constexpr const char* preEqOn = "preEqOn";
     inline constexpr const char* postEqOn = "postEqOn";
     inline constexpr const char* preEqType[eqBandCount] = {
@@ -197,20 +217,25 @@ namespace ParamID
 #define TEW_FXMOD(lit) { lit, lit "Lfo", lit "LfoAmt" }
     inline constexpr FxModSlot fxMods[] = {
         TEW_FXMOD ("fxChoRate"), TEW_FXMOD ("fxChoDepth"), TEW_FXMOD ("fxChoFb"), TEW_FXMOD ("fxChoMix"),
+        TEW_FXMOD ("fxChoCentre"), TEW_FXMOD ("fxChoWidth"),
         TEW_FXMOD ("fxCmpThr"), TEW_FXMOD ("fxCmpRat"), TEW_FXMOD ("fxCmpAtk"), TEW_FXMOD ("fxCmpRel"),
-        TEW_FXMOD ("fxCmpMix"),
+        TEW_FXMOD ("fxCmpMix"), TEW_FXMOD ("fxCmpMake"), TEW_FXMOD ("fxCmpKnee"), TEW_FXMOD ("fxCmpHpf"),
         TEW_FXMOD ("fxDlyTime"), TEW_FXMOD ("fxDlyFb"), TEW_FXMOD ("fxDlyCut"), TEW_FXMOD ("fxDlyMix"),
-        TEW_FXMOD ("fxDstDrive"), TEW_FXMOD ("fxDstMix"),
+        TEW_FXMOD ("fxDlyHp"), TEW_FXMOD ("fxDlySpread"),
+        TEW_FXMOD ("fxDstDrive"), TEW_FXMOD ("fxDstMix"), TEW_FXMOD ("fxDstTone"), TEW_FXMOD ("fxDstBias"),
         TEW_FXMOD ("fxEq1Freq"), TEW_FXMOD ("fxEq1Gain"), TEW_FXMOD ("fxEq1Q"),
         TEW_FXMOD ("fxEq2Freq"), TEW_FXMOD ("fxEq2Gain"), TEW_FXMOD ("fxEq2Q"),
         TEW_FXMOD ("fxEq3Freq"), TEW_FXMOD ("fxEq3Gain"), TEW_FXMOD ("fxEq3Q"),
         TEW_FXMOD ("fxEq4Freq"), TEW_FXMOD ("fxEq4Gain"), TEW_FXMOD ("fxEq4Q"),
         TEW_FXMOD ("fxEq5Freq"), TEW_FXMOD ("fxEq5Gain"), TEW_FXMOD ("fxEq5Q"),
-        TEW_FXMOD ("fxFltCut"), TEW_FXMOD ("fxFltRes"), TEW_FXMOD ("fxFltMix"),
+        TEW_FXMOD ("fxEqTrim"),
+        TEW_FXMOD ("fxFltCut"), TEW_FXMOD ("fxFltRes"), TEW_FXMOD ("fxFltMix"), TEW_FXMOD ("fxFltDrive"),
         TEW_FXMOD ("fxFlaRate"), TEW_FXMOD ("fxFlaDepth"), TEW_FXMOD ("fxFlaFb"), TEW_FXMOD ("fxFlaMix"),
+        TEW_FXMOD ("fxFlaCentre"), TEW_FXMOD ("fxFlaWidth"),
         TEW_FXMOD ("fxPhaRate"), TEW_FXMOD ("fxPhaDepth"), TEW_FXMOD ("fxPhaFb"),
         TEW_FXMOD ("fxPhaCentre"), TEW_FXMOD ("fxPhaMix"),
         TEW_FXMOD ("fxRevSize"), TEW_FXMOD ("fxRevDamp"), TEW_FXMOD ("fxRevWidth"), TEW_FXMOD ("fxRevMix"),
+        TEW_FXMOD ("fxRevPre"), TEW_FXMOD ("fxRevLo"),
     };
 #undef TEW_FXMOD
 

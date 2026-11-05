@@ -72,12 +72,14 @@ public:
     std::uint64_t fxOrderPacked() const { return fxOrder.load (std::memory_order_relaxed); }
     tew::EqAnalyser& eqAnalyser() { return eqScope; }
     tew::OutputMeter& outputMeter() { return outMeter; }
+    float fxCompGrDb() const { return fx.gainReductionDb(); }
 
     juce::File patchesDir() const;
     juce::File banksDir() const;
     juce::StringArray patchNames() const;
     juce::StringArray bankNames() const;
     juce::String patchName() const;
+    juce::String patchCategory() const;
     juce::String bankName() const;
     void initPatch();
     void initBank();
