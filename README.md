@@ -20,7 +20,7 @@ The `dist` artifact holds:
 
 - `TEW03-<version>-win-x64-vst3.zip`
 - `TEW03-<version>-win-x64-standalone.zip`
-- `TEW03-<version>-win-x64.msi`
+- `TEW03-<version>-win-x64-installer.msi`
 - `TEW03-<version>-linux-x64-vst3.zip`
 - `TEW03-<version>-linux-x64-standalone.zip`
 - `TEW03-<version>-mac-universal-vst3.zip`
