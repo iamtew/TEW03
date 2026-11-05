@@ -220,6 +220,27 @@ int main()
     wrap16.advance (stepSamples, 120.f, true, ev, 8);
     assert (wrap16.playhead() == 0);
 
+    Sequencer shortSeq;
+    shortSeq.prepare (44100.0);
+    shortSeq.loadAll (steps);
+    shortSeq.setLength (5);
+    assert (shortSeq.length() == 5);
+    shortSeq.advance (1, 120.f, true, ev, 8);
+    for (int i = 0; i < 4; ++i)
+        shortSeq.advance (stepSamples, 120.f, true, ev, 8);
+    assert (shortSeq.playhead() == 4);
+    shortSeq.advance (stepSamples, 120.f, true, ev, 8);
+    assert (shortSeq.playhead() == 0);
+
+    Sequencer split5;
+    split5.prepare (44100.0);
+    split5.loadAll (steps);
+    split5.setLength (5);
+    split5.reshapeTo (Sequencer::maxSteps);
+    assert (split5.length() == 10);
+    split5.reshapeTo (Sequencer::numSteps);
+    assert (split5.length() == 5);
+
     Sequencer split;
     split.prepare (44100.0);
     split.loadAll (steps);
@@ -277,18 +298,35 @@ int main()
             Sequencer::fillSlot (banks[b][p], b, p);
     banks[2][11][31] = { 48, true, true, true };
 
-    const auto bankXml = tew::writeBankXml (banks);
+    int bankLens[Sequencer::numBanks][Sequencer::patternsPerBank];
+    for (int b = 0; b < Sequencer::numBanks; ++b)
+        for (int p = 0; p < Sequencer::patternsPerBank; ++p)
+            bankLens[b][p] = Sequencer::numSteps;
+    bankLens[2][11] = 7;
+
+    const auto bankXml = tew::writeBankXml (banks, bankLens);
     assert (bankXml.find ("TEW03BANK") != std::string::npos);
     assert (bankXml.find ("seqBank") == std::string::npos);
+    assert (bankXml.find ("len=\"7\"") != std::string::npos);
 
     tew::Sequencer::Step bankLoaded[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps];
-    assert (tew::readBankXml (bankXml, bankLoaded));
+    int loadedLens[Sequencer::numBanks][Sequencer::patternsPerBank];
+    assert (tew::readBankXml (bankXml, bankLoaded, loadedLens));
     assert (bankLoaded[0][0][0].note == banks[0][0][0].note);
     assert (bankLoaded[2][11][31].note == 48);
     assert (bankLoaded[2][11][31].accent);
     assert (bankLoaded[2][11][31].slide);
     assert (bankLoaded[2][11][31].superSlide);
+    assert (loadedLens[2][11] == 7);
+    assert (loadedLens[0][0] == Sequencer::numSteps);
     assert (! tew::readBankXml (patchXml, bankLoaded));
+
+    tew::Sequencer::Step oldBank[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps];
+    int oldLens[Sequencer::numBanks][Sequencer::patternsPerBank];
+    const char* oldXml = "<?xml version=\"1.0\"?><TEW03BANK><STEP b=\"0\" p=\"0\" i=\"0\" note=\"40\"/></TEW03BANK>";
+    assert (tew::readBankXml (oldXml, oldBank, oldLens));
+    assert (oldBank[0][0][0].note == 40);
+    assert (oldLens[0][0] == Sequencer::numSteps);
 
     tew::LfoShape tri;
     tri.setTriangle();

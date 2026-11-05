@@ -639,6 +639,17 @@ void TEW03AudioProcessorEditor::PianoRoll::paint (juce::Graphics& g)
         }
         g.restoreState();
     }
+
+    const int loop = proc.getSequencer().length();
+    if (loop < geo.cols)
+    {
+        auto dead = juce::Rectangle<float> (geo.grid.getX() + (float) loop * geo.colW,
+                                            geo.grid.getY(),
+                                            geo.colW * (float) (geo.cols - loop),
+                                            geo.rowH * (float) geo.rows);
+        g.setColour (juce::Colours::black.withAlpha (0.45f));
+        g.fillRect (dead);
+    }
 }
 
 void TEW03AudioProcessorEditor::PianoRoll::mouseDown (const juce::MouseEvent& e)
@@ -760,7 +771,7 @@ void TEW03AudioProcessorEditor::PianoRoll::mouseWheelMove (const juce::MouseEven
 }
 
 TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int stepIndex, juce::Component& rollToRepaint)
-    : roll (rollToRepaint), index (stepIndex)
+    : proc (p), roll (rollToRepaint), index (stepIndex)
 {
     addAndMakeVisible (accent);
     addAndMakeVisible (slide);
@@ -804,6 +815,11 @@ TEW03AudioProcessorEditor::StepColumn::StepColumn (TEW03AudioProcessor& p, int s
 
 void TEW03AudioProcessorEditor::StepColumn::paint (juce::Graphics& g)
 {
+    if (index >= proc.getSequencer().length())
+    {
+        g.setColour (juce::Colours::black.withAlpha (0.45f));
+        g.fillRect (getLocalBounds());
+    }
     auto led = getLocalBounds().removeFromTop (kLedH).toFloat();
     g.setColour (lit ? kLedOn : kLedOff);
     g.fillEllipse (led.withSizeKeepingCentre (8.f, 8.f));
@@ -1958,9 +1974,17 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
         proc.syncSeqLength (x2Btn.getToggleState());
         for (int i = 0; i < steps.size(); ++i)
             steps[i]->syncFrom (proc);
+        lastLen = -1;
+        refreshLen();
         layoutContent();
         pianoRoll.repaint();
     };
+
+    lenBar.setTooltip ("Last step. Unused columns stay in memory.");
+    lenBar.onStep = [this] (int d) { cycleLength (d); };
+    lenBar.onOpen = [this] { openLengthMenu(); };
+    content.addAndMakeVisible (lenBar);
+    lenBar.setText (juce::String (proc.currentLength()));
 
     randomBtn.setClickingTogglesState (false);
     randomBtn.setComponentID ("plain");
@@ -2203,6 +2227,7 @@ void TEW03AudioProcessorEditor::layoutContent()
     clearBtn.setBounds (lock.removeFromRight (56).reduced (0, 1));
     randomBtn.setBounds (lock.removeFromRight (68).reduced (0, 1));
     x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
+    lenBar.setBounds (lock.removeFromRight (64).reduced (1, 1));
 
     const int clusterW = 36 + 48 + 28 + 88;
     auto mid = lock.withSizeKeepingCentre (juce::jmin (clusterW, lock.getWidth()), lock.getHeight());
@@ -2372,6 +2397,7 @@ void TEW03AudioProcessorEditor::timerCallback()
     refreshPlayhead();
     refreshHostTempo();
     refreshSlot();
+    refreshLen();
     refreshLibraryNames();
     refreshLfo();
     volumeStrip.refresh();
@@ -2508,6 +2534,51 @@ void TEW03AudioProcessorEditor::refreshLibraryNames()
     else
         patchBar.setText (proc.patchCategory() + "  ·  " + name);
     bankLibBar.setText (proc.bankName());
+}
+
+void TEW03AudioProcessorEditor::refreshLen()
+{
+    const int n = proc.currentLength();
+    lenBar.setText (juce::String (n));
+    if (n == lastLen)
+        return;
+    lastLen = n;
+    pianoRoll.repaint();
+    for (int i = 0; i < steps.size(); ++i)
+        steps[i]->repaint();
+}
+
+void TEW03AudioProcessorEditor::cycleLength (int delta)
+{
+    const int max = gridSteps (proc);
+    int n = proc.currentLength() + delta;
+    if (n < 1)
+        n = max;
+    else if (n > max)
+        n = 1;
+    proc.setCurrentLength (n);
+    lastLen = -1;
+    refreshLen();
+}
+
+void TEW03AudioProcessorEditor::openLengthMenu()
+{
+    juce::PopupMenu m;
+    const int max = gridSteps (proc);
+    const int cur = proc.currentLength();
+    for (int i = 1; i <= max; ++i)
+        m.addItem (i, juce::String (i), true, i == cur);
+
+    juce::Component::SafePointer<TEW03AudioProcessorEditor> safe (this);
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (lenBar),
+                     [safe] (int result)
+                     {
+                         if (safe == nullptr || result <= 0)
+                             return;
+                         safe->proc.setCurrentLength (result);
+                         safe->lastLen = -1;
+                         safe->refreshLen();
+                     });
 }
 
 void TEW03AudioProcessorEditor::cyclePattern (int delta)
@@ -2707,6 +2778,7 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (scaleBox);
     vis (bankBox);
     vis (x2Btn);
+    vis (lenBar);
     vis (randomBtn);
     vis (clearBtn);
     vis (shiftUpBtn);

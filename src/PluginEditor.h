@@ -51,6 +51,9 @@ private:
     void cyclePatch (int delta);
     void cycleBank (int delta);
     void cyclePattern (int delta);
+    void cycleLength (int delta);
+    void openLengthMenu();
+    void refreshLen();
     void chooseSaveAs (bool patch);
     void chooseExport (bool patch);
     void chooseImport (bool patch);
@@ -103,6 +106,7 @@ private:
         void setLit (bool on);
         void syncFrom (TEW03AudioProcessor& p);
 
+        TEW03AudioProcessor& proc;
         juce::Component& roll;
         juce::ToggleButton accent { "A" };
         juce::ToggleButton slide { "S" };
@@ -305,7 +309,7 @@ private:
     juce::ToggleButton runBtn { "Run" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
-    SlotBar patchBar, bankLibBar, patBar, pageBar;
+    SlotBar patchBar, bankLibBar, patBar, pageBar, lenBar;
     VolumeStrip volumeStrip { *this };
     AboutBox aboutBox;
     EffectsPage effectsPage;
@@ -323,6 +327,7 @@ private:
     int lastPlayhead = -1;
     int lastBank = -1;
     int lastPattern = -1;
+    int lastLen = -1;
 
     juce::OwnedArray<LfoLane> lfoLanes;
 

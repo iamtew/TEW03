@@ -61,7 +61,8 @@ Factory default: the standalone app opens in **Standalone** with **Run** off; in
 - **Run** — play / pause the sequencer.
 - **Tempo** — 40–300 BPM. In a DAW the host BPM wins when the playhead reports one. Standalone (and hosts with no BPM) use this knob. LFOs and delay sync use the same tempo.
 - **Swing** — delays every offbeat step. 0% is straight. 100% delays the offbeat by 60% of a step; the next downbeat lands back on the grid. With **2x** on, that grid is 32nd notes.
-- **2x** — splits each step in half (16 sixteenths vs 32 thirty-seconds). Global for the live pattern length, not a per-step flag.
+- **2x** — splits each step in half (16 sixteenths vs 32 thirty-seconds). Global grid, not a per-step flag. Last step doubles or halves with it.
+- **Len** — last step (1–16, or 1–32 with **2x**). The loop wraps there. Columns after Len stay in the pattern but do not play; drawing on them extends Len. Per pattern, saved with the bank.
 - **Bank** — pattern bank 1–3.
 - **Pat** — pattern 1–12 in that bank. Click the number for a menu, arrows to step.
 - **Key** / **Scale** — root (C–B) and Major / Minor. Used when **Lock** is on.

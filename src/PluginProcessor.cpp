@@ -24,6 +24,7 @@ const juce::Identifier kNote { "note" };
 const juce::Identifier kAccent { "accent" };
 const juce::Identifier kSlide { "slide" };
 const juce::Identifier kSuperSlide { "superSlide" };
+const juce::Identifier kLength { "length" };
 const juce::Identifier kPatchName { "PATCH_NAME" };
 const juce::Identifier kBankName { "BANK_NAME" };
 const juce::Identifier kLfos { "LFOS" };
@@ -151,6 +152,7 @@ TEW03AudioProcessor::TEW03AudioProcessor()
             tew::Sequencer::fillSlot (slot, b, p);
             for (int s = 0; s < tew::Sequencer::maxSteps; ++s)
                 patterns[b][p][s].store (tew::Sequencer::pack (slot[s]), std::memory_order_relaxed);
+            patternLen[b][p].store (tew::Sequencer::numSteps, std::memory_order_relaxed);
         }
 
     apvts.addParameterListener (ParamID::seqBank, this);
@@ -237,7 +239,15 @@ std::atomic<uint32_t>* TEW03AudioProcessor::slotPacked (int bank, int pat)
 
 void TEW03AudioProcessor::loadLiveFromSlot()
 {
-    sequencer.loadPacked (slotPacked (currentBank(), currentPattern()));
+    const int bank = currentBank();
+    const int pat = currentPattern();
+    const bool doubled = raw (ParamID::seq2x) >= 0.5f;
+    sequencer.loadPacked (slotPacked (bank, pat));
+    sequencer.setGrid (doubled);
+    const int len = tew::Sequencer::clampLength (
+        patternLen[bank][pat].load (std::memory_order_relaxed), doubled);
+    patternLen[bank][pat].store (len, std::memory_order_relaxed);
+    sequencer.setLength (len);
 }
 
 void TEW03AudioProcessor::storeLiveToSlot()
@@ -346,8 +356,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // Wheel still works while the sequencer owns the notes.
     tew::MidiHandler::applyPitchBend (midi, engine.getVoice());
 
-    sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
-                                                     : tew::Sequencer::numSteps);
+    sequencer.setGrid (raw (ParamID::seq2x) >= 0.5f);
     sequencer.setGroove (raw (ParamID::seqGate), raw (ParamID::seqSwing));
     sequencer.setKeyFilter (raw (ParamID::seqKeyLock) >= 0.5f,
                             juce::roundToInt (raw (ParamID::seqKey)),
@@ -763,6 +772,12 @@ void TEW03AudioProcessor::loadBanksFromState()
                 }
                 patterns[b][p][i].store (tew::Sequencer::pack (step), std::memory_order_relaxed);
             }
+
+            const int len = tew::Sequencer::clampLength (
+                (int) patTree.getProperty (kLength, tew::Sequencer::numSteps), true);
+            patternLen[b][p].store (len, std::memory_order_relaxed);
+            if (! patTree.hasProperty (kLength))
+                patTree.setProperty (kLength, tew::Sequencer::numSteps, nullptr);
         }
     }
 
@@ -775,8 +790,6 @@ void TEW03AudioProcessor::loadBanksFromState()
     curPattern.store (juce::jlimit (0, tew::Sequencer::patternsPerBank - 1,
                                     (int) raw (ParamID::seqPattern)),
                      std::memory_order_relaxed);
-    sequencer.setLength (raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
-                                                     : tew::Sequencer::numSteps);
     loadLiveFromSlot();
 }
 
@@ -826,6 +839,9 @@ void TEW03AudioProcessor::writeBanksToState()
                     child.setProperty (kSuperSlide, step.superSlide, nullptr);
                 }
             }
+            patTree.setProperty (kLength,
+                                 patternLen[b][p].load (std::memory_order_relaxed),
+                                 nullptr);
         }
     }
 }
@@ -860,6 +876,16 @@ void TEW03AudioProcessor::writeStepToState (int bank, int pat, int index, tew::S
     child.setProperty (kSuperSlide, step.superSlide, nullptr);
 }
 
+void TEW03AudioProcessor::writeLengthToState (int bank, int pat, int len)
+{
+    auto banks = apvts.state.getChildWithName (kBanks);
+    auto bankTree = banks.isValid() ? findChildByIndex (banks, kBank, bank) : juce::ValueTree();
+    auto patTree = bankTree.isValid() ? findChildByIndex (bankTree, kPattern, pat) : juce::ValueTree();
+    if (! patTree.isValid())
+        return;
+    patTree.setProperty (kLength, len, nullptr);
+}
+
 void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
 {
     sequencer.setStep (index, step);
@@ -867,6 +893,24 @@ void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
     const int pat = currentPattern();
     patterns[bank][pat][index].store (tew::Sequencer::pack (step), std::memory_order_relaxed);
     writeStepToState (bank, pat, index, step);
+    if (index >= sequencer.length())
+        setCurrentLength (index + 1);
+}
+
+void TEW03AudioProcessor::setCurrentLength (int n)
+{
+    sequencer.setGrid (raw (ParamID::seq2x) >= 0.5f);
+    sequencer.setLength (n);
+    const int len = sequencer.length();
+    const int bank = currentBank();
+    const int pat = currentPattern();
+    patternLen[bank][pat].store (len, std::memory_order_relaxed);
+    writeLengthToState (bank, pat, len);
+}
+
+int TEW03AudioProcessor::currentLength() const
+{
+    return sequencer.length();
 }
 
 void TEW03AudioProcessor::applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps])
@@ -886,6 +930,7 @@ void TEW03AudioProcessor::copyCurrentPattern()
     const int pat = currentPattern();
     for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
         patternClip[i] = tew::Sequencer::unpack (patterns[bank][pat][i].load (std::memory_order_relaxed));
+    patternClipLen = patternLen[bank][pat].load (std::memory_order_relaxed);
     patternClipValid = true;
 }
 
@@ -894,6 +939,7 @@ void TEW03AudioProcessor::pasteCurrentPattern()
     if (! patternClipValid)
         return;
     applyCurrentPattern (patternClip);
+    setCurrentLength (patternClipLen);
 }
 
 void TEW03AudioProcessor::clearCurrentPattern()
@@ -907,8 +953,7 @@ void TEW03AudioProcessor::clearCurrentPattern()
 void TEW03AudioProcessor::randomizeCurrentPattern()
 {
     tew::Sequencer::Step out[tew::Sequencer::maxSteps];
-    const int len = raw (ParamID::seq2x) >= 0.5f ? tew::Sequencer::maxSteps
-                                                 : tew::Sequencer::numSteps;
+    const int len = sequencer.length();
     tew::Sequencer::fillRandom (out, len,
                                 juce::roundToInt (raw (ParamID::seqKey)),
                                 juce::roundToInt (raw (ParamID::seqScale)) == 1,
@@ -922,6 +967,9 @@ void TEW03AudioProcessor::syncSeqLength (bool doubled)
     storeLiveToSlot();
     const int bank = currentBank();
     const int pat = currentPattern();
+    const int len = sequencer.length();
+    patternLen[bank][pat].store (len, std::memory_order_relaxed);
+    writeLengthToState (bank, pat, len);
     for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
         writeStepToState (bank, pat, i, sequencer.getStep (i));
 }
@@ -976,24 +1024,35 @@ juce::String TEW03AudioProcessor::bankName() const
 
 void TEW03AudioProcessor::copyLiveBanks (tew::Sequencer::Step dest[tew::Sequencer::numBanks]
                                                                [tew::Sequencer::patternsPerBank]
-                                                               [tew::Sequencer::maxSteps])
+                                                               [tew::Sequencer::maxSteps],
+                                        int destLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank])
 {
     storeLiveToSlot();
     for (int b = 0; b < tew::Sequencer::numBanks; ++b)
         for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
+            destLen[b][p] = patternLen[b][p].load (std::memory_order_relaxed);
             for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
                 dest[b][p][i] = tew::Sequencer::unpack (
                     patterns[b][p][i].load (std::memory_order_relaxed));
+        }
 }
 
 void TEW03AudioProcessor::applyBankSteps (const tew::Sequencer::Step src[tew::Sequencer::numBanks]
                                                                       [tew::Sequencer::patternsPerBank]
-                                                                      [tew::Sequencer::maxSteps])
+                                                                      [tew::Sequencer::maxSteps],
+                                         const int srcLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank])
 {
+    const bool doubled = raw (ParamID::seq2x) >= 0.5f;
     for (int b = 0; b < tew::Sequencer::numBanks; ++b)
         for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
+            const int len = tew::Sequencer::clampLength (
+                srcLen != nullptr ? srcLen[b][p] : tew::Sequencer::numSteps, doubled);
+            patternLen[b][p].store (len, std::memory_order_relaxed);
             for (int i = 0; i < tew::Sequencer::maxSteps; ++i)
                 patterns[b][p][i].store (tew::Sequencer::pack (src[b][p][i]), std::memory_order_relaxed);
+        }
     writeBanksToState();
     loadLiveFromSlot();
 }
@@ -1058,10 +1117,14 @@ void TEW03AudioProcessor::initPatch()
 void TEW03AudioProcessor::initBank()
 {
     tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
+    int lens[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank];
     for (int b = 0; b < tew::Sequencer::numBanks; ++b)
         for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
+        {
             tew::Sequencer::fillSlot (steps[b][p], b, p);
-    applyBankSteps (steps);
+            lens[b][p] = tew::Sequencer::numSteps;
+        }
+    applyBankSteps (steps, lens);
     apvts.state.setProperty (kBankName, kInitBank, nullptr);
 }
 
@@ -1089,9 +1152,10 @@ bool TEW03AudioProcessor::loadPatchFile (const juce::File& src, const juce::Stri
 bool TEW03AudioProcessor::loadBankFile (const juce::File& src, const juce::String& shownName)
 {
     tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
-    if (! tew::readBankXml (readText (src), steps))
+    int lens[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank];
+    if (! tew::readBankXml (readText (src), steps, lens))
         return false;
-    applyBankSteps (steps);
+    applyBankSteps (steps, lens);
     apvts.state.setProperty (kBankName, shownName, nullptr);
     return true;
 }
@@ -1142,8 +1206,9 @@ bool TEW03AudioProcessor::saveBankAs (const juce::String& name)
     if (stem.isEmpty() || stem == kInitBank)
         return false;
     tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
-    copyLiveBanks (steps);
-    if (! writeText (banksDir().getChildFile (stem + kBankExt), tew::writeBankXml (steps)))
+    int lens[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank];
+    copyLiveBanks (steps, lens);
+    if (! writeText (banksDir().getChildFile (stem + kBankExt), tew::writeBankXml (steps, lens)))
         return false;
     apvts.state.setProperty (kBankName, stem, nullptr);
     return true;
@@ -1184,8 +1249,9 @@ bool TEW03AudioProcessor::exportBank (const juce::File& dest)
     if (! file.hasFileExtension ("tew3b"))
         file = file.withFileExtension ("tew3b");
     tew::Sequencer::Step steps[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps];
-    copyLiveBanks (steps);
-    return writeText (file, tew::writeBankXml (steps));
+    int lens[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank];
+    copyLiveBanks (steps, lens);
+    return writeText (file, tew::writeBankXml (steps, lens));
 }
 
 bool TEW03AudioProcessor::importPatch (const juce::File& src)

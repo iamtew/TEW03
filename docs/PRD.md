@@ -22,7 +22,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 - Full MIDI note input + pitch bend
 - Internal monophonic step sequencer (classic 303-style):
   - 3 banks × 12 patterns (36 slots)
-  - Pattern length 16 or 32 (2x splits each step in half, global)
+  - Last step 1–16 (1–32 with 2x). 2x splits each step in half, global. Unused steps stay stored.
   - Per-step: note, accent, slide/tie
   - Play/pause (Run) plus play modes: Keyboard (MIDI → voice), Standalone (loop selected slot; hidden in DAW UI), Pattern (hold C1–B3 to play the mapped slot)
   - Tempo sync with host transport when available; free-running fallback

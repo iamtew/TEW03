@@ -122,10 +122,16 @@ struct Sequencer
             out[i] = { -1, false, false };
     }
 
+    static int clampLength (int n, bool doubled)
+    {
+        const int max = doubled ? maxSteps : numSteps;
+        return n < 1 ? 1 : (n > max ? max : n);
+    }
+
     // Acid-biased random fill. Notes stay in key/scale, MIDI 24-60. Tail past `length` is rests.
     static void fillRandom (Step out[maxSteps], int length, int keyPc, bool minor, uint32_t seed)
     {
-        const int len = length >= maxSteps ? maxSteps : numSteps;
+        const int len = clampLength (length, length > numSteps);
         keyPc = ((keyPc % 12) + 12) % 12;
 
         int pool[40];
@@ -274,31 +280,41 @@ struct Sequencer
         swingAmt = std::clamp (swing01, 0.f, 0.6f);
     }
 
-    // Length only. Use reshapeTo when 2x toggles so the grid splits instead of appending.
+    // 16th vs 32nd duration. Does not change the note grid; reshapeTo does that.
+    void setGrid (bool doubled)
+    {
+        grid32.store (doubled, std::memory_order_relaxed);
+        setLength (lengthSteps.load (std::memory_order_relaxed));
+    }
+
+    // Loop length only. Clamped to the current grid (1–16, or 1–32 when 2x).
     void setLength (int n)
     {
-        const int len = n >= maxSteps ? maxSteps : numSteps;
+        const int len = clampLength (n, grid32.load (std::memory_order_relaxed));
         lengthSteps.store (len, std::memory_order_relaxed);
         if (step >= len)
             step %= len;
     }
 
     // 16→32: each cell becomes two 32nds of the same note (tied). 32→16: take the pair.
+    // Last step doubles or halves with the grid.
     void reshapeTo (int n)
     {
-        const int want = n >= maxSteps ? maxSteps : numSteps;
-        int have = lengthSteps.load (std::memory_order_relaxed);
-        if (want == have)
+        const bool want32 = n >= maxSteps;
+        bool have32 = grid32.load (std::memory_order_relaxed);
+        if (want32 == have32)
             return;
-        if (! lengthSteps.compare_exchange_strong (have, want, std::memory_order_relaxed))
+        if (! grid32.compare_exchange_strong (have32, want32, std::memory_order_relaxed))
             return;
+
+        const int oldLen = lengthSteps.load (std::memory_order_relaxed);
 
         Step cur[maxSteps];
         for (int i = 0; i < maxSteps; ++i)
             cur[i] = unpack (packed[i].load (std::memory_order_relaxed));
 
         Step out[maxSteps];
-        if (want == maxSteps)
+        if (want32)
         {
             for (int i = 0; i < numSteps; ++i)
             {
@@ -326,8 +342,11 @@ struct Sequencer
         }
 
         loadAll (out);
-        if (step >= want)
-            step %= want;
+        const int newLen = want32 ? clampLength (oldLen * 2, true)
+                                  : clampLength ((oldLen + 1) / 2, false);
+        lengthSteps.store (newLen, std::memory_order_relaxed);
+        if (step >= newLen)
+            step %= newLen;
     }
 
     int length() const { return lengthSteps.load (std::memory_order_relaxed); }
@@ -352,9 +371,9 @@ struct Sequencer
 
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
         bpm = std::clamp (bpm, 1.f, 999.f);
-        const int len = lengthSteps.load (std::memory_order_relaxed);
+        const int len = std::max (1, lengthSteps.load (std::memory_order_relaxed));
         // 16th grid, or 32nds when 2x. Floor of 1 sample so a bad rate cannot spin.
-        const double perBeat = len >= maxSteps ? 8.0 : 4.0;
+        const double perBeat = grid32.load (std::memory_order_relaxed) ? 8.0 : 4.0;
         double stepSamples = sampleRate * 60.0 / (double) bpm / perBeat;
         if (stepSamples < 1.0)
             stepSamples = 1.0;
@@ -493,6 +512,7 @@ private:
 
     std::atomic<uint32_t> packed[maxSteps] {};
     std::atomic<int> lengthSteps { numSteps };
+    std::atomic<bool> grid32 { false };
     std::atomic<int> playheadIndex { -1 };
     std::atomic<bool> keyLock { false };
     std::atomic<int> keyRoot { 0 };

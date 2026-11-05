@@ -210,11 +210,19 @@ inline bool readPatchXml (const std::string& xml, std::vector<PatchParam>& out)
 }
 
 inline std::string writeBankXml (
-    const Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps])
+    const Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps],
+    const int lens[Sequencer::numBanks][Sequencer::patternsPerBank])
 {
     std::string o = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TEW03BANK>\n";
     for (int b = 0; b < Sequencer::numBanks; ++b)
         for (int p = 0; p < Sequencer::patternsPerBank; ++p)
+        {
+            const int len = lens != nullptr
+                ? Sequencer::clampLength (lens[b][p], true)
+                : Sequencer::numSteps;
+            char pat[64];
+            std::snprintf (pat, sizeof (pat), "  <PAT b=\"%d\" p=\"%d\" len=\"%d\"/>\n", b, p, len);
+            o += pat;
             for (int i = 0; i < Sequencer::maxSteps; ++i)
             {
                 const auto s = steps[b][p][i];
@@ -224,21 +232,60 @@ inline std::string writeBankXml (
                                b, p, i, s.note, s.accent ? 1 : 0, s.slide ? 1 : 0, s.superSlide ? 1 : 0);
                 o += line;
             }
+        }
     o += "</TEW03BANK>\n";
     return o;
 }
 
+inline std::string writeBankXml (
+    const Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps])
+{
+    int lens[Sequencer::numBanks][Sequencer::patternsPerBank];
+    for (int b = 0; b < Sequencer::numBanks; ++b)
+        for (int p = 0; p < Sequencer::patternsPerBank; ++p)
+            lens[b][p] = Sequencer::numSteps;
+    return writeBankXml (steps, lens);
+}
+
 inline bool readBankXml (
     const std::string& xml,
-    Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps])
+    Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps],
+    int lens[Sequencer::numBanks][Sequencer::patternsPerBank])
 {
     if (xml.find ("<TEW03BANK") == std::string::npos)
         return false;
 
     for (int b = 0; b < Sequencer::numBanks; ++b)
         for (int p = 0; p < Sequencer::patternsPerBank; ++p)
+        {
+            if (lens != nullptr)
+                lens[b][p] = Sequencer::numSteps;
             for (int i = 0; i < Sequencer::maxSteps; ++i)
                 steps[b][p][i] = { -1, false, false, false };
+        }
+
+    if (lens != nullptr)
+    {
+        std::size_t pos = 0;
+        while ((pos = xml.find ("<PAT", pos)) != std::string::npos)
+        {
+            const auto end = xml.find ('>', pos);
+            if (end == std::string::npos)
+                return false;
+            const auto tag = xml.substr (pos, end - pos);
+            pos = end + 1;
+            std::string b, p, len;
+            if (! readXmlAttr (tag, "b", b) || ! readXmlAttr (tag, "p", p)
+                || ! readXmlAttr (tag, "len", len))
+                continue;
+            const int bi = std::atoi (b.c_str());
+            const int pi = std::atoi (p.c_str());
+            if (bi < 0 || bi >= Sequencer::numBanks
+                || pi < 0 || pi >= Sequencer::patternsPerBank)
+                continue;
+            lens[bi][pi] = Sequencer::clampLength (std::atoi (len.c_str()), true);
+        }
+    }
 
     std::size_t pos = 0;
     while ((pos = xml.find ("<STEP", pos)) != std::string::npos)
@@ -268,6 +315,14 @@ inline bool readBankXml (
         steps[bi][pi][ii] = { std::atoi (note.c_str()), acc == "1", sld == "1", sup == "1" };
     }
     return true;
+}
+
+inline bool readBankXml (
+    const std::string& xml,
+    Sequencer::Step steps[Sequencer::numBanks][Sequencer::patternsPerBank][Sequencer::maxSteps])
+{
+    int lens[Sequencer::numBanks][Sequencer::patternsPerBank];
+    return readBankXml (xml, steps, lens);
 }
 
 } // namespace tew

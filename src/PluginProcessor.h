@@ -46,6 +46,8 @@ public:
 
     tew::Sequencer& getSequencer() { return sequencer; }
     void setPatternStep (int index, tew::Sequencer::Step step);
+    void setCurrentLength (int n);
+    int currentLength() const;
     void copyCurrentPattern();
     void pasteCurrentPattern();
     void clearCurrentPattern();
@@ -109,12 +111,15 @@ private:
     void loadLiveFromSlot();
     void storeLiveToSlot();
     std::atomic<uint32_t>* slotPacked (int bank, int pat);
+    void writeLengthToState (int bank, int pat, int len);
     void copyLiveBanks (tew::Sequencer::Step dest[tew::Sequencer::numBanks]
                                                  [tew::Sequencer::patternsPerBank]
-                                                 [tew::Sequencer::maxSteps]);
+                                                 [tew::Sequencer::maxSteps],
+                        int destLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank]);
     void applyBankSteps (const tew::Sequencer::Step src[tew::Sequencer::numBanks]
                                                       [tew::Sequencer::patternsPerBank]
-                                                      [tew::Sequencer::maxSteps]);
+                                                      [tew::Sequencer::maxSteps],
+                         const int srcLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank]);
     void applyPatchParams (const std::vector<tew::PatchParam>& params);
     std::vector<tew::PatchParam> currentPatchParams() const;
     bool loadPatchFile (const juce::File& src, const juce::String& shownName);
@@ -145,7 +150,9 @@ private:
     std::atomic<float> lfoOutUi[tew::numLfos] {};
     std::atomic<bool> keyboardSounding { false };
     std::atomic<uint32_t> patterns[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank][tew::Sequencer::maxSteps] {};
+    std::atomic<int> patternLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank] {};
     tew::Sequencer::Step patternClip[tew::Sequencer::maxSteps] {};
+    int patternClipLen = tew::Sequencer::numSteps;
     bool patternClipValid = false;
     std::atomic<int> curBank { 0 };
     std::atomic<int> curPattern { 0 };
