@@ -29,6 +29,8 @@ public:
             stack.addAndMakeVisible (row);
             row->setVisible (false);
         }
+        for (auto* rail : rails)
+            rail->bindClick();
         refresh();
         startTimerHz (24);
     }
@@ -96,6 +98,9 @@ public:
     {
         proc.getFxOrder (railOrder, nRail);
         nRail = tew::completeFxOrder (railOrder, nRail);
+
+        if (rails.size() < tew::fxCount || rows.size() < tew::fxCount)
+            return;
 
         auto on = [&] (int t)
         {
@@ -1052,15 +1057,19 @@ private:
         {
             on.setButtonText ("On");
             on.setComponentID ("led");
+            addAndMakeVisible (on);
+            onAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+                owner.proc.apvts, ParamID::fxOnIds[type], on);
+        }
+
+        void bindClick()
+        {
             on.onClick = [this]
             {
                 if (on.getToggleState())
                     owner.select (type);
                 owner.refresh();
             };
-            addAndMakeVisible (on);
-            onAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-                owner.proc.apvts, ParamID::fxOnIds[type], on);
         }
 
         void setOn (bool v)
