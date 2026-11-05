@@ -810,12 +810,38 @@ private:
         {
             explicit Visual (FxRow& row) : fx (row) {}
 
+            static float specToY (float db)
+            {
+                return 1.f - juce::jlimit (0.f, 1.f, (db + 72.f) / 72.f);
+            }
+
+            void paintSpectrum (juce::Graphics& g, juce::Rectangle<float> r)
+            {
+                const int n = juce::jmax (2, (int) r.getWidth());
+                if ((int) specDb.size() != n)
+                    specDb.resize ((size_t) n);
+                fx.owner.proc.eqAnalyser().copyLogDb (specDb.data(), n);
+                juce::Path spec;
+                spec.startNewSubPath (r.getX(), r.getBottom());
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x01 = (float) i / (float) (n - 1);
+                    spec.lineTo (r.getX() + x01 * r.getWidth(),
+                                 r.getY() + specToY (specDb[(size_t) i]) * r.getHeight());
+                }
+                spec.lineTo (r.getRight(), r.getBottom());
+                spec.closeSubPath();
+                g.setColour (juce::Colour (0x55a0a8b0));
+                g.fillPath (spec);
+            }
+
             void paint (juce::Graphics& g) override
             {
                 auto bounds = getLocalBounds().toFloat();
                 g.setColour (juce::Colour (0xff12151a));
                 g.fillRoundedRectangle (bounds, 4.f);
                 auto r = bounds.reduced (8.f, 10.f);
+                paintSpectrum (g, r);
                 g.setColour (juce::Colour (0xff2a2e32));
                 g.drawHorizontalLine ((int) r.getCentreY(), r.getX(), r.getRight());
 
@@ -875,11 +901,16 @@ private:
             void paintDelay (juce::Graphics& g, juce::Rectangle<float> r)
             {
                 const float fb = fx.load (ParamID::fxDlyFb);
+                const float time01 = fx.load (ParamID::fxDlyTime);
                 const bool ping = fx.load (ParamID::fxDlyPing) >= 0.5f;
                 const int taps = 1 + juce::roundToInt (fb * 6.f);
+                const float gap = 0.18f + time01 * 0.55f;
+                const float scroll = fx.owner.vizPhase;
                 for (int i = 0; i < taps; ++i)
                 {
-                    const float x = r.getX() + r.getWidth() * ((float) (i + 1) / (float) (taps + 1));
+                    float x01 = (float) (i + 1) * gap + scroll;
+                    x01 -= std::floor (x01);
+                    const float x = r.getX() + x01 * r.getWidth();
                     const float h = r.getHeight() * (1.f - (float) i * 0.12f);
                     g.setColour (kCream.withAlpha (1.f - (float) i * 0.12f));
                     g.fillRect (x - 2.f, r.getBottom() - h, 4.f, h);
@@ -983,9 +1014,21 @@ private:
                 }
                 g.setColour (kCream);
                 g.strokePath (p, juce::PathStrokeType (1.6f));
+                for (int i = 0; i < 7; ++i)
+                {
+                    float x01 = (float) i / 7.f + fx.owner.vizPhase;
+                    x01 -= std::floor (x01);
+                    const float t = juce::jmax (0.f, x01 - pre * 0.25f);
+                    const float env = t <= 0.f ? 0.f : std::exp (-t * (1.4f + damp * 4.f) / (0.15f + size));
+                    g.setColour (kCream.withAlpha (0.35f + env * 0.5f));
+                    g.fillEllipse (r.getX() + x01 * r.getWidth() - 2.5f,
+                                   r.getBottom() - env * r.getHeight() * 0.85f - 2.5f,
+                                   5.f, 5.f);
+                }
             }
 
             FxRow& fx;
+            std::vector<float> specDb;
         };
 
         void syncDelay()

@@ -151,7 +151,7 @@ Click the page bar to **Effects**. The LFO lanes stay on the right. Everything i
 
 Left rail: **On** enables that effect. Click the rest of the box to select it — settings fill the whole panel between the rail and the LFO column. A six-dot handle on the left of each box drags the chain order. Order is stored with the patch. Nothing selected: the yellow field, the logo, and **Click an effect to add it**.
 
-The insert **Equalizer** is the same five-band parametric as Pre/Post, but it sits *in* the chain. Pre/Post sit around the whole chain and are edited on the EQ page.
+The insert **Equalizer** is the same five-band parametric as Pre/Post, but it sits *in* the chain. Pre/Post sit around the whole chain and are edited on the EQ page. Each effect’s visualizer shows the post-FX spectrum plus that effect’s sketch.
 
 ### Chorus
 
