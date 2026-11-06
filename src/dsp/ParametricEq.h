@@ -44,21 +44,50 @@ struct ParametricEq
             }
         }
         prepared = true;
+        chainLive = false;
+        for (int i = 0; i < eqBandCount; ++i)
+            bandLive[i] = false;
     }
 
     void process (juce::AudioBuffer<float>& buffer, bool on, const EqBandParam* params)
     {
-        if (! prepared || ! on || params == nullptr || buffer.getNumSamples() <= 0)
+        if (! prepared || params == nullptr || buffer.getNumSamples() <= 0)
             return;
+
+        if (! on)
+        {
+            if (chainLive)
+                resetAll();
+            chainLive = false;
+            return;
+        }
+
+        if (! chainLive)
+        {
+            resetAll();
+            chainLive = true;
+        }
 
         auto block = juce::dsp::AudioBlock<float> (buffer);
         juce::dsp::ProcessContextReplacing<float> ctx (block);
 
         for (int i = 0; i < eqBandCount; ++i)
         {
-            // ponytail: Off skips without reset; a mid-note re-enable can click
             if (params[i].type <= eqTypeOff)
+            {
+                if (bandLive[i])
+                {
+                    bands[i].reset();
+                    bandLive[i] = false;
+                }
                 continue;
+            }
+
+            if (! bandLive[i])
+            {
+                bands[i].reset();
+                bandLive[i] = true;
+            }
 
             const auto bq = eqBiquad (params[i].type, (float) sr, params[i].hz,
                                       params[i].q, params[i].gainDb);
@@ -70,6 +99,15 @@ struct ParametricEq
     double sampleRate() const { return sr; }
 
 private:
+    void resetAll()
+    {
+        for (int i = 0; i < eqBandCount; ++i)
+        {
+            bands[i].reset();
+            bandLive[i] = false;
+        }
+    }
+
     void write (int i, const Biquad& b)
     {
         if (bands[i].state == nullptr || bands[i].state->coefficients.size() < 5)
@@ -88,6 +126,8 @@ private:
                                    juce::dsp::IIR::Coefficients<float>> bands[eqBandCount];
     double sr = 44100.0;
     bool prepared = false;
+    bool chainLive = false;
+    bool bandLive[eqBandCount] {};
 };
 
 inline void readEqBands (juce::AudioProcessorValueTreeState& apvts,
