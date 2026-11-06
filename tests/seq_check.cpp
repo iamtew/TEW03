@@ -272,6 +272,30 @@ int main()
         wrap32.advance (step32, 120.f, true, ev, 8);
     assert (wrap32.playhead() == 16);
 
+    Sequencer ppqSeq;
+    ppqSeq.prepare (44100.0);
+    ppqSeq.loadAll (steps);
+    const int nPpq = ppqSeq.advance (1, 120.f, true, ev, 8, 1.0);
+    assert (nPpq == 0); // step 4 is a rest in this pattern
+    assert (ppqSeq.playhead() == 4);
+
+    Sequencer ppqHold;
+    ppqHold.prepare (44100.0);
+    ppqHold.loadAll (steps);
+    ppqHold.advance (512, 120.f, true, ev, 8, 0.0);
+    assert (ppqHold.playhead() == 0);
+    const double ppqNext = 512.0 * 120.0 / 60.0 / 44100.0;
+    ppqHold.advance (512, 120.f, true, ev, 8, ppqNext);
+    assert (ppqHold.playhead() == 0);
+
+    Sequencer ppqSeek;
+    ppqSeek.prepare (44100.0);
+    ppqSeek.loadAll (steps);
+    ppqSeek.advance (1, 120.f, true, ev, 8, 0.0);
+    assert (ppqSeek.playhead() == 0);
+    ppqSeek.advance (1, 120.f, true, ev, 8, 1.0);
+    assert (ppqSeek.playhead() == 4);
+
     std::vector<tew::PatchParam> patchIn { { "cutoff", 1234.5f },
                                            { "seqBank", 2.f },
                                            { "seqPattern", 7.f },

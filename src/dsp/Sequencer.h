@@ -353,20 +353,15 @@ struct Sequencer
     int playhead() const { return playheadIndex.load (std::memory_order_relaxed); }
 
     // Fills out[] with note edges inside this block. Returns how many.
-    int advance (int numSamples, float bpm, bool playing, SeqEvent* out, int maxEvents)
+    // hostPpq < 0: free-run from step 0. Else lock to that quarter-note position
+    // (loop/locate). 0.2 beats of PPQ jump counts as a seek.
+    int advance (int numSamples, float bpm, bool playing, SeqEvent* out, int maxEvents,
+                 double hostPpq = -1.0)
     {
         if (! playing)
-            return stop (out, maxEvents);
-
-        if (! running)
         {
-            running = true;
-            step = 0;
-            clock = 0.0;
-            nextEdge = 0.0;
-            offPending = false;
-            pendingSlide = false;
-            pendingSuper = false;
+            haveHostPpq = false;
+            return stop (out, maxEvents);
         }
 
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
@@ -378,7 +373,50 @@ struct Sequencer
         if (stepSamples < 1.0)
             stepSamples = 1.0;
 
+        const bool lock = hostPpq >= 0.0;
+        bool snap = ! running;
+        if (lock && haveHostPpq)
+        {
+            const double expected = lastHostPpq
+                + (double) lastAdvanceSamples * (double) bpm / 60.0 / sampleRate;
+            if (std::abs (hostPpq - expected) > 0.2)
+                snap = true;
+        }
+
         int produced = 0;
+        if (snap)
+        {
+            if (gate && maxEvents > 0)
+            {
+                out[produced++] = { 0, lastNote, false, false, false };
+                gate = false;
+            }
+
+            running = true;
+            offPending = false;
+            pendingSlide = false;
+            pendingSuper = false;
+            if (lock)
+                snapToPpq (hostPpq, stepSamples, len, perBeat);
+            else
+            {
+                step = 0;
+                clock = 0.0;
+                nextEdge = 0.0;
+            }
+        }
+        else
+            running = true;
+
+        if (lock)
+        {
+            lastHostPpq = hostPpq;
+            lastAdvanceSamples = numSamples;
+            haveHostPpq = true;
+        }
+        else
+            haveHostPpq = false;
+
         int consumed = 0;
 
         while (consumed < numSamples)
@@ -502,6 +540,36 @@ private:
         return 1;
     }
 
+    void snapToPpq (double ppq, double stepSamples, int len, double perBeat)
+    {
+        double loopBeats = (double) len / perBeat;
+        if (loopBeats < 1.0e-9)
+            loopBeats = 1.0;
+        double phase = std::fmod (ppq, loopBeats);
+        if (phase < 0.0)
+            phase += loopBeats;
+
+        const double absStep = phase * perBeat;
+        int idx = (int) std::floor (absStep + 1.0e-9);
+        const double frac = absStep - std::floor (absStep);
+        if (idx < 0)
+            idx = 0;
+        idx %= len;
+
+        clock = 0.0;
+        if (frac < 0.02)
+        {
+            step = idx;
+            nextEdge = 0.0;
+        }
+        else
+        {
+            step = (idx + 1) % len;
+            playheadIndex.store (idx, std::memory_order_relaxed);
+            nextEdge = (1.0 - frac) * stepDur (idx, stepSamples);
+        }
+    }
+
     double stepDur (int index, double straight) const
     {
         const double scale = (index % 2) == 0 ? (1.0 + (double) swingAmt)
@@ -530,6 +598,9 @@ private:
     bool offPending = false;
     bool pendingSlide = false;
     bool pendingSuper = false;
+    bool haveHostPpq = false;
+    double lastHostPpq = 0.0;
+    int lastAdvanceSamples = 0;
 };
 
 } // namespace tew

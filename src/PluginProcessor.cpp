@@ -214,6 +214,25 @@ float TEW03AudioProcessor::tempoBpm() const
     return host > 0.f ? host : raw (ParamID::seqTempo);
 }
 
+double TEW03AudioProcessor::hostPpqIfPlaying() const
+{
+    if (wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        return -1.0;
+
+    if (auto* head = getPlayHead())
+    {
+        if (const auto pos = head->getPosition())
+        {
+            if (! pos->getIsPlaying())
+                return -1.0;
+            if (const auto ppq = pos->getPpqPosition())
+                return *ppq;
+        }
+    }
+
+    return -1.0;
+}
+
 bool TEW03AudioProcessor::patternShouldRun() const
 {
     if (raw (ParamID::seqPlay) < 0.5f)
@@ -424,7 +443,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     if (! playing)
     {
         tew::SeqEvent stopped[1];
-        const int nStop = sequencer.advance (numSamples, bpm, false, stopped, 1);
+        const int nStop = sequencer.advance (numSamples, bpm, false, stopped, 1, -1.0);
         for (int i = 0; i < nStop; ++i)
         {
             midi.addEvent (juce::MidiMessage::noteOff (1, stopped[i].note), stopped[i].offset);
@@ -439,7 +458,8 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     }
 
     tew::SeqEvent events[kMaxEvents];
-    const int nEvents = sequencer.advance (numSamples, bpm, true, events, kMaxEvents);
+    const int nEvents = sequencer.advance (numSamples, bpm, true, events, kMaxEvents,
+                                           hostPpqIfPlaying());
 
     int rendered = 0;
     for (int i = 0; i < nEvents; ++i)

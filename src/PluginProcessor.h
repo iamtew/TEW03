@@ -103,6 +103,7 @@ private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     float raw (const char* id) const;
     float hostTempoBpm() const;
+    double hostPpqIfPlaying() const;
     bool patternShouldRun() const;
     bool handleKeyTriggers (const juce::MidiBuffer& midi);
     void applyKeyboardNotes (const juce::MidiBuffer& midi);
