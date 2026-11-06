@@ -1100,6 +1100,7 @@ private:
         {
             on.setButtonText ("On");
             on.setComponentID ("led");
+            on.getProperties().set ("ledPx", 16);
             addAndMakeVisible (on);
             onAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
                 owner.proc.apvts, ParamID::fxOnIds[type], on);
@@ -1218,7 +1219,7 @@ private:
             auto r = getLocalBounds();
             r.removeFromLeft (kGripW);
             r.removeFromRight (24);
-            on.setBounds (r.removeFromBottom (18).reduced (2, 1));
+            on.setBounds (r.removeFromBottom (26).reduced (2, 1));
         }
 
         void mouseDown (const juce::MouseEvent& e) override
