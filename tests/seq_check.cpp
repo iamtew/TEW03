@@ -452,6 +452,33 @@ int main()
     for (int i = 0; i < tew::factoryFxParamCount; ++i)
         assert (tew::factoryFxParams[i].id != nullptr);
 
+    {
+        const char* names[tew::factoryPatchCount];
+        const char* firstAcid = nullptr;
+        const char* lastAcid = nullptr;
+        for (int i = 0; i < tew::factoryPatchCount; ++i)
+        {
+            names[i] = tew::factoryPatches[i].name;
+            if (std::strcmp (tew::factoryPatches[i].category, "Acid") == 0)
+            {
+                if (firstAcid == nullptr)
+                    firstAcid = names[i];
+                lastAcid = names[i];
+            }
+        }
+        assert (std::strcmp (names[tew::stepPatchInCategory ("01 Squelch", names, tew::factoryPatchCount, 1)],
+                             "03 Rubber") == 0);
+        assert (std::strcmp (names[tew::stepPatchInCategory (lastAcid, names, tew::factoryPatchCount, 1)],
+                             firstAcid) == 0);
+        assert (std::strcmp (names[tew::stepPatchInCategory (firstAcid, names, tew::factoryPatchCount, -1)],
+                             lastAcid) == 0);
+        const char* trio[] = { "01 Squelch", "02 Scream", "03 Rubber" };
+        assert (tew::stepPatchInCategory ("02 Scream", trio, 3, 1) == 1);
+        assert (tew::stepPatchInCategory ("Init Patch", names, tew::factoryPatchCount, 1) == 0);
+        assert (tew::stepPatchInCategory ("Init Patch", names, tew::factoryPatchCount, -1)
+                == tew::factoryPatchCount - 1);
+    }
+
     for (int i = 0; i < tew::factoryPatchCount; ++i)
     {
         const auto& v = tew::factoryPatches[i];

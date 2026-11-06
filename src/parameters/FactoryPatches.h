@@ -134,6 +134,41 @@ inline const char* factoryCategoryForName (const char* name)
     return "User";
 }
 
+// Next/prev among stems that share current's category. Missing current (Init) wraps the full list.
+inline int stepPatchInCategory (const char* current, const char* const* names, int n, int delta)
+{
+    if (n <= 0)
+        return -1;
+    int cur = -1;
+    if (current != nullptr)
+        for (int i = 0; i < n; ++i)
+            if (std::strcmp (names[i], current) == 0)
+            {
+                cur = i;
+                break;
+            }
+    if (cur < 0)
+        return delta > 0 ? 0 : n - 1;
+
+    const char* cat = factoryCategoryForName (names[cur]);
+    int first = -1, last = -1, after = -1, before = -1;
+    for (int i = 0; i < n; ++i)
+    {
+        if (std::strcmp (factoryCategoryForName (names[i]), cat) != 0)
+            continue;
+        if (first < 0)
+            first = i;
+        if (i > cur && after < 0)
+            after = i;
+        if (i < cur)
+            before = i;
+        last = i;
+    }
+    if (delta > 0)
+        return after >= 0 ? after : first;
+    return before >= 0 ? before : last;
+}
+
 inline bool factoryHasParamId (const char* id)
 {
     if (id == nullptr)

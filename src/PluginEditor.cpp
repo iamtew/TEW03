@@ -2601,12 +2601,13 @@ void TEW03AudioProcessorEditor::cyclePatch (int delta)
     const auto names = proc.patchNames();
     if (names.isEmpty())
         return;
-    const auto cur = proc.patchName();
-    int idx = names.indexOf (cur);
-    if (idx < 0)
-        idx = delta > 0 ? 0 : names.size() - 1;
-    else
-        idx = (idx + delta + names.size()) % names.size();
+    std::vector<const char*> stems ((size_t) names.size());
+    for (int i = 0; i < names.size(); ++i)
+        stems[(size_t) i] = names[i].toRawUTF8();
+    const int idx = tew::stepPatchInCategory (proc.patchName().toRawUTF8(),
+                                              stems.data(), names.size(), delta);
+    if (! juce::isPositiveAndBelow (idx, names.size()))
+        return;
     proc.loadPatchByName (names[idx]);
     refreshLibraryNames();
     syncSteps();

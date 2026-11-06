@@ -144,7 +144,7 @@ Files live in `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`. The 
 
 Launch writes forty factory patches into that Patches folder (`01 Squelch` through `40 Factory Floor`), overwriting those factory names so they pick up the current effects. Files you saved under other names stay. Each factory patch is a sound plus an effects chain, tagged with a category: **Acid**, **Bass**, **Lead**, **Space**, **Dirty**, or **Classic**. The patch bar shows `Acid  ·  01 Squelch`. The patch menu groups by those names; leftovers sit under **User**.
 
-Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then **Save**, **Save As…**, **Export…**, **Import…**. Arrows on the bar step through saved files. Init restores defaults / factory fills.
+Click a bar for the menu: **Init Patch** / **Init Bank**, the saved list, then **Save**, **Save As…**, **Export…**, **Import…**. Patch arrows step through the current category and wrap; bank arrows still step the full file list. Init restores defaults / factory fills.
 
 ## Effects
 
