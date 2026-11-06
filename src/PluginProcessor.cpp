@@ -171,6 +171,7 @@ TEW03AudioProcessor::TEW03AudioProcessor()
 
 TEW03AudioProcessor::~TEW03AudioProcessor()
 {
+    cancelPendingUpdate();
     apvts.removeParameterListener (ParamID::seqBank, this);
     apvts.removeParameterListener (ParamID::seqPattern, this);
 }
@@ -284,6 +285,28 @@ void TEW03AudioProcessor::selectSlot (int bank, int pat)
     curBank.store (bank, std::memory_order_relaxed);
     curPattern.store (pat, std::memory_order_relaxed);
     loadLiveFromSlot();
+    triggerAsyncUpdate();
+}
+
+void TEW03AudioProcessor::writeSlotToParams()
+{
+    auto setInt = [this] (const char* id, int shown)
+    {
+        auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (id));
+        if (param == nullptr)
+            return;
+        const int cur = juce::roundToInt (param->convertFrom0to1 (param->getValue()));
+        if (cur == shown)
+            return;
+        param->setValueNotifyingHost (param->convertTo0to1 ((float) shown));
+    };
+    setInt (ParamID::seqBank, currentBank());
+    setInt (ParamID::seqPattern, currentPattern());
+}
+
+void TEW03AudioProcessor::handleAsyncUpdate()
+{
+    writeSlotToParams();
 }
 
 void TEW03AudioProcessor::parameterChanged (const juce::String& parameterID, float)
@@ -1309,6 +1332,7 @@ bool TEW03AudioProcessor::importBank (const juce::File& src)
 
 void TEW03AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    writeSlotToParams();
     writeBanksToState();
     writeLfosToState();
     writeFxOrderToState();

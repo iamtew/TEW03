@@ -14,7 +14,8 @@
 #include <vector>
 
 class TEW03AudioProcessor : public juce::AudioProcessor,
-                            private juce::AudioProcessorValueTreeState::Listener
+                            private juce::AudioProcessorValueTreeState::Listener,
+                            private juce::AsyncUpdater
 {
 public:
     TEW03AudioProcessor();
@@ -101,6 +102,8 @@ public:
 
 private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
+    void handleAsyncUpdate() override;
+    void writeSlotToParams();
     float raw (const char* id) const;
     float hostTempoBpm() const;
     double hostPpqIfPlaying() const;
