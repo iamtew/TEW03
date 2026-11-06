@@ -1,0 +1,37 @@
+# Same patterns as .gitignore.
+# Projucer rewrites these on `just resave`. Do not edit them by hand.
+Builds/
+
+# CI checks JUCE out here. Local JUCE stays at %USERPROFILE%\JUCE.
+JUCE/
+JuceLibraryCode/
+
+# just build-dist
+dist/
+
+# WiX
+installer/bin/
+installer/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.ipch
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# seq_check
+tests/*.exe
+tests/*.obj
+seq_check.obj
+
+# Affinity Studio lock files
+assets/*.af~lock~
