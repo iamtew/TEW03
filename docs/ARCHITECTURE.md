@@ -4,19 +4,19 @@ PluginProcessor owns:
 - APVTS
 - SynthEngine
 - Sequencer
-- MidiHandler (incoming + outgoing)
+- MidiHandler (incoming pitch bend + keyboard notes)
 
 Voice contains:
 - Oscillator(s)
 - Resonant filter
-- Amp + Filter envelopes
+- One envelope (amp and filter share it)
 - Accent + Glide state
 
 Data flow (audio thread):
 
-1. Host MIDI in  →  MidiHandler
+1. Host MIDI in  →  MidiHandler (pitch bend; Keyboard mode also notes)
 2. Sequencer (if running) generates note / accent / slide events
-3. Events → Voice (for sound) **and** → MIDI Output buffer (for DAW / other plugins)
+3. Events → Voice (Standalone/Pattern) **and** → MIDI Output buffer. Keyboard+Run: seq MIDI out only; keys play the voice.
 4. Voice: Osc → Drive gain → Filter (env + accent) → Nasty mix → Amp Env → Output
 5. Pre-FX parametric EQ (optional, default off) → FX chain (insert, user order) → Post-FX parametric EQ (optional, default off) → master out
 
@@ -28,9 +28,10 @@ FX chain (Effects page):
 - EQ page draws a post-FX FFT behind the response curve (`src/dsp/EqAnalyser.h`). Hop is 2048, lock-free double buffer.
 
 Play modes (`playMode`):
-- Keyboard: host MIDI notes play the voice.
+- Keyboard: host MIDI notes play the voice. Run still clocks the sequencer for MIDI out and the playhead (in a DAW, host must also be playing).
 - Standalone: loops the selected bank/pattern when Run is on. Follows host transport in a DAW. Hidden from the Play combo in a DAW (index still 1).
 - Pattern: MIDI C1–B3 (24–59) maps chromatically onto the 3×12 bank. Hold plays that slot while Run is on; note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when present, does not require host `isPlaying`.
+- Host playing + PPQ: sequencer snaps to that position (loop/locate). Pattern with the transport stopped free-runs.
 - Factory defaults: standalone app = Standalone + Run off; DAW = Pattern + Run on. Both LFO Sync on.
 
 Pattern bank:

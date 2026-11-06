@@ -7,6 +7,8 @@
   --cream: #f4ead0;
   --lfo1: #3dcc8c;
   --lfo2: #ff6a00;
+  --lfo3: #4c8dff;
+  --lfo4: #ff4fa3;
 }
 
 * { box-sizing: border-box; }
@@ -146,7 +148,10 @@ section { margin-top: 1.6rem; }
 
 .lfos { font-weight: 700; }
 .lfo1 { color: var(--lfo1); }
-.lfo2 { color: var(--lfo2); margin-left: 0.8rem; }
+.lfo2, .lfo3, .lfo4 { margin-left: 0.8rem; }
+.lfo2 { color: var(--lfo2); }
+.lfo3 { color: var(--lfo3); }
+.lfo4 { color: var(--lfo4); }
 
 #notes a { display: block; margin: 0.35rem 0; }
 

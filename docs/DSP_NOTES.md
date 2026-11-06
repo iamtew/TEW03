@@ -16,4 +16,5 @@
 - Per step: pitch, accent flag, slide/tie flag
 - Last step 1–16 (1–32 with 2x). Clock grid is 2x, not “length == 32”.
 - Must generate clean note-on / note-off with correct timing
+- Host PPQ lock while the transport is playing; free-run from Run otherwise
 - Accent and slide must be applied both to the internal voice and reflected in the MIDI Output events where possible

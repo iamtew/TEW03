@@ -16,7 +16,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
 - Slide / portamento
 - Drive / overdrive
 - Master volume + soft limiting
-- Two assignable LFOs with custom breakpoint shapes, free-running or synced to the host tempo
+- Four assignable LFOs with custom breakpoint shapes, free-running or synced to the host tempo
 
 ### MIDI & Performance
 - Full MIDI note input + pitch bend
@@ -25,7 +25,7 @@ The sequencer drives the internal synth and also emits MIDI Output so patterns c
   - Last step 1–16 (1–32 with 2x). 2x splits each step in half, global. Unused steps stay stored.
   - Per-step: note, accent, slide/tie
   - Play/pause (Run) plus play modes: Keyboard (MIDI → voice), Standalone (loop selected slot; hidden in DAW UI), Pattern (hold C1–B3 to play the mapped slot)
-  - Tempo sync with host transport when available; free-running fallback
+  - Tempo sync with host transport when available (BPM + PPQ lock while playing); free-running fallback
 - Sequencer drives the internal Voice **and** emits MIDI Output
 - MIDI Output purpose:
   - Export / record the sequence into the DAW as real MIDI notes
