@@ -25,6 +25,10 @@ resave:
 docs-logo:
     magick assets/icon.png -background none -colorspace RGB -filter Lanczos +distort Resize 320x320 -colorspace sRGB PNG32:docs/icon.png
 
+# Debug standalone must already exist. Interactive desktop only.
+docs-screenshots:
+    & './scripts/docs-screenshots.ps1'
+
 icon: docs-logo
     magick assets/icon.png -background none -colorspace RGB -filter Lanczos -define icon:auto-resize=256,128,64,48,32,16 Builds\VisualStudio2022\icon.ico
     Get-ChildItem Builds\VisualStudio2022 -Recurse -Filter resources.res | Remove-Item -Force
