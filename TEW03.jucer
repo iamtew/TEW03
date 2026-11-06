@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT name="TEW03" companyName="Stupid Audio" version="0.0.8"
+<JUCERPROJECT name="TEW03" companyName="Stupid Audio" version="0.0.9"
               userNotes="Mean acid lines." projectType="audioplug" pluginAUIsSandboxSafe="1"
               pluginManufacturer="Stupid Audio" pluginManufacturerCode="Ssys"
               pluginCode="Tew3" cppLanguageStandard="17" pluginFormats="buildVST3,buildAU,buildStandalone"
