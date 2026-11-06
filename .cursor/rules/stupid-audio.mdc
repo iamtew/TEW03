@@ -1,0 +1,34 @@
+---
+description: Stupid Audio family map. Sibling checkouts under ~/src. Do not invent features or machine paths.
+alwaysApply: true
+---
+
+# Stupid Audio family
+
+This file is a family index, copied into every checkout. Identify the current project from the workspace folder name or `git remote`. Use siblings to look things up; do not treat their trees as this repo.
+
+## Layout
+
+Checkouts live at `~/src/<RepoName>`. Never write a Meat Bag home path, OneDrive path, or other absolute machine path into committed files.
+
+GitHub: `https://github.com/iamtew/<name>`. Pages: `https://iamtew.github.io/<name>`. Verify the remote before publishing a link. Do not guess a missing remote.
+
+## Repos
+
+- Stupid-Audio — product-line site — `~/src/Stupid-Audio`
+- TEW03 — plugin — `~/src/TEW03`
+- K1X — plugin — `~/src/K1X`
+- SNR3 — plugin — `~/src/SNR3`
+- 5HKR — plugin — `~/src/5HKR`
+- V4JB — plugin — `~/src/V4JB`
+- F4RT — plugin — `~/src/F4RT`
+
+Roles only. No feature copy here.
+
+## Cross-repo
+
+Names, logos, features, download URLs, and GitHub/Pages links come from that project’s checkout or its GitHub remote. Do not invent features.
+
+Open a sibling for any cross-plugin work (blurbs, logos, links, shared naming). Read `~/src/<name>` if present; otherwise the GitHub remote.
+
+Do not edit another family repo unless the Meat Bag asked. Do not pull sibling source into this repo except as static assets the current project already hosts.
