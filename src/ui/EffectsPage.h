@@ -152,6 +152,7 @@ private:
             label.setFont (labelFont (11.f));
             label.setColour (juce::Label::textColourId, kInk);
             label.setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            label.setBorderSize ({});
             label.setInterceptsMouseClicks (false, false);
             addAndMakeVisible (label);
             combo.setColour (juce::ComboBox::textColourId, kCream);
@@ -359,7 +360,11 @@ private:
             else if (isChoice)
                 combo.setBounds (r.removeFromTop (22).reduced (2, 2));
             else
-                slider.setBounds (r);
+            {
+                const int ks = juce::jmin (r.getWidth(), r.getHeight());
+                slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, ks, 12);
+                slider.setBounds (r.getX() + (r.getWidth() - ks) / 2, r.getY(), ks, ks);
+            }
         }
 
         TEW03AudioProcessor& proc;
@@ -422,30 +427,30 @@ private:
                 case 0:
                     add (ParamID::fxChoRate, "Rate");
                     add (ParamID::fxChoDepth, "Depth");
-                    add (ParamID::fxChoFb, "Fb");
+                    add (ParamID::fxChoFb, "Feedback");
                     add (ParamID::fxChoMix, "Mix");
                     add (ParamID::fxChoCentre, "Centre");
                     add (ParamID::fxChoWidth, "Width");
                     break;
                 case 1:
-                    add (ParamID::fxCmpThr, "Thresh");
+                    add (ParamID::fxCmpThr, "Threshold");
                     add (ParamID::fxCmpRat, "Ratio");
-                    add (ParamID::fxCmpAtk, "Atk");
-                    add (ParamID::fxCmpRel, "Rel");
+                    add (ParamID::fxCmpAtk, "Attack");
+                    add (ParamID::fxCmpRel, "Release");
                     add (ParamID::fxCmpMix, "Mix");
                     add (ParamID::fxCmpMake, "Makeup");
                     add (ParamID::fxCmpKnee, "Knee");
-                    add (ParamID::fxCmpHpf, "HPF");
+                    add (ParamID::fxCmpHpf, "Highpass");
                     break;
                 case 2:
                     add (ParamID::fxDlySync, "Sync");
-                    add (ParamID::fxDlyDiv, "Div");
+                    add (ParamID::fxDlyDiv, "Division");
                     add (ParamID::fxDlyTime, "Time");
-                    add (ParamID::fxDlyFb, "Fb");
-                    add (ParamID::fxDlyCut, "Cut");
+                    add (ParamID::fxDlyFb, "Feedback");
+                    add (ParamID::fxDlyCut, "Lowpass");
                     add (ParamID::fxDlyMix, "Mix");
                     add (ParamID::fxDlyPing, "Ping");
-                    add (ParamID::fxDlyHp, "HP");
+                    add (ParamID::fxDlyHp, "Highpass");
                     add (ParamID::fxDlySpread, "Spread");
                     break;
                 case 3:
@@ -457,7 +462,7 @@ private:
                     break;
                 case 4:
                     add (ParamID::fxEqType[0], "Type");
-                    add (ParamID::fxEqFreq[0], "Freq");
+                    add (ParamID::fxEqFreq[0], "Frequency");
                     add (ParamID::fxEqGain[0], "Gain");
                     add (ParamID::fxEqQ[0], "Q");
                     add (ParamID::fxEqTrim, "Trim");
@@ -466,14 +471,14 @@ private:
                     add (ParamID::fxFltType, "Type");
                     add (ParamID::fxFltSlope, "Slope");
                     add (ParamID::fxFltCut, "Cutoff");
-                    add (ParamID::fxFltRes, "Res");
+                    add (ParamID::fxFltRes, "Resonance");
                     add (ParamID::fxFltDrive, "Drive");
                     add (ParamID::fxFltMix, "Mix");
                     break;
                 case 6:
                     add (ParamID::fxFlaRate, "Rate");
                     add (ParamID::fxFlaDepth, "Depth");
-                    add (ParamID::fxFlaFb, "Fb");
+                    add (ParamID::fxFlaFb, "Feedback");
                     add (ParamID::fxFlaMix, "Mix");
                     add (ParamID::fxFlaCentre, "Centre");
                     add (ParamID::fxFlaWidth, "Width");
@@ -481,19 +486,19 @@ private:
                 case 7:
                     add (ParamID::fxPhaRate, "Rate");
                     add (ParamID::fxPhaDepth, "Depth");
-                    add (ParamID::fxPhaFb, "Fb");
+                    add (ParamID::fxPhaFb, "Feedback");
                     add (ParamID::fxPhaCentre, "Centre");
                     add (ParamID::fxPhaStages, "Stages");
                     add (ParamID::fxPhaMix, "Mix");
                     break;
                 case 8:
                     add (ParamID::fxRevSize, "Size");
-                    add (ParamID::fxRevDamp, "Damp");
+                    add (ParamID::fxRevDamp, "Damping");
                     add (ParamID::fxRevWidth, "Width");
                     add (ParamID::fxRevMix, "Mix");
-                    add (ParamID::fxRevPre, "Pre");
+                    add (ParamID::fxRevPre, "Predelay");
                     add (ParamID::fxRevFreeze, "Freeze");
-                    add (ParamID::fxRevLo, "Lo Cut");
+                    add (ParamID::fxRevLo, "Low Cut");
                     break;
                 default:
                     break;
@@ -505,7 +510,7 @@ private:
             if (type != 4 || knobs.size() < 4)
                 return;
             knobs[0]->bind (ParamID::fxEqType[eqBand], "Type");
-            knobs[1]->bind (ParamID::fxEqFreq[eqBand], "Freq");
+            knobs[1]->bind (ParamID::fxEqFreq[eqBand], "Frequency");
             knobs[2]->bind (ParamID::fxEqGain[eqBand], "Gain");
             knobs[3]->bind (ParamID::fxEqQ[eqBand], "Q");
             if (eqPlot != nullptr)
