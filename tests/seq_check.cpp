@@ -1,3 +1,4 @@
+#include "dsp/Compressor.h"
 #include "dsp/Envelope.h"
 #include "dsp/EqBiquad.h"
 #include "dsp/Lfo.h"
@@ -582,6 +583,12 @@ int main()
     assert (ons[0] == 0);
     assert (std::abs (ons[1] - (int) std::ceil (straight * 1.5)) <= 1);
     assert (std::abs (ons[2] - (int) std::ceil (straight * 2.0)) <= 1);
+
+    assert (tew::compressorGainReductionDb (-6.f, -24.f, 1.f, 0.f) == 0.f);
+    assert (tew::compressorGainReductionDb (-6.f, -24.f, 4.f, 0.f) > 10.f);
+    assert (tew::compressorGainReductionDb (-30.f, -24.f, 4.f, 0.f) == 0.f);
+    const float knee = tew::compressorGainReductionDb (-24.f, -24.f, 4.f, 6.f);
+    assert (knee > 0.f && knee < 2.f);
 
     std::puts ("seq_check ok");
     return 0;

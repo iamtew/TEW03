@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Compressor.h"
 #include "ParametricEq.h"
 #include "Lfo.h"
 #include "../parameters/ParameterIDs.h"
@@ -40,7 +41,7 @@ struct FxChain
         lp.prepare (spec);
         insertEq.prepare (sampleRate, samplesPerBlock, ch);
         scratch.setSize (ch, n);
-        cmpEnv = 0.f;
+        cmpGr = 0.f;
         cmpHpZ[0] = cmpHpZ[1] = 0.f;
         dlyHpZ[0] = dlyHpZ[1] = 0.f;
         dstLpZ[0] = dstLpZ[1] = 0.f;
@@ -254,7 +255,7 @@ private:
         const float atkA = 1.f - std::exp (-1.f / juce::jmax (1.f, atkMs * 0.001f * (float) sr));
         const float relA = 1.f - std::exp (-1.f / juce::jmax (1.f, relMs * 0.001f * (float) sr));
         const int n = buffer.getNumSamples();
-        const int chs = buffer.getNumChannels();
+        const int chs = juce::jmin (2, buffer.getNumChannels());
         float peakGr = 0.f;
         for (int i = 0; i < n; ++i)
         {
@@ -264,29 +265,13 @@ private:
                 const float x = buffer.getSample (ch, i);
                 det = juce::jmax (det, std::abs (hp1 (x, cmpHpZ[ch], hpA)));
             }
-            const float coeff = det > cmpEnv ? atkA : relA;
-            cmpEnv += coeff * (det - cmpEnv);
-            const float envDb = 20.f * std::log10 (cmpEnv + 1.0e-8f);
-            const float half = knee * 0.5f;
-            const float over = envDb - thr;
-            float gr = 0.f;
-            if (knee <= 0.05f)
-            {
-                if (over > 0.f)
-                    gr = over * (1.f - 1.f / ratio);
-            }
-            else if (over > half)
-            {
-                gr = over * (1.f - 1.f / ratio);
-            }
-            else if (over > -half)
-            {
-                const float t = over + half;
-                gr = (1.f - 1.f / ratio) * t * t / (2.f * knee);
-            }
-            peakGr = juce::jmax (peakGr, gr);
-            const float g = std::pow (10.f, -gr / 20.f) * makeup;
-            for (int ch = 0; ch < chs; ++ch)
+            const float envDb = 20.f * std::log10 (det + 1.0e-8f);
+            const float instant = compressorGainReductionDb (envDb, thr, ratio, knee);
+            const float coeff = instant > cmpGr ? atkA : relA;
+            cmpGr += coeff * (instant - cmpGr);
+            peakGr = juce::jmax (peakGr, cmpGr);
+            const float g = std::pow (10.f, -cmpGr / 20.f) * makeup;
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             {
                 const float dry = buffer.getSample (ch, i);
                 buffer.setSample (ch, i, dry + mix * (dry * g - dry));
@@ -535,7 +520,7 @@ private:
     double sr = 44100.0;
     bool prepared = false;
     const float* blockLfo = nullptr;
-    float cmpEnv = 0.f;
+    float cmpGr = 0.f;
     float cmpHpZ[2] {};
     float dlyHpZ[2] {};
     float dstLpZ[2] {};

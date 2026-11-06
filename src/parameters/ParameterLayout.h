@@ -177,13 +177,13 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addOn (ParamID::fxOnIds[1], "Comp On");
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::fxCmpThr, 1 }, "Comp Thresh",
-        NormalisableRange<float> (-40.f, 0.f), -12.f, db1));
+        NormalisableRange<float> (-60.f, 0.f), -24.f, db1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::fxCmpRat, 1 }, "Comp Ratio",
         NormalisableRange<float> (1.f, 20.f, 0.1f, 0.4f), 4.f, ratio1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::fxCmpAtk, 1 }, "Comp Attack",
-        NormalisableRange<float> (0.1f, 100.f, 0.01f, 0.4f), 10.f, ms1));
+        NormalisableRange<float> (0.1f, 100.f, 0.01f, 0.4f), 1.f, ms1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::fxCmpRel, 1 }, "Comp Release",
         NormalisableRange<float> (10.f, 500.f, 0.1f, 0.4f), 80.f, ms1));
@@ -196,7 +196,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         NormalisableRange<float> (0.f, 12.f), 3.f, db1));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::fxCmpHpf, 1 }, "Comp HPF",
-        NormalisableRange<float> (20.f, 400.f, 0.01f, 0.3f), 80.f, hz0));
+        NormalisableRange<float> (20.f, 400.f, 0.01f, 0.3f), 20.f, hz0));
 
     addOn (ParamID::fxOnIds[2], "Delay On");
     addUnit (ParamID::fxDlyTime, "Delay Time", 0.35f);

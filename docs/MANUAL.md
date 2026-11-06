@@ -160,7 +160,7 @@ Rate, Depth, Feedback, Mix, Centre (1–20 ms), Width.
 
 ### Compressor
 
-Threshold (−40 to 0 dB), Ratio (1–20), Attack (0.1–100 ms), Release (10–500 ms), Mix, Makeup (−6 to +24 dB), Knee (0–12 dB), Highpass on the detector (20–400 Hz). The meter is gain reduction.
+Threshold (−60 to 0 dB), Ratio (1–20), Attack (0.1–100 ms), Release (10–500 ms), Mix, Makeup (−6 to +24 dB), Knee (0–12 dB), Highpass on the detector (20–400 Hz). The meter is gain reduction.
 
 ### Delay
 
