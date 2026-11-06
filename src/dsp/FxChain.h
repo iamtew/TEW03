@@ -335,7 +335,8 @@ private:
         const float mix = p (apvts, ParamID::fxFltMix);
         const float drive = p (apvts, ParamID::fxFltDrive);
         const bool steep = juce::roundToInt (p (apvts, ParamID::fxFltSlope)) >= 1;
-        ensureScratch (buffer);
+        if (! scratchFits (buffer))
+            return;
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             scratch.copyFrom (ch, 0, buffer, ch, 0, buffer.getNumSamples());
         if (drive > 0.001f)
@@ -419,7 +420,8 @@ private:
         rp.freezeMode = freeze ? 1.f : 0.f;
         reverb.setParameters (rp);
 
-        ensureScratch (buffer);
+        if (! scratchFits (buffer))
+            return;
         const int n = buffer.getNumSamples();
         const int chs = buffer.getNumChannels();
         const float preSamp = juce::jlimit (1.f, (float) revPreDly.getMaximumDelayInSamples() - 1.f,
@@ -473,7 +475,8 @@ private:
         *lp.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass (sr, cut, 0.7f);
         const float hpA = onePoleCoeff (20.f + p (apvts, ParamID::fxDlyHp) * 1980.f, sr);
 
-        ensureScratch (buffer);
+        if (! scratchFits (buffer))
+            return;
         scratch.clear();
         const int n = buffer.getNumSamples();
         const int chs = buffer.getNumChannels();
@@ -508,12 +511,10 @@ private:
         }
     }
 
-    void ensureScratch (const juce::AudioBuffer<float>& buffer)
+    bool scratchFits (const juce::AudioBuffer<float>& buffer) const
     {
-        // ponytail: grow only if host exceeds prepare size; rare first-block case
-        if (scratch.getNumSamples() < buffer.getNumSamples()
-            || scratch.getNumChannels() < buffer.getNumChannels())
-            scratch.setSize (buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+        return scratch.getNumSamples() >= buffer.getNumSamples()
+            && scratch.getNumChannels() >= buffer.getNumChannels();
     }
 
     using DupIIR = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>,

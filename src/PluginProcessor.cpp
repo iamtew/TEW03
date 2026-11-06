@@ -9,7 +9,6 @@ static_assert (tew::destCount == ParamID::destCount);
 
 namespace
 {
-constexpr int kMidiBytes = 512;
 constexpr int kMaxEvents = 32;
 constexpr int kPlayKeyboard = 0;
 constexpr int kPlayStandalone = 1;
@@ -359,9 +358,6 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
-
-    // First callback may grow the host buffer. Later blocks stay at this size.
-    midi.ensureSize (kMidiBytes);
 
     tew::VoiceMod mod;
     fillVoiceMod (mod);
