@@ -1901,7 +1901,7 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
 {
     setLookAndFeel (&panelLnF);
     setOpaque (true);
-    logo = juce::ImageCache::getFromMemory (BinaryData::icon_png, BinaryData::icon_pngSize);
+    logo = juce::ImageCache::getFromMemory (BinaryData::logo_png, BinaryData::logo_pngSize);
     panelLnF.setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff2e2e2e));
     panelLnF.setColour (juce::PopupMenu::textColourId, kCream);
     panelLnF.setColour (juce::PopupMenu::highlightedBackgroundColourId, kLedOn);

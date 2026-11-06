@@ -16,7 +16,7 @@ public:
 
     explicit EffectsPage (TEW03AudioProcessor& p) : proc (p)
     {
-        logo = juce::ImageCache::getFromMemory (BinaryData::icon_png, BinaryData::icon_pngSize);
+        logo = juce::ImageCache::getFromMemory (BinaryData::logo_png, BinaryData::logo_pngSize);
         viewport.setScrollBarsShown (true, false);
         viewport.setViewedComponent (&stack, false);
         addAndMakeVisible (viewport);

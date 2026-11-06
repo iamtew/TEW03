@@ -1,4 +1,4 @@
-<img src="docs/icon.png" alt="TEW03" width="160">
+<img src="assets/logo.png" alt="TEW03" width="160">
 
 # TEW03
 
