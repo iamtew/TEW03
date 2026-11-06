@@ -986,6 +986,7 @@ void TEW03AudioProcessorEditor::PanelLnF::drawToggleButton (juce::Graphics& g, j
 
     const float cap = (float) (int) b.getProperties().getWithDefault ("ledPx", 10);
     const float led = juce::jmin (cap, bounds.getHeight() - 4.f);
+    g.setFont (boldFont (cap));
     g.setColour (b.getToggleState() ? kLedOn : kLedOff);
     g.fillEllipse (bounds.getX() + 4.f, bounds.getCentreY() - led * 0.5f, led, led);
     g.setColour (kCream);

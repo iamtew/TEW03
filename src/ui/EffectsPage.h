@@ -1137,88 +1137,26 @@ private:
             g.setColour (owner.selected == type ? kCream : (lit ? kInk : kInk.withAlpha (0.45f)));
             g.drawRoundedRectangle (r.reduced (0.5f), 4.f, owner.selected == type ? 1.8f : 1.f);
 
-            auto grip = juce::Rectangle<float> ((float) kGripW, r.getHeight()).reduced (3.f, 6.f);
+            const float barW = 8.f, barH = 2.f, gap = 3.f;
+            const float stackH = barH * 3.f + gap * 2.f;
+            const float barX = ((float) kGripW - barW) * 0.5f;
+            const float barY = (r.getHeight() - stackH) * 0.5f;
             g.setColour (kCream.withAlpha (0.55f));
-            for (int row = 0; row < 3; ++row)
-                for (int col = 0; col < 2; ++col)
-                    g.fillEllipse (grip.getX() + (float) col * 5.f,
-                                   grip.getY() + (float) row * (grip.getHeight() / 3.f),
-                                   2.4f, 2.4f);
-
-            drawIcon (g, juce::Rectangle<float> (r.getRight() - 26.f, r.getY() + 4.f, 20.f, r.getHeight() - 8.f));
+            for (int i = 0; i < 3; ++i)
+                g.fillRoundedRectangle (barX, barY + (float) i * (barH + gap), barW, barH, 1.f);
 
             g.setColour (kCream);
-            g.setFont (labelFont (10.f));
+            g.setFont (labelFont (16.f));
             g.drawFittedText (ParamID::fxNames[type],
                               juce::Rectangle<int> (kGripW + 2, (int) r.getY() + 2,
-                                                    (int) r.getWidth() - kGripW - 48, (int) r.getHeight() / 2),
+                                                    (int) r.getWidth() - kGripW - 6, (int) r.getHeight() / 2),
                               juce::Justification::centredLeft, 2);
-        }
-
-        void drawIcon (juce::Graphics& g, juce::Rectangle<float> box)
-        {
-            g.setColour (kCream.withAlpha (lit ? 1.f : 0.65f));
-            juce::Path p;
-            const float x = box.getX(), y = box.getY(), w = box.getWidth(), h = box.getHeight();
-            switch (type)
-            {
-                case 0:
-                    g.drawEllipse (x, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
-                    g.drawEllipse (x + w * 0.22f, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
-                    g.drawEllipse (x + w * 0.44f, y + h * 0.25f, w * 0.55f, h * 0.5f, 1.4f);
-                    break;
-                case 1:
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        const float bh = h * (0.25f + 0.15f * (float) (i % 3));
-                        g.fillRect (x + 3.f * (float) i, y + (h - bh) * 0.5f, 2.2f, bh);
-                    }
-                    break;
-                case 2:
-                    for (int i = 0; i < 4; ++i)
-                        g.fillRect (x + 4.f * (float) i, y + h * 0.2f, 2.f, h * (0.6f - 0.12f * (float) i));
-                    break;
-                case 3:
-                    p.addTriangle (x + w * 0.5f, y + 2.f, x + w - 2.f, y + h * 0.5f, x + w * 0.5f, y + h - 2.f);
-                    p.addTriangle (x + w * 0.5f, y + 2.f, x + 2.f, y + h * 0.5f, x + w * 0.5f, y + h - 2.f);
-                    g.strokePath (p, juce::PathStrokeType (1.3f));
-                    break;
-                case 4:
-                    g.drawLine (x, y + h * 0.6f, x + w, y + h * 0.45f, 1.3f);
-                    g.fillEllipse (x + w * 0.2f - 2.f, y + h * 0.55f - 2.f, 4.f, 4.f);
-                    g.fillEllipse (x + w * 0.55f - 2.f, y + h * 0.4f - 2.f, 4.f, 4.f);
-                    break;
-                case 5:
-                    p.startNewSubPath (x, y + h * 0.75f);
-                    p.quadraticTo (x + w * 0.45f, y + 2.f, x + w, y + h * 0.7f);
-                    g.strokePath (p, juce::PathStrokeType (1.4f));
-                    break;
-                case 6:
-                    for (int i = 0; i < 5; ++i)
-                        g.drawLine (x + 3.5f * (float) i, y + h * 0.2f, x + 3.5f * (float) i, y + h * 0.8f, 1.2f);
-                    break;
-                case 7:
-                    p.startNewSubPath (x, y + h * 0.5f);
-                    p.quadraticTo (x + w * 0.25f, y + 2.f, x + w * 0.5f, y + h * 0.5f);
-                    p.quadraticTo (x + w * 0.75f, y + h - 2.f, x + w, y + h * 0.5f);
-                    g.strokePath (p, juce::PathStrokeType (1.4f));
-                    break;
-                case 8:
-                    g.drawRect (x + 3.f, y + h * 0.3f, w * 0.55f, h * 0.5f, 1.2f);
-                    g.drawLine (x + 3.f, y + h * 0.3f, x + 8.f, y + h * 0.15f, 1.2f);
-                    g.drawLine (x + 3.f + w * 0.55f, y + h * 0.3f, x + 8.f + w * 0.55f, y + h * 0.15f, 1.2f);
-                    g.drawLine (x + 8.f, y + h * 0.15f, x + 8.f + w * 0.55f, y + h * 0.15f, 1.2f);
-                    break;
-                default:
-                    break;
-            }
         }
 
         void resized() override
         {
             auto r = getLocalBounds();
             r.removeFromLeft (kGripW);
-            r.removeFromRight (24);
             on.setBounds (r.removeFromBottom (26).reduced (2, 1));
         }
 
