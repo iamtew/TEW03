@@ -41,7 +41,7 @@ Pattern bank:
 Patch vs bank files (message thread only):
 - Patch (`.tew3p`) = APVTS knobs / play settings / LFO shapes / FX params + order. Never includes `BANKS`, `seqBank`, or `seqPattern`.
 - Bank (`.tew3b`) = all 36 patterns. Never includes patch knobs.
-- Library folder: `%APPDATA%/Stupid Systems LLC/TEW03/Patches` and `.../Banks`.
+- Library folder: `%APPDATA%/Stupid Audio/TEW03/Patches` and `.../Banks`.
 - Factory patches (`01 Squelch` … `40 Factory Floor`) are rewritten into Patches on startup. Defined in `FactoryPatches.h`. They set the voice knobs, gate, swing, a category, and an effects chain. User-named files are left alone.
 - Current names live as `PATCH_NAME` / `BANK_NAME` on `apvts.state` for DAW recall.
 - Loading one library does not overwrite the other. `Init Patch` / `Init Bank` restore defaults / factory fills.

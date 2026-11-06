@@ -3,7 +3,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="TEW03"
-           Manufacturer="Stupid Systems LLC"
+           Manufacturer="Stupid Audio"
            Version="$(var.ProductVersion)"
            UpgradeCode="7E03A1C4-5B2D-4F8E-9A61-0C3D8E2F4B17"
            Scope="perMachine">
@@ -20,7 +20,7 @@
     <ui:WixUI Id="WixUI_FeatureTree" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
-      <Directory Id="CompanyFolder" Name="Stupid Systems LLC">
+      <Directory Id="CompanyFolder" Name="Stupid Audio">
         <Directory Id="INSTALLFOLDER" Name="TEW03">
           <Component Id="Standalone" Guid="*">
             <File Id="StandaloneExe" Name="TEW03.exe" Source="!(bindpath.Standalone)TEW03.exe" KeyPath="yes" />
@@ -41,7 +41,7 @@
                     Target="[INSTALLFOLDER]TEW03.exe" />
           <RemoveFolder Id="RemoveProgramMenuDir" On="uninstall" />
           <RegistryValue Root="HKCU"
-                         Key="Software\Stupid Systems LLC\TEW03"
+                         Key="Software\Stupid Audio\TEW03"
                          Name="installed"
                          Type="integer"
                          Value="1"
@@ -66,7 +66,7 @@
     </Feature>
 
     <Feature Id="StandaloneFeature" Title="Standalone" Level="1" ConfigurableDirectory="INSTALLFOLDER"
-             Description="Standalone app and Start menu shortcut. Default folder is Program Files\Stupid Systems LLC\TEW03.">
+             Description="Standalone app and Start menu shortcut. Default folder is Program Files\Stupid Audio\TEW03.">
       <ComponentRef Id="Standalone" />
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>

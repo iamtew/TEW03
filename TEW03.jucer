@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT name="TEW03" companyName="Stupid Systems LLC" version="0.0.8"
+<JUCERPROJECT name="TEW03" companyName="Stupid Audio" version="0.0.8"
               userNotes="Mean acid lines." projectType="audioplug" pluginAUIsSandboxSafe="1"
-              pluginManufacturer="Stupid Systems LLC" pluginManufacturerCode="Ssys"
+              pluginManufacturer="Stupid Audio" pluginManufacturerCode="Ssys"
               pluginCode="Tew3" cppLanguageStandard="17" pluginFormats="buildVST3,buildAU,buildStandalone"
               pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut"
               useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="dBqcWt"
