@@ -156,15 +156,15 @@ The insert **Equalizer** is the same five-band parametric as Pre/Post, but it si
 
 ### Chorus
 
-Rate, Depth, Fb, Mix, Centre (1–20 ms), Width.
+Rate, Depth, Feedback, Mix, Centre (1–20 ms), Width.
 
 ### Compressor
 
-Thresh (−40 to 0 dB), Ratio (1–20), Atk (0.1–100 ms), Rel (10–500 ms), Mix, Makeup (−6 to +24 dB), Knee (0–12 dB), HPF on the detector (20–400 Hz). The meter is gain reduction.
+Threshold (−40 to 0 dB), Ratio (1–20), Attack (0.1–100 ms), Release (10–500 ms), Mix, Makeup (−6 to +24 dB), Knee (0–12 dB), Highpass on the detector (20–400 Hz). The meter is gain reduction.
 
 ### Delay
 
-**Sync** on: **Div** is 1/16, 1/8, 1/4, or 1/2 at tempo. **Sync** off: **Time** is free. Then Fb, Cut, Mix, Ping (cross-channel), HP in the feedback, Spread.
+**Sync** on: **Division** is 1/16, 1/8, 1/4, or 1/2 at tempo. **Sync** off: **Time** is free. Then Feedback, Lowpass, Mix, Ping (cross-channel), Highpass in the feedback, Spread.
 
 ### Distortion
 
@@ -172,23 +172,23 @@ Type Soft / Hard / Fold / Rectify, Drive, Bias, Tone, Mix. Separate from the syn
 
 ### Equalizer
 
-Five bands plus Trim. Click a band on the plot, then set Type, Freq, Gain, Q. Spectrum behind the curve is the post-FX FFT.
+Five bands plus Trim. Click a band on the plot, then set Type, Frequency, Gain, Q. Spectrum behind the curve is the post-FX FFT.
 
 ### Filter
 
-Type Low / Band / High, Slope 12 / 24 dB, Cutoff (20–12000 Hz), Res, Drive, Mix. Extra filter in the FX chain, not the 303 ladder.
+Type Low / Band / High, Slope 12 / 24 dB, Cutoff (20–12000 Hz), Resonance, Drive, Mix. Extra filter in the FX chain, not the 303 ladder.
 
 ### Flanger
 
-Rate, Depth, Fb, Mix, Centre (0.5–8 ms), Width.
+Rate, Depth, Feedback, Mix, Centre (0.5–8 ms), Width.
 
 ### Phaser
 
-Rate, Depth, Fb, Centre (200–4000 Hz), Stages 2 / 4 / 6 / 8, Mix.
+Rate, Depth, Feedback, Centre (200–4000 Hz), Stages 2 / 4 / 6 / 8, Mix.
 
 ### Reverb
 
-Size, Damp, Width, Mix, Predelay (0–200 ms), Freeze, Lo Cut.
+Size, Damping, Width, Mix, Predelay (0–200 ms), Freeze, Low Cut.
 
 ## EQ
 
