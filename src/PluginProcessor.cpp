@@ -319,6 +319,23 @@ bool TEW03AudioProcessor::handleKeyTriggers (const juce::MidiBuffer& midi)
     return held >= 0;
 }
 
+void TEW03AudioProcessor::applyKeyboardNotes (const juce::MidiBuffer& midi)
+{
+    for (const auto meta : midi)
+    {
+        const auto msg = meta.getMessage();
+        if (msg.isNoteOn())
+        {
+            retriggerLfos();
+            keyboardSounding.store (true, std::memory_order_relaxed);
+        }
+        else if (msg.isNoteOff())
+            keyboardSounding.store (false, std::memory_order_relaxed);
+    }
+
+    tew::MidiHandler::applyNotes (midi, engine.getVoice());
+}
+
 void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -371,13 +388,15 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         keyboardSounding.store (false, std::memory_order_relaxed);
 
     bool playing = false;
-    if (mode == kPlayStandalone)
+    if (mode == kPlayStandalone || mode == kPlayKeyboard)
         playing = patternShouldRun();
     else if (mode == kPlayPattern)
         playing = handleKeyTriggers (midi) && raw (ParamID::seqPlay) >= 0.5f;
 
     if (mode != kPlayKeyboard)
         midi.clear();
+    else if (playing)
+        applyKeyboardNotes (midi);
 
     auto render = [this, &buffer, &mod] (int start, int n)
     {
@@ -413,23 +432,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
 
         if (mode == kPlayKeyboard)
-        {
-            for (const auto meta : midi)
-            {
-                const auto msg = meta.getMessage();
-                if (msg.isNoteOn())
-                {
-                    retriggerLfos();
-                    keyboardSounding.store (true, std::memory_order_relaxed);
-                    engine.getVoice().noteOn (msg.getNoteNumber(), msg.getVelocity() >= 110);
-                }
-                else if (msg.isNoteOff())
-                {
-                    keyboardSounding.store (false, std::memory_order_relaxed);
-                    engine.getVoice().noteOff (msg.getNoteNumber());
-                }
-            }
-        }
+            applyKeyboardNotes (midi);
         render (0, numSamples);
         processInserts();
         return;
@@ -452,13 +455,17 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const auto velocity = events[i].accent ? (juce::uint8) 127 : (juce::uint8) 100;
             midi.addEvent (juce::MidiMessage::noteOn (1, events[i].note, velocity), at);
-            retriggerLfos();
-            engine.getVoice().noteOn (events[i].note, events[i].accent, events[i].slide);
+            if (mode != kPlayKeyboard)
+            {
+                retriggerLfos();
+                engine.getVoice().noteOn (events[i].note, events[i].accent, events[i].slide);
+            }
         }
         else
         {
             midi.addEvent (juce::MidiMessage::noteOff (1, events[i].note), at);
-            engine.getVoice().noteOff (events[i].note);
+            if (mode != kPlayKeyboard)
+                engine.getVoice().noteOff (events[i].note);
         }
     }
 

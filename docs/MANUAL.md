@@ -50,7 +50,7 @@ Left column is transport and pattern. Centre is the piano roll.
 
 Three modes (the DAW Play list is **Keyboard** and **Pattern** only):
 
-- **Keyboard** — incoming MIDI notes play the voice. The sequencer can still run for MIDI out / playhead if **Run** is on, but you are playing from keys.
+- **Keyboard** — incoming MIDI notes play the voice. If **Run** is on, the sequencer still clocks for MIDI out and the playhead, but keys own the sound. In a DAW that clock also needs the host to be playing (same as Standalone).
 - **Standalone** — loops the selected bank/pattern while **Run** is on. In a DAW it follows host transport: Run on *and* the host playing. The standalone app uses Run as the clock. Hidden from the Play list in a DAW.
 - **Pattern** — MIDI notes **C1–B3** (MIDI 24–59) map chromatically onto the 36 slots (3 banks × 12 patterns). Hold a key to play that slot. Note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when the host provides it; does **not** require the host transport to be playing.
 

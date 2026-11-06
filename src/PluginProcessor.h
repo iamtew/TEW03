@@ -105,6 +105,7 @@ private:
     float hostTempoBpm() const;
     bool patternShouldRun() const;
     bool handleKeyTriggers (const juce::MidiBuffer& midi);
+    void applyKeyboardNotes (const juce::MidiBuffer& midi);
     void loadBanksFromState();
     void writeBanksToState();
     void writeStepToState (int bank, int pat, int index, tew::Sequencer::Step step);
