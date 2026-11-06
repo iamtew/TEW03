@@ -2141,6 +2141,7 @@ void TEW03AudioProcessorEditor::paintContent (juce::Graphics& g)
     if (logo.isValid())
     {
         auto logoR = title.removeFromLeft (kTitleH).reduced (2);
+        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
         g.drawImage (logo, logoR.toFloat(), juce::RectanglePlacement::centred);
         title.removeFromLeft (6);
     }

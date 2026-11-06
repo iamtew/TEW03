@@ -55,6 +55,7 @@ public:
                 auto logoR = juce::Rectangle<int> (0, 0, s, s)
                                  .withCentre ({ msg.getCentreX(), msg.getCentreY() - 28 });
                 g.setOpacity (0.92f);
+                g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
                 g.drawImage (logo, logoR.toFloat(), juce::RectanglePlacement::centred);
                 g.setOpacity (1.f);
                 msg.removeFromTop (logoR.getBottom() - msg.getY());
