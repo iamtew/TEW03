@@ -1,3 +1,3 @@
-Iconoir icons by Luca Burgio. MIT License.
-https://github.com/iconoir-icons/iconoir
-Vendored via Streamline (Iconoir Regular).
+Tabler Icons by Paweł Kuna. MIT License.
+https://github.com/tabler/tabler-icons
+Vendored via Streamline (Tabler Line).

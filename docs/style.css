@@ -47,7 +47,7 @@ a:hover { color: var(--yellow-dim); }
   display: block;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1;
+  stroke-width: 2;
   pointer-events: none;
 }
 

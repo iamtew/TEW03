@@ -1,2 +1,2 @@
-Iconoir Regular SVGs from Streamline (set slug iconoir-regular).
+Tabler Line SVGs from Streamline (set slug tabler-line).
 Sprite compiled to docs/icons.svg. Originals in docs/icons/_src/.
