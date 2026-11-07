@@ -10,7 +10,7 @@
 
 **EQ** — five-band parametric before and after the effects, with the spectrum behind the curve.
 
-VST3 and standalone. Audio Unit on macOS. Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/MANUAL.md](docs/MANUAL.md).
+VST3 and standalone. Audio Unit on macOS. Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [https://iamtew.github.io/TEW03/docs.html](https://iamtew.github.io/TEW03/docs.html).
 
 ## Release
 
