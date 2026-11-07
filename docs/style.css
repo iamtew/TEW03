@@ -144,6 +144,8 @@ main.landing {
   border: 2px solid var(--yellow);
   border-radius: 1.6rem;
   padding: 1.6rem 1.4rem 1.4rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .lead {
@@ -229,6 +231,8 @@ blockquote footer {
   border: 2px solid var(--yellow);
   border-radius: 1.6rem;
   padding: 1.2rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .feature:nth-of-type(even) { direction: rtl; }
