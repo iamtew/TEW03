@@ -11,6 +11,7 @@ Monophonic acid synth. Classic 303 squelch plus extra nastiness. Stupid Audio. M
 ## Product
 
 - VST3 + Standalone (Audio Unit on macOS)
+- Synth plugin: MIDI in, MIDI out
 - About + GitHub tag check (title-bar name + version)
 - Window scale 40–150%, saved with the session
 - Jucer `version=` is the binary, About dialog, git tag, and `just build-dist` name. Tags match that string (no `v` prefix).
@@ -39,7 +40,7 @@ Classic 303-style monophonic step sequencer.
 - Per-step: note, accent, slide/tie (second click is super slide)
 - Play modes: Keyboard (MIDI → voice), Standalone (loop selected slot; hidden in DAW UI), Pattern (hold C1–B3 to play the mapped slot)
 - Tempo sync with host transport when available (BPM + PPQ lock while playing); free-running fallback
-- Sequencer drives the internal Voice **and** emits MIDI Output (accent = velocity 127, otherwise 100)
+- Sequencer drives the internal Voice **and** emits MIDI Output (accent = velocity 127, otherwise 100) so the DAW can record the pattern, or another plugin can play it
 
 ## LFOs
 
@@ -64,9 +65,10 @@ Main (synth, sequencer, LFOs), Effects, EQ.
 
 ## Stack
 
-- JUCE, Projucer workflow only
+- JUCE from `%USERPROFILE%\JUCE`, Projucer workflow only
 - C++17/20, APVTS for all parameters
 - Just + justfile
+- Windows first (MSVC / VS 2022 Build Tools)
 - Real-time safe: no allocations, no locks, no system calls in processBlock
 
 ## UI
