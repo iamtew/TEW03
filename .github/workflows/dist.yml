@@ -207,3 +207,45 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.msi --notes "$(git log --pretty=format:'- %h %s' $(git describe --tags --abbrev=0 --match '[0-9]*' HEAD^ 2>/dev/null)..HEAD)"
+
+      # Site reads docs/releases.json. Latest API after the release; skip source tarballs.
+      - name: Site download list
+        if: github.ref_type == 'tag'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          curl -fsSL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/releases/latest" \
+            -o /tmp/latest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("/tmp/latest.json").read_text(encoding="utf-8"))
+          files = []
+          for asset in data.get("assets") or []:
+              name = asset.get("name") or ""
+              low = name.lower()
+              if low.endswith(".tar") or low.endswith(".tar.gz"):
+                  continue
+              files.append(name)
+          files.sort()
+          out = {"tag": data.get("tag_name") or "", "files": files}
+          Path("/tmp/releases.json").write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+          PY
+          git fetch origin "$DEFAULT_BRANCH"
+          git switch -C _releases-json "origin/$DEFAULT_BRANCH"
+          mkdir -p docs
+          cp /tmp/releases.json docs/releases.json
+          git add docs/releases.json
+          if git diff --cached --quiet; then
+            echo "releases.json unchanged"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "update docs download list" -m "- write latest release filenames for the site"
+          git push origin HEAD:"$DEFAULT_BRANCH"
