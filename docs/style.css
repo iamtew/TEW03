@@ -326,11 +326,30 @@ strong { color: var(--yellow); }
   position: absolute;
   top: 0.6rem;
   right: 0.6rem;
-  background: none;
-  border: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  background: var(--ink);
+  border: 2px solid var(--yellow);
+  border-radius: 4px;
   color: var(--yellow);
-  padding: 0.3rem;
   cursor: pointer;
+}
+
+.dl-close .icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.dl-close:hover { background: var(--lane); }
+
+.shot-dialog .dl-close {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
 }
 
 .dl-dialog { position: fixed; }
