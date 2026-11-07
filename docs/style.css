@@ -142,7 +142,7 @@ main.landing {
 .hero-panel {
   background: rgba(26, 26, 26, 0.8);
   border: 2px solid var(--yellow);
-  border-radius: 1rem;
+  border-radius: 1.6rem;
   padding: 1.6rem 1.4rem 1.4rem;
 }
 
@@ -227,7 +227,7 @@ blockquote footer {
   margin-top: 1.6rem;
   background: rgba(26, 26, 26, 0.8);
   border: 2px solid var(--yellow);
-  border-radius: 1rem;
+  border-radius: 1.6rem;
   padding: 1.2rem;
 }
 
