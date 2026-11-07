@@ -1,5 +1,7 @@
 # TEW03 – Cursor Rules
 
+Spec: [docs/SPEC.md](docs/SPEC.md).
+
 You are building a VST3 software synthesizer focused on aggressive TB-303-style acid lines (“mean lines”).
 Not a pure clone. Main purpose = classic resonant squelch + extra nastiness.
 
@@ -38,7 +40,7 @@ src/
     ParameterIDs.h
     ParameterLayout.h
 docs/
-  PRD.md
+  SPEC.md
   ARCHITECTURE.md
   DSP_NOTES.md
 justfile

@@ -227,6 +227,6 @@ VST3 and standalone. Audio Unit on macOS.
 
 ## More notes
 
-- [Brief](notes.html?doc=PRD.md)
+- [Spec](notes.html?doc=SPEC.md)
 - [Architecture](notes.html?doc=ARCHITECTURE.md)
 - [DSP notes](notes.html?doc=DSP_NOTES.md)
