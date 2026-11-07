@@ -1,1 +1,4 @@
 pixi.js 8.22.0 copied from https://cdn.jsdelivr.net/npm/pixi.js@8.22.0/dist/pixi.min.mjs
+marked 15.0.12 copied from https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js
+Space Grotesk variable (latin) from @fontsource-variable/space-grotesk@5.2.8
+  vendor/fonts/SpaceGrotesk-latin-wght.woff2

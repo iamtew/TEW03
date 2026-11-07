@@ -1,0 +1,2 @@
+Space Grotesk latin variable woff2 from @fontsource-variable/space-grotesk@5.2.8
+OFL.txt is the font license.

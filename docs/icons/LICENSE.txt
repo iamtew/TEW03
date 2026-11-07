@@ -1,0 +1,3 @@
+Iconoir icons by Luca Burgio. MIT License.
+https://github.com/iconoir-icons/iconoir
+Vendored via Streamline (Iconoir Regular).
