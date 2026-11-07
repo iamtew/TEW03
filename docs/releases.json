@@ -1,0 +1,13 @@
+{
+  "tag": "0.0.9",
+  "files": [
+    "TEW03-0.0.9-linux-x64-standalone.zip",
+    "TEW03-0.0.9-linux-x64-vst3.zip",
+    "TEW03-0.0.9-mac-universal-au.zip",
+    "TEW03-0.0.9-mac-universal-standalone.zip",
+    "TEW03-0.0.9-mac-universal-vst3.zip",
+    "TEW03-0.0.9-win-x64-installer.msi",
+    "TEW03-0.0.9-win-x64-standalone.zip",
+    "TEW03-0.0.9-win-x64-vst3.zip"
+  ]
+}

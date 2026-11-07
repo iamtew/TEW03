@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TEW03 | a monophonic acid synth</title>
-  <meta name="description" content="a monophonic acid synth">
+  <title>TEW03</title>
+  <meta name="description" content="A free monophonic acid synth: 303 squelch, a step sequencer, and extra nastiness. VST3, AU, and standalone.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="TEW03 | a monophonic acid synth">
-  <meta property="og:description" content="a monophonic acid synth">
+  <meta property="og:title" content="TEW03">
+  <meta property="og:description" content="A free monophonic acid synth: 303 squelch, a step sequencer, and extra nastiness. VST3, AU, and standalone.">
   <meta property="og:url" content="https://iamtew.github.io/TEW03/">
   <meta property="og:image" content="https://iamtew.github.io/TEW03/ogimage-TEW03.png">
   <meta property="og:image:width" content="1200">
@@ -21,80 +21,142 @@
   <canvas id="fx" aria-hidden="true"></canvas>
   <header>
     <a class="brand" href="#top"><img src="logo.png" alt="" width="36" height="36">TEW03</a>
-    <nav>
+    <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#menu"></use></svg>
+    </button>
+    <nav id="site-nav">
       <a href="#main">Main</a>
       <a href="#effects">Effects</a>
       <a href="#eq">EQ</a>
-      <a href="notes.html?doc=MANUAL.md">Manual</a>
-      <a href="#notes">Notes</a>
+      <a href="docs.html">Manual</a>
       <a href="https://audio.stupid.systems/">Stupid Audio</a>
     </nav>
   </header>
 
-  <main id="top">
-    <div class="lead">
-      <img class="hero" src="logo.png" alt="TEW03" width="160" height="160">
-      <div>
-        <h1>TEW03</h1>
-        <blockquote>
-          <p>Everybody Needs a 303</p>
-          <footer>— Fatboy Slim</footer>
-        </blockquote>
+  <main id="top" class="landing">
+    <div class="hero-panel">
+      <div class="lead">
+        <img class="hero" src="logo.png" alt="TEW03" width="160" height="160">
+        <div>
+          <h1>TEW03</h1>
+          <blockquote>
+            <p>Everybody Needs a 303</p>
+            <footer>— Fatboy Slim</footer>
+          </blockquote>
+        </div>
       </div>
+      <p>You wanted a 303 that still bites, and a sequencer that actually lives in the plugin. TEW03 is a one-voice acid synth: saw or square, a resonant diode ladder, accent, slide, drive, and a Nasty knob for extra grit after the filter.</p>
+      <p>It is part of <a href="https://audio.stupid.systems/">Stupid Audio</a> — six free instruments. The rest of the pack lives over there.</p>
+      <div class="demos">
+        <p class="demo">
+          <a href="DEMO-B1-P2P4P7P10.ogg">Bank 1, patterns 2, 4, 7 and 10</a>
+          <audio controls preload="metadata" src="DEMO-B1-P2P4P7P10.ogg">
+            Your browser cannot play this demo.
+          </audio>
+        </p>
+        <p class="demo">
+          <a href="DEMO-DELIGHTED-TEW03.ogg">Delighted</a>
+          <audio controls preload="metadata" src="DEMO-DELIGHTED-TEW03.ogg">
+            Your browser cannot play this demo.
+          </audio>
+        </p>
+      </div>
+      <p class="actions">
+        <button type="button" class="download" data-dl-open>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#download"></use></svg>
+          Download
+        </button>
+        <a class="repo" href="https://github.com/iamtew/TEW03">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#github"></use></svg>
+          GitHub
+        </a>
+      </p>
+      <p class="meta">VST3, Audio Unit on macOS, and standalone. Windows, Linux, and Mac.</p>
     </div>
-    <p>A monophonic acid synth. Classic 303 squelch (saw/square, resonant filter, accent, slide, drive) plus extra nastiness.</p>
-    <p>Part of <a href="https://audio.stupid.systems/">Stupid Audio</a> — five free instruments in one pack. The other four live over there.</p>
-    <p class="demo">
-      <a href="DEMO-B1-P2P4P7P10.ogg">DEMO-B1-P2P4P7P10.ogg</a>
-      <audio controls preload="metadata" src="DEMO-B1-P2P4P7P10.ogg">
-        Your browser cannot play this demo.
-      </audio>
-    </p>
-    <p class="demo">
-      <a href="DEMO-DELIGHTED-TEW03.ogg">DEMO-DELIGHTED-TEW03.ogg</a>
-      <audio controls preload="metadata" src="DEMO-DELIGHTED-TEW03.ogg">
-        Your browser cannot play this demo.
-      </audio>
-    </p>
-    <p class="actions">
-      <a class="download" href="https://github.com/iamtew/TEW03/releases/latest">Download</a>
-      <a href="https://github.com/iamtew/TEW03">GitHub</a>
-    </p>
-    <p class="meta">VST3 and standalone.</p>
 
-    <section id="main" class="card">
-      <h2>Main</h2>
-      <p>The synth, a 3×12 step sequencer (16 or 32 steps, accent and slide, key lock), and four drawn LFOs you can drop on any knob. Patterns play the voice and go out as MIDI.</p>
-      <p class="lfos"><span class="lfo1">LFO 1</span> <span class="lfo2">LFO 2</span> <span class="lfo3">LFO 3</span> <span class="lfo4">LFO 4</span></p>
-      <ul>
-        <li><strong>Keyboard</strong> — play it from MIDI.</li>
-        <li><strong>Pattern</strong> — loop the selected slot.</li>
-        <li><strong>Key</strong> — hold a key to trigger a pattern.</li>
-      </ul>
+    <section id="main" class="feature">
+      <div>
+        <h2>Main</h2>
+        <p>This is the instrument: the voice, a 3×12 step sequencer, and four drawn LFOs you can drop on any knob. Sixteen steps, or thirty-two if you hit 2x. Accent and slide per step. Key lock if you want it in scale. Patterns play the voice and go out as MIDI, so you can record the line in the DAW or drive something else.</p>
+        <p class="lfos"><span class="lfo1">LFO 1</span> <span class="lfo2">LFO 2</span> <span class="lfo3">LFO 3</span> <span class="lfo4">LFO 4</span></p>
+        <ul>
+          <li><strong>Keyboard</strong> — play it from MIDI. The sequencer can still clock for MIDI out.</li>
+          <li><strong>Standalone</strong> — loop the selected slot. Hidden from the Play list in a DAW.</li>
+          <li><strong>Pattern</strong> — hold a key to trigger a pattern.</li>
+        </ul>
+      </div>
       <img class="shot" src="screenshot1.png" alt="Main page: synth, sequencer, and LFOs">
     </section>
 
-    <section id="effects" class="card">
-      <h2>Effects</h2>
-      <p>Chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb. Click to add, drag to reorder. All off until you turn them on.</p>
+    <section id="effects" class="feature">
+      <div>
+        <h2>Effects</h2>
+        <p>Chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb. Click to add one, drag to reorder the chain. Everything starts off, so you are not fighting a surprise wash of reverb on a dry acid line.</p>
+      </div>
       <img class="shot" src="screenshot2.png" alt="Effects page">
     </section>
 
-    <section id="eq" class="card">
-      <h2>EQ</h2>
-      <p>Five-band parametric before and after the effects, with the spectrum behind the curve.</p>
+    <section id="eq" class="feature">
+      <div>
+        <h2>EQ</h2>
+        <p>Five-band parametric before the effects and another five after. The spectrum sits behind the curve so you can see what is leaving the chain while you nudge a band.</p>
+      </div>
       <img class="shot" src="screenshot3.png" alt="EQ page">
-    </section>
-
-    <section id="notes">
-      <h2>Notes</h2>
-      <a href="notes.html?doc=MANUAL.md">Manual</a>
-      <a href="notes.html?doc=SPEC.md">Spec</a>
-      <a href="notes.html?doc=ARCHITECTURE.md">Architecture</a>
-      <a href="notes.html?doc=DSP_NOTES.md">DSP notes</a>
     </section>
   </main>
 
+  <dialog id="dl" class="dl-dialog" aria-labelledby="dl-title">
+    <button type="button" class="dl-close" data-dl-close aria-label="Close">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg>
+    </button>
+    <h2 id="dl-title">Download TEW03</h2>
+    <div class="dl-kind">
+      <p>The Windows installer is the easy path. It can put the VST3, the standalone app, or both on the machine, and it adds a Start menu shortcut for the app.</p>
+      <div class="dl-row" data-kind="installer" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows installer
+        </a>
+      </div>
+    </div>
+    <div class="dl-kind">
+      <p>The VST3 zip is just the plugin. Drop it where your DAW looks for VST3s. Mac builds are ad-hoc signed, so Gatekeeper will sulk until you right-click Open the first time.</p>
+      <div class="dl-row" data-kind="vst3" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows
+        </a>
+        <a class="download os" data-os="linux" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#linux"></use></svg>
+          Linux
+        </a>
+        <a class="download os" data-os="mac" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#apple"></use></svg>
+          macOS
+        </a>
+      </div>
+    </div>
+    <div class="dl-kind">
+      <p>The standalone zip is the app, no DAW required. Same Gatekeeper story on Mac. Linux wants the usual system ALSA, FreeType, fontconfig, and X11 libraries.</p>
+      <div class="dl-row" data-kind="standalone" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows
+        </a>
+        <a class="download os" data-os="linux" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#linux"></use></svg>
+          Linux
+        </a>
+        <a class="download os" data-os="mac" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#apple"></use></svg>
+          macOS
+        </a>
+      </div>
+    </div>
+    <img class="dl-logo" src="logo.png" alt="" width="96" height="96">
+  </dialog>
+
+  <script src="icons.js"></script>
   <script type="module" src="fx.js"></script>
   <script src="site.js"></script>
 </body>
