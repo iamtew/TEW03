@@ -140,9 +140,9 @@ main.landing {
 }
 
 .hero-panel {
-  background: var(--knob);
+  background: rgba(26, 26, 26, 0.6);
   border: 2px solid var(--yellow);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 1.6rem 1.4rem 1.4rem;
 }
 
@@ -225,20 +225,61 @@ blockquote footer {
   gap: 1.4rem;
   align-items: center;
   margin-top: 1.6rem;
-  background: var(--knob);
+  background: rgba(26, 26, 26, 0.6);
   border: 2px solid var(--yellow);
-  border-radius: 4px;
+  border-radius: 10px;
   padding: 1.2rem;
 }
 
 .feature:nth-of-type(even) { direction: rtl; }
 .feature:nth-of-type(even) > * { direction: ltr; }
 
+.shot-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
 .shot {
   display: block;
   width: 100%;
   border-radius: 4px;
   border: 1px solid var(--lane);
+}
+
+.shot-dialog {
+  position: fixed;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: calc(100vw - 3rem);
+  max-height: calc(100vh - 3rem);
+}
+
+.shot-dialog[open] { animation: dl-in 0.22s ease; }
+
+.shot-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.shot-dialog img {
+  display: block;
+  max-width: calc(100vw - 3rem);
+  max-height: calc(100vh - 3rem);
+  border-radius: 4px;
+}
+
+.brand-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.15rem;
+  font-weight: 700;
 }
 
 .lfos { font-weight: 700; margin: 0.6rem 0; }
@@ -302,7 +343,7 @@ strong { color: var(--yellow); }
 
 .dl-logo {
   display: block;
-  width: 96px;
+  width: 192px;
   height: auto;
   margin: 1.2rem auto 0;
 }

@@ -39,6 +39,24 @@ if (dialog) {
   });
 }
 
+const shot = document.getElementById("shot");
+const shotImg = document.getElementById("shot-full");
+if (shot && shotImg) {
+  document.querySelectorAll("[data-shot]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      shotImg.src = btn.getAttribute("data-shot");
+      shotImg.alt = btn.getAttribute("data-shot-alt") || "";
+      shot.showModal();
+    });
+  });
+  document.querySelectorAll("[data-shot-close]").forEach((btn) => {
+    btn.addEventListener("click", () => shot.close());
+  });
+  shot.addEventListener("click", (event) => {
+    if (event.target !== shotImg) shot.close();
+  });
+}
+
 // TEW03-<ver>-{win|linux|mac}-{arch}-{installer|vst3|standalone}.{zip|msi}
 const FILE = /-(win|linux|mac)-[^-]+-(installer|vst3|standalone)(?:\.zip|\.msi)$/i;
 const box = dialog;

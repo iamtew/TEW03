@@ -85,7 +85,9 @@
           <li><strong>Pattern</strong> — hold a key to trigger a pattern.</li>
         </ul>
       </div>
-      <img class="shot" src="screenshot1.png" alt="Main page: synth, sequencer, and LFOs">
+      <button type="button" class="shot-open" data-shot="screenshot1.png" data-shot-alt="Main page: synth, sequencer, and LFOs">
+        <img class="shot" src="screenshot1.png" alt="Main page: synth, sequencer, and LFOs">
+      </button>
     </section>
 
     <section id="effects" class="feature">
@@ -93,7 +95,9 @@
         <h2>Effects</h2>
         <p>Chorus, compressor, delay, distortion, EQ, filter, flanger, phaser, reverb. Click to add one, drag to reorder the chain. Everything starts off, so you are not fighting a surprise wash of reverb on a dry acid line.</p>
       </div>
-      <img class="shot" src="screenshot2.png" alt="Effects page">
+      <button type="button" class="shot-open" data-shot="screenshot2.png" data-shot-alt="Effects page">
+        <img class="shot" src="screenshot2.png" alt="Effects page">
+      </button>
     </section>
 
     <section id="eq" class="feature">
@@ -101,7 +105,9 @@
         <h2>EQ</h2>
         <p>Five-band parametric before the effects and another five after. The spectrum sits behind the curve so you can see what is leaving the chain while you nudge a band.</p>
       </div>
-      <img class="shot" src="screenshot3.png" alt="EQ page">
+      <button type="button" class="shot-open" data-shot="screenshot3.png" data-shot-alt="EQ page">
+        <img class="shot" src="screenshot3.png" alt="EQ page">
+      </button>
     </section>
   </main>
 
@@ -153,7 +159,14 @@
         </a>
       </div>
     </div>
-    <img class="dl-logo" src="logo.png" alt="" width="96" height="96">
+    <img class="dl-logo" src="logo.png" alt="" width="192" height="192">
+  </dialog>
+
+  <dialog id="shot" class="shot-dialog">
+    <button type="button" class="dl-close" data-shot-close aria-label="Close">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg>
+    </button>
+    <img id="shot-full" alt="">
   </dialog>
 
   <script src="icons.js"></script>
