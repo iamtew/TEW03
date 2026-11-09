@@ -104,9 +104,9 @@ function tewScene(PIXI) {
 
       notes.clear();
       for (const b of blocks) {
-        b.x -= 90 * dt;
-        if (b.x < -120) {
-          b.x = w + rand(0, w * 0.6);
+        b.x += 90 * dt;
+        if (b.x > w + 120) {
+          b.x = -rand(0, w * 0.6);
           b.row = Math.floor(rand(0, ROWS));
           b.red = Math.random() < 0.45;
         }
