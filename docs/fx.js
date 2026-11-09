@@ -97,7 +97,7 @@ function tewScene(PIXI) {
       grid.clear();
       for (let r = 0; r <= ROWS; r++) grid.moveTo(0, top + r * rowH).lineTo(w, top + r * rowH);
       const step = 64, off = (t * 90) % step;
-      for (let x = -off; x < w; x += step) grid.moveTo(x, top).lineTo(x, top + ROWS * rowH);
+      for (let x = off - step; x < w; x += step) grid.moveTo(x, top).lineTo(x, top + ROWS * rowH);
       grid.stroke({ width: 1, color: C.tewYellow, alpha: 0.07 });
       grid.moveTo(head, top).lineTo(head, top + ROWS * rowH);
       grid.stroke({ width: 2, color: C.tewRed, alpha: 0.35 });
@@ -118,14 +118,14 @@ function tewScene(PIXI) {
       }
 
       wave.clear();
-      const cut = 0.5 + 0.5 * Math.sin(t * 0.8);
-      const period = 240 + 60 * Math.sin(t * 0.23);
+      const cut = 0.45 + 0.12 * Math.sin(t * 0.18);
+      const period = 260;
       const amp = h * 0.16, cy = h * 0.55, scroll = t * 140;
       const main = [], echo = [];
       for (let x = -10; x <= w + 10; x += 5) {
-        const ph = (((x + scroll) / period) % 1 + 1) % 1;
+        const ph = (((x - scroll) / period) % 1 + 1) % 1;
         const saw = 1 - 2 * ph;
-        const ring = Math.exp(-ph * (7 - 5 * cut)) * Math.sin(ph * (18 + 40 * cut) * Math.PI);
+        const ring = Math.exp(-ph * (7 - 5 * cut)) * Math.sin(ph * (20 + 8 * cut) * Math.PI);
         main.push(x, cy + amp * (saw * (0.35 + 0.4 * cut) + ring * 0.7));
         const ph2 = (ph + 0.5) % 1;
         echo.push(x, cy + amp * 0.6 * ((1 - 2 * ph2) * 0.5 + Math.exp(-ph2 * 5) * Math.sin(ph2 * 30 * Math.PI) * 0.5));
