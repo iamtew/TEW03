@@ -16,12 +16,14 @@ GitHub: `https://github.com/iamtew/<name>`. Pages: `https://iamtew.github.io/<na
 ## Repos
 
 - Stupid-Audio — product-line site — `~/src/Stupid-Audio`
-- TEW03 — plugin — `~/src/TEW03`
-- K1X — plugin — `~/src/K1X`
-- SNR3 — plugin — `~/src/SNR3`
-- 5HKR — plugin — `~/src/5HKR`
-- V4JB — plugin — `~/src/V4JB`
-- F4RT — plugin — `~/src/F4RT`
+- TEW03 — instrument plugin — `~/src/TEW03`
+- K1X — instrument plugin — `~/src/K1X`
+- SNR3 — instrument plugin — `~/src/SNR3`
+- 5HKR — instrument plugin — `~/src/5HKR`
+- V4JB — instrument plugin — `~/src/V4JB`
+- F4RT — instrument plugin — `~/src/F4RT`
+- fN0B — effects plugin — `~/src/fN0B`
+- fR3Z0 — effects plugin — `~/src/fR3Z0`
 
 Roles only. No feature copy here.
 
