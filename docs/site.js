@@ -80,3 +80,66 @@ if (box) {
     })
     .catch(() => {});
 }
+
+// Native <audio> progress ignores accent-color. Skin it; controls stay if JS is off.
+const fmtTime = (sec) => {
+  if (!isFinite(sec) || sec < 0) return "0:00";
+  const s = Math.floor(sec);
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+};
+
+document.querySelectorAll(".demo audio").forEach((audio) => {
+  const player = document.createElement("div");
+  player.className = "player";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.setAttribute("aria-label", "Play");
+  btn.textContent = "▶";
+  const bar = document.createElement("input");
+  bar.type = "range";
+  bar.min = "0";
+  bar.max = "0";
+  bar.step = "any";
+  bar.value = "0";
+  bar.setAttribute("aria-label", "Seek");
+  const time = document.createElement("span");
+  time.className = "player-time";
+  time.textContent = "0:00";
+  audio.classList.add("skinned");
+  audio.removeAttribute("controls");
+  audio.before(player);
+  player.append(btn, bar, time);
+
+  const stamp = () => {
+    time.textContent = fmtTime(audio.currentTime) + " / " + fmtTime(audio.duration);
+    if (!isFinite(audio.duration) || audio.duration <= 0) return;
+    bar.max = String(audio.duration);
+    if (document.activeElement !== bar) bar.value = String(audio.currentTime);
+  };
+
+  btn.addEventListener("click", () => {
+    if (audio.paused) {
+      document.querySelectorAll(".demo audio").forEach((other) => {
+        if (other !== audio) other.pause();
+      });
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  });
+  audio.addEventListener("play", () => {
+    btn.textContent = "❚❚";
+    btn.setAttribute("aria-label", "Pause");
+  });
+  audio.addEventListener("pause", () => {
+    btn.textContent = "▶";
+    btn.setAttribute("aria-label", "Play");
+  });
+  audio.addEventListener("timeupdate", stamp);
+  audio.addEventListener("loadedmetadata", stamp);
+  bar.addEventListener("input", () => {
+    audio.currentTime = Number(bar.value);
+    stamp();
+  });
+  stamp();
+});

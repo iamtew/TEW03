@@ -11,6 +11,7 @@
   --knob: #1a1a1a;
   --lane: #2a2a2a;
   --yellow: #e8c200;
+  --accent: var(--yellow);
   --yellow-dim: #c9a400;
   --cream: #f4ead0;
   --lfo1: #3dcc8c;
@@ -202,9 +203,95 @@ blockquote footer {
   margin: 1rem 0;
 }
 
-.demo { margin: 0; flex: 1 1 16rem; }
+.demo { margin: 0; flex: 1 1 16rem; position: relative; }
 .demo a { display: block; font-size: 0.95rem; margin-bottom: 0.25rem; font-weight: 700; }
-.demo audio { width: 100%; display: block; }
+
+.demo audio {
+  width: 100%;
+  display: block;
+  height: 2.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color-scheme: dark;
+  accent-color: var(--accent);
+  overflow: hidden;
+}
+
+/* Chromium paints a pill enclosure inside <audio>; flatten it so one radius shows. */
+.demo audio::-webkit-media-controls,
+.demo audio::-webkit-media-controls-enclosure,
+.demo audio::-webkit-media-controls-panel {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+
+.demo audio::-webkit-media-controls-timeline {
+  accent-color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 22%, #000);
+  border-radius: 2px;
+}
+
+.demo audio::-moz-range-progress {
+  background-color: var(--accent);
+}
+
+.demo audio.skinned {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.player button {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.player button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.player input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 0.4rem;
+  accent-color: var(--accent);
+  background: transparent;
+}
+
+.player-time {
+  flex: 0 0 auto;
+  min-width: 7.5ch;
+  color: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 
 .actions {
   display: flex;
