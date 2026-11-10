@@ -6,10 +6,16 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
 const pointer = { x: 0.5, y: 0.5 };
-addEventListener('pointermove', (e) => {
-  pointer.x = e.clientX / innerWidth;
-  pointer.y = e.clientY / innerHeight;
-}, { passive: true });
+// ?fx / ?fx=true keeps only the canvas. ?fx=false / 0 / off stays a normal page.
+const fxRaw = new URLSearchParams(location.search).get('fx');
+const fxOnly = fxRaw !== null && !/^(0|false|off)$/i.test(fxRaw);
+if (fxOnly) document.body.classList.add('fx-only');
+if (!fxOnly) {
+  addEventListener('pointermove', (e) => {
+    pointer.x = e.clientX / innerWidth;
+    pointer.y = e.clientY / innerHeight;
+  }, { passive: true });
+}
 
 start().catch((err) => {
   console.info('fx: animated backdrop disabled:', err?.message || err);
@@ -53,8 +59,11 @@ function bootTicker(app, scene) {
     t += dt;
     const { width: w, height: h } = app.screen;
     const ease = Math.min(1, dt * 2.5);
-    scene.root.x += ((0.5 - pointer.x) * 40 - scene.root.x) * ease;
-    scene.root.y += ((0.5 - pointer.y) * 24 - scene.root.y) * ease;
+    // Preview mode is full-bleed, so there is no page to parallax against.
+    if (!fxOnly) {
+      scene.root.x += ((0.5 - pointer.x) * 40 - scene.root.x) * ease;
+      scene.root.y += ((0.5 - pointer.y) * 24 - scene.root.y) * ease;
+    }
     scene.update(t, w, h, dt);
   });
 

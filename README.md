@@ -12,6 +12,8 @@
 
 VST3 and standalone. Audio Unit on macOS. Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [https://iamtew.github.io/TEW03/docs.html](https://iamtew.github.io/TEW03/docs.html).
 
+Add `?fx` to any page to preview the backdrop full screen with the page chrome hidden; `?fx=false` keeps the normal page.
+
 ## Release
 
 Windows, Linux, and macOS files come from GitHub Actions (`.github/workflows/dist.yml`). Run it from the Actions tab for artifacts only, or push a numeric tag such as `0.0.6` (no `v` prefix) to build and publish a GitHub Release with the files attached. `<version>` is the `version` in `TEW03.jucer`.
