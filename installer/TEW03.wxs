@@ -12,6 +12,8 @@
     <MediaTemplate EmbedCab="yes" />
 
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
 
     <Icon Id="Tew03Icon" SourceFile="!(bindpath.Icon)icon.ico" />
     <Property Id="ARPPRODUCTICON" Value="Tew03Icon" />
