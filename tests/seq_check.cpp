@@ -547,6 +547,18 @@ int main()
     assert (gev[2].on && gev[2].note == 40);
     assert (std::abs (gev[2].offset - (int) std::ceil (straight)) <= 1);
 
+    Sequencer gate8;
+    gate8.prepare (44100.0);
+    gate8.loadAll (gateSteps);
+    gate8.setGroove (0.5f, 0.f);
+    gate8.setGrid (8);
+    SeqEvent gev8[8];
+    const int gn8 = gate8.advance (12000, 120.f, true, gev8, 8);
+    assert (gn8 == 3);
+    assert (gev8[0].on && gev8[0].note == 36 && gev8[0].offset == 0);
+    assert (! gev8[1].on && gev8[1].note == 36);
+    assert (std::abs (gev8[1].offset - (int) std::ceil (straight * 2.0 * 0.5)) <= 1);
+
     Sequencer::Step slideSteps[Sequencer::maxSteps];
     for (int i = 0; i < Sequencer::maxSteps; ++i)
         slideSteps[i] = { -1, false, false };

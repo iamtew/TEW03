@@ -14,7 +14,7 @@
 # Sequencer Notes
 - Classic 303-style step sequencer (monophonic)
 - Per step: pitch, accent flag, slide/tie flag
-- Last step 1–16 (1–32 with 2x). Clock grid is 2x, not “length == 32”.
+- Last step 1–16 (1–32 when note length is 32). Clock grid is 32/16/8/4, not “length == 32”.
 - Must generate clean note-on / note-off with correct timing
 - Host BPM while the transport reports one. Grid Sync (off by default) also locks to host PPQ; otherwise free-run from step 0 on Run/trigger
 - Accent and slide must be applied both to the internal voice and reflected in the MIDI Output events where possible
