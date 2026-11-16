@@ -217,6 +217,11 @@ float TEW03AudioProcessor::tempoBpm() const
     return host > 0.f ? host : raw (ParamID::seqTempo);
 }
 
+int TEW03AudioProcessor::seqNoteLen() const
+{
+    return tew::Sequencer::gridFromChoice (juce::roundToInt (raw (ParamID::seqNoteLen)));
+}
+
 double TEW03AudioProcessor::hostPpqIfPlaying() const
 {
     if (wrapperType == juce::AudioProcessor::wrapperType_Standalone)
@@ -263,11 +268,11 @@ void TEW03AudioProcessor::loadLiveFromSlot()
 {
     const int bank = currentBank();
     const int pat = currentPattern();
-    const bool doubled = raw (ParamID::seq2x) >= 0.5f;
+    const int grid = seqNoteLen();
     sequencer.loadPacked (slotPacked (bank, pat));
-    sequencer.setGrid (doubled);
+    sequencer.setGrid (grid);
     const int len = tew::Sequencer::clampLength (
-        patternLen[bank][pat].load (std::memory_order_relaxed), doubled);
+        patternLen[bank][pat].load (std::memory_order_relaxed), grid == 32);
     patternLen[bank][pat].store (len, std::memory_order_relaxed);
     sequencer.setLength (len);
 }
@@ -414,7 +419,7 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // Wheel still works while the sequencer owns the notes.
     tew::MidiHandler::applyPitchBend (midi, engine.getVoice());
 
-    sequencer.setGrid (raw (ParamID::seq2x) >= 0.5f);
+    sequencer.setGrid (seqNoteLen());
     sequencer.setGroove (raw (ParamID::seqGate), raw (ParamID::seqSwing));
     sequencer.setKeyFilter (raw (ParamID::seqKeyLock) >= 0.5f,
                             juce::roundToInt (raw (ParamID::seqKey)),
@@ -949,7 +954,7 @@ void TEW03AudioProcessor::setPatternStep (int index, tew::Sequencer::Step step)
 
 void TEW03AudioProcessor::setCurrentLength (int n)
 {
-    sequencer.setGrid (raw (ParamID::seq2x) >= 0.5f);
+    sequencer.setGrid (seqNoteLen());
     sequencer.setLength (n);
     const int len = sequencer.length();
     const int bank = currentBank();
@@ -1011,9 +1016,11 @@ void TEW03AudioProcessor::randomizeCurrentPattern()
     applyCurrentPattern (out);
 }
 
-void TEW03AudioProcessor::syncSeqLength (bool doubled)
+void TEW03AudioProcessor::syncSeqLength()
 {
-    sequencer.reshapeTo (doubled ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);
+    const int grid = seqNoteLen();
+    sequencer.reshapeTo (grid == 32 ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps);
+    sequencer.setGrid (grid);
     storeLiveToSlot();
     const int bank = currentBank();
     const int pat = currentPattern();
@@ -1093,7 +1100,7 @@ void TEW03AudioProcessor::applyBankSteps (const tew::Sequencer::Step src[tew::Se
                                                                       [tew::Sequencer::maxSteps],
                                          const int srcLen[tew::Sequencer::numBanks][tew::Sequencer::patternsPerBank])
 {
-    const bool doubled = raw (ParamID::seq2x) >= 0.5f;
+    const bool doubled = seqNoteLen() == 32;
     for (int b = 0; b < tew::Sequencer::numBanks; ++b)
         for (int p = 0; p < tew::Sequencer::patternsPerBank; ++p)
         {
@@ -1118,8 +1125,14 @@ void TEW03AudioProcessor::applyPatchParams (const std::vector<tew::PatchParam>& 
         param->setValueNotifyingHost (param->getDefaultValue());
         param->endChangeGesture();
     }
+    bool sawNoteLen = false;
+    bool old2x = false;
     for (const auto& p : params)
     {
+        if (p.id == "seqNoteLen")
+            sawNoteLen = true;
+        if (p.id == "seq2x")
+            old2x = p.value >= 0.5f;
         auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (p.id));
         if (param == nullptr || ! tew::storeInPatch (p.id.c_str()))
             continue;
@@ -1127,7 +1140,14 @@ void TEW03AudioProcessor::applyPatchParams (const std::vector<tew::PatchParam>& 
         param->setValueNotifyingHost (param->convertTo0to1 (p.value));
         param->endChangeGesture();
     }
-    syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
+    if (! sawNoteLen && old2x)
+        if (auto* param = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (ParamID::seqNoteLen)))
+        {
+            param->beginChangeGesture();
+            param->setValueNotifyingHost (param->convertTo0to1 (0.f));
+            param->endChangeGesture();
+        }
+    syncSeqLength();
 }
 
 std::vector<tew::PatchParam> TEW03AudioProcessor::currentPatchParams() const
@@ -1157,7 +1177,7 @@ void TEW03AudioProcessor::initPatch()
         param->setValueNotifyingHost (param->getDefaultValue());
         param->endChangeGesture();
     }
-    syncSeqLength (raw (ParamID::seq2x) >= 0.5f);
+    syncSeqLength();
     resetLfoShapes();
     apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
     apvts.state.setProperty (kPatchCat, {}, nullptr);

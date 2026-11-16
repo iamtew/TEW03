@@ -55,7 +55,8 @@ public:
     void randomizeCurrentPattern();
     void applyCurrentPattern (const tew::Sequencer::Step src[tew::Sequencer::maxSteps]);
     bool hasPatternClip() const { return patternClipValid; }
-    void syncSeqLength (bool doubled);
+    void syncSeqLength();
+    int seqNoteLen() const;
     void selectSlot (int bank, int pat);
     int currentBank() const { return curBank.load (std::memory_order_relaxed); }
     int currentPattern() const { return curPattern.load (std::memory_order_relaxed); }

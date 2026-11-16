@@ -30,7 +30,7 @@ struct SeqEvent
 struct Sequencer
 {
     static constexpr int numSteps = 16;  // default loop length (16ths)
-    static constexpr int maxSteps = 32;  // 2x splits each 16th into two 32nds
+    static constexpr int maxSteps = 32;  // 32nd grid splits each 16th into two cells
     static constexpr int restCode = 255; // packed note byte for a rest
     static constexpr int numBanks = 3;
     static constexpr int patternsPerBank = 12;
@@ -120,6 +120,23 @@ struct Sequencer
         }
         for (int i = numSteps; i < maxSteps; ++i)
             out[i] = { -1, false, false };
+    }
+
+    // Choice index 0..3 → 32 / 16 / 8 / 4. Anything else is 16ths.
+    static int gridFromChoice (int index)
+    {
+        switch (index)
+        {
+            case 0:  return 32;
+            case 2:  return 8;
+            case 3:  return 4;
+            default: return 16;
+        }
+    }
+
+    static int clampGrid (int n)
+    {
+        return n == 32 || n == 8 || n == 4 ? n : 16;
     }
 
     static int clampLength (int n, bool doubled)
@@ -273,38 +290,40 @@ struct Sequencer
 
     // Audio thread only. Gate is the hold fraction of a non-slide step (1 = full).
     // Swing delays offbeats: downbeats (even index) last (1+swing), odd steps (1-swing).
-    // 2x uses that same grid, so swing lands on 32nds.
+    // 32nd grid uses that same index pairing, so swing lands on 32nds.
     void setGroove (float gate01, float swing01)
     {
         gateHold = std::clamp (gate01, 0.1f, 1.f);
         swingAmt = std::clamp (swing01, 0.f, 0.6f);
     }
 
-    // 16th vs 32nd duration. Does not change the note grid; reshapeTo does that.
-    void setGrid (bool doubled)
+    // Step duration: 32 / 16 / 8 / 4. Does not change the note grid; reshapeTo does that.
+    void setGrid (int noteLen)
     {
-        grid32.store (doubled, std::memory_order_relaxed);
+        gridNote.store (clampGrid (noteLen), std::memory_order_relaxed);
         setLength (lengthSteps.load (std::memory_order_relaxed));
     }
 
-    // Loop length only. Clamped to the current grid (1–16, or 1–32 when 2x).
+    // Loop length only. Clamped to the current grid (1–16, or 1–32 when 32nds).
     void setLength (int n)
     {
-        const int len = clampLength (n, grid32.load (std::memory_order_relaxed));
+        const int len = clampLength (n, gridNote.load (std::memory_order_relaxed) == 32);
         lengthSteps.store (len, std::memory_order_relaxed);
         if (step >= len)
             step %= len;
     }
 
     // 16→32: each cell becomes two 32nds of the same note (tied). 32→16: take the pair.
-    // Last step doubles or halves with the grid.
+    // Last step doubles or halves with the grid. 8 and 4 keep 16 columns.
     void reshapeTo (int n)
     {
         const bool want32 = n >= maxSteps;
-        bool have32 = grid32.load (std::memory_order_relaxed);
+        int haveGrid = gridNote.load (std::memory_order_relaxed);
+        const bool have32 = haveGrid == 32;
         if (want32 == have32)
             return;
-        if (! grid32.compare_exchange_strong (have32, want32, std::memory_order_relaxed))
+        const int next = want32 ? 32 : 16;
+        if (! gridNote.compare_exchange_strong (haveGrid, next, std::memory_order_relaxed))
             return;
 
         const int oldLen = lengthSteps.load (std::memory_order_relaxed);
@@ -367,8 +386,8 @@ struct Sequencer
         // Knob range is 40-300. Host tempos can sit outside that, so only reject nonsense.
         bpm = std::clamp (bpm, 1.f, 999.f);
         const int len = std::max (1, lengthSteps.load (std::memory_order_relaxed));
-        // 16th grid, or 32nds when 2x. Floor of 1 sample so a bad rate cannot spin.
-        const double perBeat = grid32.load (std::memory_order_relaxed) ? 8.0 : 4.0;
+        // Steps per quarter: noteLen / 4 (8, 4, 2, 1). Floor of 1 sample so a bad rate cannot spin.
+        const double perBeat = (double) clampGrid (gridNote.load (std::memory_order_relaxed)) / 4.0;
         double stepSamples = sampleRate * 60.0 / (double) bpm / perBeat;
         if (stepSamples < 1.0)
             stepSamples = 1.0;
@@ -580,7 +599,7 @@ private:
 
     std::atomic<uint32_t> packed[maxSteps] {};
     std::atomic<int> lengthSteps { numSteps };
-    std::atomic<bool> grid32 { false };
+    std::atomic<int> gridNote { 16 };
     std::atomic<int> playheadIndex { -1 };
     std::atomic<bool> keyLock { false };
     std::atomic<int> keyRoot { 0 };
