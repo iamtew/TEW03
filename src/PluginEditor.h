@@ -307,7 +307,8 @@ private:
     ShiftButton shiftUpBtn { "Up" };
     ShiftButton shiftDnBtn { "Dn" };
     juce::ToggleButton runBtn { "Run" };
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt;
+    juce::ToggleButton gridSyncBtn { "Grid Sync" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt, gridSyncAtt;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar, lenBar;
     VolumeStrip volumeStrip { *this };

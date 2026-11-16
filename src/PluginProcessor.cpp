@@ -480,8 +480,9 @@ void TEW03AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     }
 
     tew::SeqEvent events[kMaxEvents];
+    const double hostPpq = raw (ParamID::seqGridSync) >= 0.5f ? hostPpqIfPlaying() : -1.0;
     const int nEvents = sequencer.advance (numSamples, bpm, true, events, kMaxEvents,
-                                           hostPpqIfPlaying());
+                                           hostPpq);
 
     int rendered = 0;
     for (int i = 0; i < nEvents; ++i)

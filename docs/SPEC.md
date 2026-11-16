@@ -39,7 +39,7 @@ Classic 303-style monophonic step sequencer.
 - Last step 1–16 (1–32 with 2x). 2x splits each step in half, global. Unused steps stay stored.
 - Per-step: note, accent, slide/tie (second click is super slide)
 - Play modes: Keyboard (MIDI → voice), Standalone (loop selected slot; hidden in DAW UI), Pattern (hold C1–B3 to play the mapped slot)
-- Tempo sync with host transport when available (BPM + PPQ lock while playing); free-running fallback
+- Tempo sync with host BPM when available; optional Grid Sync (PPQ lock while playing); free-running fallback
 - Sequencer drives the internal Voice **and** emits MIDI Output (accent = velocity 127, otherwise 100) so the DAW can record the pattern, or another plugin can play it
 
 ## LFOs

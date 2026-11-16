@@ -18,6 +18,7 @@ namespace ParamID
     inline constexpr const char* seqGate     = "seqGate";
     inline constexpr const char* seqSwing    = "seqSwing";
     inline constexpr const char* seqPlay     = "seqPlay";
+    inline constexpr const char* seqGridSync = "seqGridSync";
     inline constexpr const char* playMode    = "playMode";
     inline constexpr const char* seqTempo    = "seqTempo";
     inline constexpr const char* seq2x       = "seq2x";

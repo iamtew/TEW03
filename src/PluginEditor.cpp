@@ -388,6 +388,7 @@ juce::String uiLabel (const juce::String& id)
     if (id == ParamID::seqGate)     return "Gate";
     if (id == ParamID::seqSwing)    return "Swing";
     if (id == ParamID::seqPlay)     return "Run";
+    if (id == ParamID::seqGridSync) return "Grid Sync";
     if (id == ParamID::playMode)    return "Play";
     if (id == ParamID::seqTempo)    return "Tempo";
     return id;
@@ -1966,6 +1967,13 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     runAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         proc.apvts, ParamID::seqPlay, runBtn);
 
+    gridSyncBtn.setClickingTogglesState (true);
+    gridSyncBtn.setComponentID ("led");
+    gridSyncBtn.setTooltip ("Lock the sequencer to the DAW playhead. Off: BPM only, start from step 1 on note/run.");
+    content.addAndMakeVisible (gridSyncBtn);
+    gridSyncAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        proc.apvts, ParamID::seqGridSync, gridSyncBtn);
+
     x2Btn.setClickingTogglesState (true);
     x2Btn.setTooltip ("Split each step in half (32nds)");
     content.addAndMakeVisible (x2Btn);
@@ -2248,9 +2256,12 @@ void TEW03AudioProcessorEditor::layoutContent()
     if (seqCells.size() >= 3)
     {
         auto playRow = seq.removeFromTop (36);
-        auto run = playRow.removeFromLeft (68);
+        auto run = playRow.removeFromLeft (52);
         run.removeFromTop (kLabelH);
         runBtn.setBounds (run.reduced (2, 2));
+        auto grid = playRow.removeFromLeft (88);
+        grid.removeFromTop (kLabelH);
+        gridSyncBtn.setBounds (grid.reduced (2, 2));
         seqCells[0]->setBounds (playRow);
         auto row = seq;
         const int cols = juce::jmax (1, seqCells.size() - 1);
@@ -2788,6 +2799,7 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (shiftUpBtn);
     vis (shiftDnBtn);
     vis (runBtn);
+    vis (gridSyncBtn);
     vis (patBar);
     const bool showLfo = editorPage != 2;
     for (auto* lane : lfoLanes)

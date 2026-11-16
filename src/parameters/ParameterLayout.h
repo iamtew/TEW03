@@ -96,6 +96,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                             == AudioProcessor::wrapperType_Standalone;
     layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqPlay, 1 },
                                                        "Run", ! standalone));
+    layout.add (std::make_unique<AudioParameterBool> (ParameterID { ParamID::seqGridSync, 1 },
+                                                       "Grid Sync", false));
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::playMode, 1 },
                                                          "Play",
                                                          StringArray { "Keyboard", "Standalone", "Pattern" },

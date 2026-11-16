@@ -31,7 +31,7 @@ Play modes (`playMode`):
 - Keyboard: host MIDI notes play the voice. Run still clocks the sequencer for MIDI out and the playhead (in a DAW, host must also be playing).
 - Standalone: loops the selected bank/pattern when Run is on. Follows host transport in a DAW. Hidden from the Play combo in a DAW (index still 1).
 - Pattern: MIDI C1–B3 (24–59) maps chromatically onto the 3×12 bank. Hold plays that slot while Run is on; note-off of the current key stops. Unmapped notes are ignored. Uses host BPM when present, does not require host `isPlaying`.
-- Host playing + PPQ: sequencer snaps to that position (loop/locate). Pattern with the transport stopped free-runs.
+- Grid Sync on + host playing: sequencer snaps to host PPQ (loop/locate). Off (default): BPM only, start at step 0. Pattern with the transport stopped still free-runs.
 - Factory defaults: standalone app = Standalone + Run off; DAW = Pattern + Run on. Both LFO Sync on.
 
 Pattern bank:
