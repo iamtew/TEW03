@@ -259,8 +259,7 @@ struct RollGeom
 
 int gridSteps (TEW03AudioProcessor& proc)
 {
-    return proc.apvts.getRawParameterValue (ParamID::seq2x)->load() >= 0.5f
-         ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps;
+    return proc.seqNoteLen() == 32 ? tew::Sequencer::maxSteps : tew::Sequencer::numSteps;
 }
 
 RollGeom makeGeom (juce::Rectangle<int> bounds, int rows, int cols)
@@ -1974,14 +1973,19 @@ TEW03AudioProcessorEditor::TEW03AudioProcessorEditor (TEW03AudioProcessor& p)
     gridSyncAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         proc.apvts, ParamID::seqGridSync, gridSyncBtn);
 
-    x2Btn.setClickingTogglesState (true);
-    x2Btn.setTooltip ("Split each step in half (32nds)");
-    content.addAndMakeVisible (x2Btn);
-    x2Att = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
-        proc.apvts, ParamID::seq2x, x2Btn);
-    x2Btn.onClick = [this]
+    noteLenBox.addItem ("32", 1);
+    noteLenBox.addItem ("16", 2);
+    noteLenBox.addItem ("8", 3);
+    noteLenBox.addItem ("4", 4);
+    noteLenBox.setColour (juce::ComboBox::textColourId, kCream);
+    noteLenBox.setColour (juce::ComboBox::arrowColourId, kCream);
+    noteLenBox.setTooltip ("Note length. 32 is the old 2x split. 8 and 4 hold the gate longer.");
+    content.addAndMakeVisible (noteLenBox);
+    noteLenAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::seqNoteLen, noteLenBox);
+    noteLenBox.onChange = [this]
     {
-        proc.syncSeqLength (x2Btn.getToggleState());
+        proc.syncSeqLength();
         for (int i = 0; i < steps.size(); ++i)
             steps[i]->syncFrom (proc);
         lastLen = -1;
@@ -2237,7 +2241,7 @@ void TEW03AudioProcessorEditor::layoutContent()
     shiftDnBtn.setBounds (lock.removeFromLeft (32).reduced (0, 1));
     clearBtn.setBounds (lock.removeFromRight (56).reduced (0, 1));
     randomBtn.setBounds (lock.removeFromRight (68).reduced (0, 1));
-    x2Btn.setBounds (lock.removeFromRight (44).reduced (0, 1));
+    noteLenBox.setBounds (lock.removeFromRight (56).reduced (0, 1));
     lenBar.setBounds (lock.removeFromRight (64).reduced (1, 1));
 
     const int clusterW = 36 + 48 + 28 + 88;
@@ -2792,7 +2796,7 @@ void TEW03AudioProcessorEditor::applyPageVisibility()
     vis (keyBox);
     vis (scaleBox);
     vis (bankBox);
-    vis (x2Btn);
+    vis (noteLenBox);
     vis (lenBar);
     vis (randomBtn);
     vis (clearBtn);

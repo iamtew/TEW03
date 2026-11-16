@@ -286,9 +286,8 @@ private:
     int baseW = 0, baseH = 0;   // unscaled size
     juce::TooltipWindow tooltipWindow { this };
     juce::Label keyLabel, scaleLabel, bankLabel, patternLabel;
-    juce::ComboBox keyBox, scaleBox, bankBox;
+    juce::ComboBox keyBox, scaleBox, bankBox, noteLenBox;
     juce::ToggleButton lockBtn { "Lock" };
-    juce::ToggleButton x2Btn { "2x" };
     juce::ToggleButton randomBtn { "Random" };
     juce::ToggleButton clearBtn { "Clear" };
 
@@ -308,8 +307,8 @@ private:
     ShiftButton shiftDnBtn { "Dn" };
     juce::ToggleButton runBtn { "Run" };
     juce::ToggleButton gridSyncBtn { "Grid Sync" };
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> x2Att, runAtt, lockAtt, gridSyncAtt;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> runAtt, lockAtt, gridSyncAtt;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> bankAtt, keyAtt, scaleAtt, noteLenAtt;
     SlotBar patchBar, bankLibBar, patBar, pageBar, lenBar;
     VolumeStrip volumeStrip { *this };
     AboutBox aboutBox;
